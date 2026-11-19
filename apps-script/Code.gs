@@ -960,11 +960,16 @@ function attendCtx_(fresh) {
   try { cache.put('attendCtx', JSON.stringify(ctx), 600); cache.put('attendCtxAt', String(Date.now()), 600); } catch (e) {}
   return ctx;
 }
-// 시트 쓰기는 가끔 일시 오류가 난다 → 짧게 쉬고 다시
+// 출석 한 줄 쓰기. 여러 명이 같은 순간에 appendRow를 하면 서로 덮어써서 줄이 사라진다(부하 테스트로 확인)
+// → 잠금으로 한 번에 한 줄씩만 쓰고, 일시 오류는 짧게 쉬고 다시
 function appendRetry_(name, row) {
-  var err;
+  var lock = LockService.getScriptLock(), err;
   for (var i = 0; i < 4; i++) {
-    try { sheet_(name).appendRow(row); return; } catch (e) { err = e; Utilities.sleep(250 + Math.floor(Math.random() * 500) + i * 400); }
+    try {
+      lock.waitLock(25000);
+      try { sheet_(name).appendRow(row); SpreadsheetApp.flush(); } finally { lock.releaseLock(); }
+      return;
+    } catch (e) { err = e; Utilities.sleep(250 + Math.floor(Math.random() * 500) + i * 400); }
   }
   throw err;
 }
