@@ -13,6 +13,7 @@
   var GROUPS = {
     guide: { name: '연수 안내', en: 'Course Guide', tabs: [['guide', '연수 개요'], ['schedule', '일정·시간표'], ['access', '접속 안내']] },
     attend: { name: '출석체크', en: 'Attendance', tabs: [] },
+    materials: { name: '연수자료', en: 'Course Materials', tabs: [] },
     talk: { name: '공지·FAQ', en: 'Notice & FAQ', tabs: [['notice', '공지사항'], ['faq', '자주 묻는 질문']] },
     board: { name: '게시판', en: 'Q&A · Refund', tabs: [['qna', 'Q&A'], ['refund', '환불 요청']] },
     self: { name: '셀프 서비스', en: 'Self Service', tabs: [['request', '셀프 신청'], ['info', '이수정보 입력'], ['status', '내 현황 조회']] }
@@ -24,6 +25,7 @@
     notice: { g: 'talk', t: '공지사항', r: renderNotice },
     faq: { g: 'talk', t: '자주 묻는 질문', r: renderFaq },
     attend: { g: 'attend', t: '출석체크', r: renderAttend },
+    materials: { g: 'materials', t: '연수자료', r: renderMaterials },
     qna: { g: 'board', t: 'Q&A', r: function (v) { renderBoard(v, 'Q&A'); } },
     refund: { g: 'board', t: '환불 요청', r: function (v) { renderBoard(v, '환불요청'); } },
     request: { g: 'self', t: '셀프 신청', r: renderRequest },
@@ -170,7 +172,7 @@
           (l.kakao ? '<a class="btn line" style="height:40px;padding:0 18px" href="' + esc(l.kakao) + '" target="_blank" rel="noopener"><i class="xi-kakaotalk"></i>오픈채팅</a>' : '') +
           '</td></tr>';
       }).join('') +
-      (C.padlet ? '<tr><th>질문 게시판</th><td><a class="btn line" style="height:40px;padding:0 18px" href="' + esc(C.padlet) + '" target="_blank" rel="noopener">패들렛 열기</a></td></tr>' : '') +
+      ('<tr><th>연수자료</th><td><a class="btn line" style="height:40px;padding:0 18px" href="#/materials">연수자료 보기</a></td></tr>' + '') +
       '</table><h3 class="sec">출석이 인정되려면</h3><div class="box"><ul style="margin:0;padding-left:20px">' +
       '<li>연수 당일 <a href="#/attend" style="text-decoration:underline"><b>출석체크</b></a>에서 출석하고 강의실에 들어가, 끝날 때 <b>퇴실체크</b>까지 눌러 주세요. 둘 다 있어야 그날 출석이 인정돼요.</li>' +
       '<li>Zoom 이름은 <b>기수_성명</b>(예: 1기_홍길동)으로 바꿔 주세요.</li>' +
@@ -599,6 +601,162 @@
     return d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6);
   }
 
+  // ───────── 연수자료: 수강생 확인 → 차시별 자료 덱 ─────────
+  function hashParam(k) { var q = (location.hash.split('?')[1] || '').split('&'); for (var i = 0; i < q.length; i++) { var p = q[i].split('='); if (p[0] === k) return decodeURIComponent(p[1] || ''); } return ''; }
+  function embedUrl(u) {
+    var m;
+    if ((m = u.match(/docs\.google\.com\/presentation\/d\/([\w-]+)/))) return 'https://docs.google.com/presentation/d/' + m[1] + '/embed?start=false&loop=false';
+    if ((m = u.match(/docs\.google\.com\/(document|spreadsheets)\/d\/([\w-]+)/))) return 'https://docs.google.com/' + m[1] + '/d/' + m[2] + '/preview';
+    if ((m = u.match(/drive\.google\.com\/file\/d\/([\w-]+)/)) || (m = u.match(/drive\.google\.com\/open\?id=([\w-]+)/))) return 'https://drive.google.com/file/d/' + m[1] + '/preview';
+    if ((m = u.match(/canva\.com\/design\/([\w-]+)\/([\w-]+)/))) return 'https://www.canva.com/design/' + m[1] + '/' + m[2] + '/view?embed';
+    if ((m = u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([\w-]{6,})/))) return 'https://www.youtube.com/embed/' + m[1];
+    if ((m = u.match(/gamma\.app\/(?:docs|public)\/([\w-]+)/))) return 'https://gamma.app/embed/' + m[1];
+    if (/\.pdf(\?|$)/i.test(u) || /github\.io|dumokquoka\.com/.test(u)) return u;
+    return '';
+  }
+  var KIND_ICON = { '슬라이드': 'xi-presentation', '문서': 'xi-document', '영상': 'xi-youtube-play', 'PDF·파일': 'xi-file-text-o', '링크': 'xi-link' };
+  function renderMaterials(v) {
+    if (hashParam('upload')) return renderUpload(v);
+    var me = loadMe() || {};
+    v.innerHTML = '<div class="narrow"><p class="lead-note">연수자료는 <b>수강생만</b> 볼 수 있어요. 출석체크와 같은 이름·휴대폰으로 확인해요.</p>' +
+      '<form class="form" id="mtForm" novalidate>' +
+      field('성명', true, '<input type="text" name="name" autocomplete="name" placeholder="연수 신청할 때 쓴 이름" value="' + esc(me.name || '') + '">', 'name') +
+      field('휴대폰', true, '<input type="tel" name="phone" inputmode="numeric" autocomplete="tel" placeholder="010-0000-0000" value="' + esc(me.phone || '') + '">', 'phone') +
+      '<label class="remember"><input type="checkbox" id="mtRemember"' + (me.name ? ' checked' : '') + '> 이 기기에 기억하기</label>' +
+      '<div class="actions"><button type="submit" class="btn navy big"><i class="xi-lock-open"></i>자료 열기</button></div></form>' +
+      '<p class="note" style="margin-top:20px">강사님이신가요? <a href="#/materials?upload=1" style="text-decoration:underline">강의 자료 올리기</a></p></div><div id="mtOut"></div>';
+    var f = $('#mtForm'); autoPhone(f.phone);
+    function open(d, btn) {
+      var done = function (res) { saveMe($('#mtRemember') && $('#mtRemember').checked ? { name: d.name, phone: d.phone } : loadMe()); drawDecks(res); };
+      if (btn) submit(btn, 'materials', d, done, function (msg) { $('#mtOut').innerHTML = '<div class="result fail"><i class="xi-error-o"></i><h4>자료를 열지 못했어요</h4><p class="note">' + esc(msg) + '</p></div>'; });
+      else api('materials', d).then(function (res) { if (res.ok) done(res); });
+    }
+    f.onsubmit = function (e) {
+      e.preventDefault(); clearErrs(f);
+      var d = { name: f.name.value.replace(/\s/g, ''), phone: normPhone(f.phone.value) }, bad = false;
+      if (d.name.length < 2) bad = setErr(f, 'name', '성명을 입력해 주세요.') || true;
+      if (!d.phone) bad = setErr(f, 'phone', '010-0000-0000 형식으로 입력해 주세요.') || true;
+      if (bad) return focusErr(f);
+      open(d, $('button[type=submit]', f));
+    };
+    if (me.name && me.phone) open({ name: me.name, phone: me.phone });
+  }
+  function drawDecks(res) {
+    var v = $('#view'), items = res.items || [];
+    var groups = [], by = {};
+    items.forEach(function (x) { var g = x.session || '공통 자료'; if (!by[g]) { by[g] = []; groups.push(g); } by[g].push(x); });
+    var sched = (C.schedule || []).filter(function (s) { return s.term === res.term; });
+    var when = function (g) { var s = sched.filter(function (x) { return g.indexOf(x.title) >= 0 || x.title.indexOf(g) >= 0; })[0]; return s ? s.date.slice(5).replace('-', '.') + ' (' + s.dow + ') ' + s.start + '~' + s.end : ''; };
+    v.innerHTML = '<div class="mt-head"><div><b>' + esc(res.term) + '</b> 수강생 확인됨 · 자료 ' + items.length + '개</div><button class="btn line sm" id="mtOff">다른 사람으로 보기</button></div>' +
+      (items.length ? groups.map(function (g) {
+        return '<section class="mt-group"><h3>' + esc(g) + (when(g) ? '<small>' + esc(when(g)) + '</small>' : '') + '</h3><div class="deck-grid">' + by[g].map(function (x, i) {
+          var idx = items.indexOf(x);
+          return '<button class="deck" data-i="' + idx + '"><span class="deck-cover k' + (idx % 4) + '"><i class="' + (KIND_ICON[x.kind] || 'xi-link') + '"></i><em>' + esc(x.kind || '자료') + '</em></span><span class="deck-body"><b>' + esc(x.title) + '</b><small>' + esc(x.who) + '</small>' + (x.desc ? '<span>' + esc(x.desc) + '</span>' : '') + '</span></button>';
+        }).join('') + '</div></section>';
+      }).join('') : '<div class="result"><i class="xi-folder-open"></i><h4>아직 공개된 자료가 없어요</h4><p class="note">강사님 자료가 올라오면 이곳에 차시별로 보여요.</p></div>');
+    $('#mtOff').onclick = function () { saveMe(null); renderMaterials(v); };
+    $$('.deck', v).forEach(function (b) { b.onclick = function () { viewer(items[+b.dataset.i]); }; });
+  }
+  function viewer(x) {
+    var src = embedUrl(x.link);
+    var el = document.createElement('div'); el.className = 'viewer';
+    el.innerHTML = '<div class="viewer-bar"><b>' + esc(x.title) + '</b><span>' + esc(x.who) + '</span><a class="btn line sm" href="' + esc(x.link) + '" target="_blank" rel="noopener"><i class="xi-external-link"></i>새 창</a><button class="btn navy sm" id="vClose">닫기</button></div>' +
+      (src ? '<div class="viewer-frame"><iframe src="' + esc(src) + '" allowfullscreen allow="fullscreen; autoplay" loading="lazy"></iframe></div>' : '<div class="viewer-frame empty"><p>이 자료는 사이트 안에서 미리 보기가 안 돼요.</p><a class="btn navy big" href="' + esc(x.link) + '" target="_blank" rel="noopener">새 창으로 열기</a></div>');
+    document.body.appendChild(el); document.body.style.overflow = 'hidden';
+    var close = function () { el.remove(); document.body.style.overflow = ''; document.removeEventListener('keydown', esc1); };
+    var esc1 = function (e) { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', esc1);
+    $('#vClose', el).onclick = close;
+  }
+  function renderUpload(v) {
+    var titles = []; (C.schedule || []).forEach(function (s) { if (titles.indexOf(s.title) < 0) titles.push(s.title); });
+    v.innerHTML = '<div class="narrow"><p class="lead-note">강사님 전용이에요. 자료 <b>공유 링크</b>를 올려 주시면 운영팀 확인 후 <b>수강생에게만</b> 공개돼요.</p>' +
+      '<form class="form" id="upForm" novalidate>' +
+      field('강사용 코드', true, '<input type="text" name="code" placeholder="운영팀이 보내 드린 코드">', 'code') +
+      field('강사명', true, '<input type="text" name="who" placeholder="예: 홍길동">', 'who') +
+      field('차시', true, '<select name="session">' + titles.map(function (t, i) { return '<option value="' + esc(t) + '" data-o="' + (i + 1) + '">' + esc(t) + '</option>'; }).join('') + '<option value="공통 자료" data-o="99">공통 자료</option></select>', 'session') +
+      field('자료 제목', true, '<input type="text" name="title" placeholder="예: 연구 주제 선정 실습 슬라이드">', 'title') +
+      field('공유 링크', true, '<input type="url" name="link" placeholder="https://docs.google.com/presentation/…">', 'link', '구글 슬라이드·드라이브·Canva·유튜브 링크는 사이트 안에서 바로 열려요. 공유는 \'링크가 있는 모든 사용자(뷰어)\'로 해 주세요.') +
+      field('설명 (선택)', false, '<input type="text" name="desc" placeholder="한 줄 소개">', 'desc') +
+      '<div class="actions"><button type="submit" class="btn navy big">자료 올리기</button></div></form><div id="upOut"></div></div>';
+    var f = $('#upForm');
+    f.onsubmit = function (e) {
+      e.preventDefault(); clearErrs(f);
+      var o = f.session.options[f.session.selectedIndex];
+      var d = { code: f.code.value.trim(), who: f.who.value.trim(), session: f.session.value, order: o ? o.dataset.o : 99, title: f.title.value.trim(), link: f.link.value.trim(), desc: f.desc.value.trim() }, bad = false;
+      ['code', 'who', 'title'].forEach(function (k) { if (!d[k]) bad = setErr(f, k, '입력해 주세요.') || true; });
+      if (!/^https:\/\/\S+$/.test(d.link)) bad = setErr(f, 'link', 'https:// 로 시작하는 링크를 넣어 주세요.') || true;
+      if (bad) return focusErr(f);
+      submit($('button[type=submit]', f), 'materialUpload', d, function () {
+        $('#upOut').innerHTML = '<div class="result"><i class="xi-check-circle-o"></i><h4>올렸어요. 고맙습니다!</h4><p class="note">운영팀이 확인하면 수강생 연수자료에 공개돼요. 자료를 더 올리려면 제목과 링크만 바꿔 다시 눌러 주세요.</p></div>';
+        f.title.value = ''; f.link.value = ''; f.desc.value = '';
+      });
+    };
+  }
+
+  // ───────── 쿼카 챗봇: FAQ 검색형 (API 키·비용 없음) ─────────
+  var BOT_ROUTES = [[/셀프 신청|수강취소|현금영수증 수정/, '#/request', '셀프 신청'], [/환불 요청/, '#/refund', '환불 요청'], [/Q&A/, '#/qna', 'Q&A 게시판'], [/내 현황/, '#/status', '내 현황 조회'], [/출석체크/, '#/attend', '출석체크'], [/연수자료/, '#/materials', '연수자료'], [/이수정보/, '#/info', '이수정보 입력'], [/일정·시간표/, '#/schedule', '일정·시간표'], [/접속 안내/, '#/access', '접속 안내']];
+  var BOT_CHIPS = ['출석은 어떻게 해요?', '환불은 언제 돼요?', '기수 바꿀 수 있어요?', '이수 기준이 뭐예요?', '납입증명서', '강의 자료'];
+  var botOpen = false;
+  function botNorm(s) { return String(s || '').toLowerCase().replace(/[^0-9a-z가-힣]/g, ''); }
+  var BOT_SB = '어디 디서 어떻 떻게 나요 하나 있나 싶어 해요 돼요 되나 하면 는데 에서 으로 할수 수있 언제'.split(' ');
+  var BOT_STOP = '요나있수어해게는은이가을를에도할하좀돼되고면데서와과의로까지어떻게뭐예언제디서받보싶';
+  function botGrams(s) { var n = botNorm(s), g = {}; for (var i = 0; i < n.length - 1; i++) { var k = n.substr(i, 2); if (BOT_SB.indexOf(k) < 0) g[k] = 1; } return g; }
+  function botSylls(s) { var g = {}; botNorm(s).split('').forEach(function (c) { if (BOT_STOP.indexOf(c) < 0) g[c] = 1; }); return g; }
+  function botSearch(q) {
+    var qg = Object.keys(botGrams(q)), qs = Object.keys(botSylls(q)), qn = botNorm(q);
+    if (!qg.length && !qs.length) return [];
+    return (C.faq || []).map(function (f) {
+      var t = f.q + ' ' + (f.kw || '') + ' ' + f.cat, tg = botGrams(t), ts = botSylls(t), ag = botGrams(f.a), h = 0, ah = 0, sh = 0;
+      qg.forEach(function (k) { if (tg[k]) h++; else if (ag[k]) ah++; });
+      qs.forEach(function (c) { if (ts[c]) sh++; });
+      var kwb = String(f.kw || '').split(/\s+/).filter(function (k) { return k.length > 1 && qn.indexOf(botNorm(k)) >= 0; }).length;
+      return { f: f, s: (qg.length ? (h + 0.25 * ah) / qg.length : 0) * 0.6 + (qs.length ? sh / qs.length : 0) * 0.4 + 0.3 * kwb };
+    }).filter(function (x) { return x.s >= 0.5; }).sort(function (a, b) { return b.s - a.s; });
+  }
+  function botInit() {
+    if ($('#qbotBtn')) return;
+    var btn = document.createElement('button'); btn.id = 'qbotBtn'; btn.className = 'qbot-btn'; btn.setAttribute('aria-label', '쿼카에게 물어보기');
+    btn.innerHTML = '<span class="qbot-face">' + (window.QK ? window.QK('cheer') : '') + '</span><span class="qbot-label">쿼카에게 물어보기</span>';
+    var panel = document.createElement('section'); panel.id = 'qbot'; panel.className = 'qbot'; panel.hidden = true;
+    panel.innerHTML = '<header><span class="qbot-face sm">' + (window.QK ? window.QK('people') : '') + '</span><div><b>쿼카 도우미</b><small>자주 묻는 질문에 바로 답해요</small></div><button id="qbotX" aria-label="닫기">×</button></header>' +
+      '<div class="qbot-log" id="qbotLog"></div><div class="qbot-chips" id="qbotChips"></div>' +
+      '<form id="qbotForm"><input id="qbotIn" autocomplete="off" placeholder="궁금한 걸 적어 주세요" maxlength="120"><button aria-label="보내기"><i class="xi-arrow-up"></i></button></form>';
+    document.body.appendChild(btn); document.body.appendChild(panel);
+    btn.onclick = function () { botOpen = !botOpen; panel.hidden = !botOpen; btn.classList.toggle('on', botOpen); if (botOpen) { if (!$('#qbotLog').children.length) botHello(); $('#qbotIn').focus(); } };
+    $('#qbotX').onclick = function () { botOpen = false; panel.hidden = true; btn.classList.remove('on'); };
+    $('#qbotForm').onsubmit = function (e) { e.preventDefault(); var q = $('#qbotIn').value.trim(); if (!q) return; $('#qbotIn').value = ''; botAsk(q); };
+  }
+  function botSay(html, who) {
+    var log = $('#qbotLog'), d = document.createElement('div');
+    d.className = 'qbot-msg ' + (who || 'bot'); d.innerHTML = html; log.appendChild(d); log.scrollTop = log.scrollHeight;
+  }
+  function botChips(list) {
+    $('#qbotChips').innerHTML = list.map(function (c) { return '<button>' + esc(c) + '</button>'; }).join('');
+    $$('#qbotChips button').forEach(function (b) { b.onclick = function () { botAsk(b.textContent); }; });
+  }
+  function botHello() {
+    botSay('안녕하세요, 쿼카예요 : )<br>출석, 환불, 이수, 자료처럼 자주 묻는 것은 바로 답해 드려요. 개인 기록 확인이 필요한 일은 게시판으로 안내할게요.');
+    botChips(BOT_CHIPS);
+  }
+  function botAsk(q) {
+    botSay(esc(q), 'me');
+    loadContent().then(function () {
+      var r = botSearch(q);
+      var personal = /(제\s|저는|저의|제가|내\s|확인\s?(해|좀)|누락|오류|틀렸|안\s?(돼|되|나와)|처리\s?해)/.test(q);
+      if (!r.length) {
+        botSay('음… 이건 제가 정확히 모르는 질문이에요. 잘못 안내하면 안 되니까 <b>Q&A 게시판</b>에 남겨 주세요. 운영팀이 직접 답해 드려요.' +
+          '<div class="qbot-acts"><a href="#/qna?w=1">Q&A 글쓰기</a><a href="#/refund?w=1">환불 요청</a></div>');
+        botChips(BOT_CHIPS.slice(0, 4)); return;
+      }
+      var top = r[0].f, acts = [];
+      BOT_ROUTES.forEach(function (x) { if (acts.length < 2 && x[0].test(top.a)) acts.push('<a href="' + x[1] + '">' + esc(x[2]) + '</a>'); });
+      if (personal && acts.join('').indexOf('#/qna') < 0) acts.push('<a href="#/qna?w=1">내 경우 문의하기</a>');
+      botSay('<b>' + esc(top.q) + '</b><br>' + linkify(top.a) + (acts.length ? '<div class="qbot-acts">' + acts.join('') + '</div>' : ''));
+      botChips(r.slice(1, 4).map(function (x) { return x.f.q; }).concat(r.length < 2 ? BOT_CHIPS.slice(0, 3) : []));
+    });
+  }
+
   // ───────── 미리보기(예시 데이터) ─────────
   function demoApi(action, data) {
     var wait = function (x) { return new Promise(function (r) { setTimeout(function () { r(x); }, 350); }); };
@@ -642,6 +800,15 @@
       var t = new Date(), hm = ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2);
       return wait(data.kind === 'in' ? { ok: true, kind: 'in', time: hm, term: '1기', date: t.toISOString().slice(0, 10), start: '09:00', end: '15:00', zoom: 'https://zoom.us/', late: 0, test: true } : { ok: true, kind: 'out', time: hm, test: true });
     }
+    if (action === 'materials') {
+      if (!data.name || !data.phone) return wait({ ok: false, error: '성명과 휴대폰을 입력해 주세요.' });
+      return wait({ ok: true, term: '1기', items: [
+        { order: 1, session: '연구하는 교사의 길', who: '박성춘 교수님', title: '연구하는 교사의 길 (강의 슬라이드)', kind: '슬라이드', link: 'https://docs.google.com/presentation/d/EXAMPLE/edit', desc: '1일차 여는 강의' },
+        { order: 2, session: '디지털교육 연구대회의 실제', who: '이대형', title: '디지털교육 연구대회 보고서 구조', kind: 'PDF·파일', link: 'https://example.com/sample.pdf', desc: '' },
+        { order: 5, session: '연구 주제 선정 (실습)', who: '김햇살', title: '연구 주제 선정 워크시트', kind: '문서', link: 'https://docs.google.com/document/d/EXAMPLE/edit', desc: '실습 시간에 같이 써요' },
+        { order: 5, session: '연구 주제 선정 (실습)', who: '김햇살', title: '실습 안내 영상', kind: '영상', link: 'https://youtu.be/dQw4w9WgXcQ', desc: '' }] });
+    }
+    if (action === 'materialUpload') return wait(data.code === 'quoka' ? { ok: true } : { ok: false, error: '강사용 코드가 맞지 않아요. (미리보기 코드: quoka)' });
     if (action === 'boardList') {
       return wait({ ok: true, items: data.board === '환불요청'
         ? [{ no: 'F0002', title: '환불 요청', pub: false, author: '김*늘', at: '2027-01-14', state: '연수원 전달' }, { no: 'F0001', title: '환불 요청', pub: false, author: '이*', at: '2027-01-10', state: '환불 완료' }]
@@ -676,4 +843,5 @@
   $('#menuBtn').onclick = function () { $('#gnb').classList.toggle('open'); };
   window.addEventListener('hashchange', route);
   route();
+  botInit();
 })();

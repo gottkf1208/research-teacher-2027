@@ -309,3 +309,55 @@ h3.sec::before { content: ""; width: 6px; height: 22px; background: var(--navy);
   .cert, .cert * { visibility: visible; }
   .cert { position: absolute; left: 0; top: 0; margin: 0; border: 0; width: 100%; max-width: none; }
 }
+
+/* 연수자료 */
+.lead-note { background: var(--bg-soft, #f5f6f8); padding: 14px 18px; margin: 0 0 20px; font-size: 15px; }
+.mt-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 18px; border: 1px solid #e3e5ea; background: #fff; margin-bottom: 8px; }
+.mt-group { margin-top: 28px; }
+.mt-group h3 { font-size: 19px; margin: 0 0 12px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.mt-group h3 small { font-size: 13px; color: #777; font-weight: 400; }
+.deck-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.deck { display: flex; flex-direction: column; text-align: left; border: 1px solid #e3e5ea; background: #fff; padding: 0; cursor: pointer; transition: transform .15s, box-shadow .15s; font: inherit; color: inherit; }
+.deck:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,24,113,.12); }
+.deck-cover { aspect-ratio: 16/9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #fff; }
+.deck-cover i { font-size: 34px; } .deck-cover em { font-style: normal; font-size: 12px; font-weight: 700; letter-spacing: .04em; opacity: .9; }
+.deck-cover.k0 { background: linear-gradient(135deg, #001871, #0075C8); } .deck-cover.k1 { background: linear-gradient(135deg, #0E152D, #3a4a8c); }
+.deck-cover.k2 { background: linear-gradient(135deg, #0075C8, #19a7c9); } .deck-cover.k3 { background: linear-gradient(135deg, #8a5a2b, #d38f53); }
+.deck-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 4px; }
+.deck-body b { font-size: 16px; line-height: 1.4; } .deck-body small { color: #666; } .deck-body span { color: #444; font-size: 14px; }
+.viewer { position: fixed; inset: 0; z-index: 100; background: rgba(8,12,30,.92); display: flex; flex-direction: column; }
+.viewer-bar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: #fff; }
+.viewer-bar b { font-size: 16px; } .viewer-bar span { color: rgba(255,255,255,.7); font-size: 14px; flex: 1; }
+.viewer-bar .btn.line { color: #fff; border-color: rgba(255,255,255,.5); background: transparent; }
+.viewer-frame { flex: 1; padding: 0 16px 16px; display: flex; }
+.viewer-frame iframe { flex: 1; border: 0; background: #fff; width: 100%; }
+.viewer-frame.empty { flex-direction: column; align-items: center; justify-content: center; color: #fff; gap: 16px; }
+
+/* 쿼카 챗봇 */
+.qbot-btn { position: fixed; right: 22px; bottom: 22px; z-index: 60; display: flex; align-items: center; gap: 8px; height: 60px; padding: 0 20px 0 6px; border: 0; border-radius: 30px; background: var(--navy); color: #fff; font: inherit; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 10px 30px rgba(0,24,113,.3); }
+.qbot-btn.on .qbot-label { display: none; } .qbot-btn.on { padding: 0 6px; }
+.qbot-face { width: 48px; height: 48px; background: #fff; border-radius: 50%; display: block; padding: 3px; flex: none; }
+.qbot-face svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.qbot-face.sm { width: 40px; height: 40px; background: #f4ead9; }
+.qbot { position: fixed; right: 22px; bottom: 94px; z-index: 61; width: 370px; max-width: calc(100vw - 32px); height: 540px; max-height: calc(100vh - 120px); background: #fff; border: 1px solid #dfe2ea; box-shadow: 0 18px 50px rgba(0,0,0,.18); display: flex; flex-direction: column; }
+.qbot[hidden] { display: none; }
+.qbot header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--navy); color: #fff; }
+.qbot header div { flex: 1; } .qbot header b { display: block; } .qbot header small { opacity: .75; font-size: 12px; }
+.qbot header button { background: none; border: 0; color: #fff; font-size: 24px; cursor: pointer; line-height: 1; }
+.qbot-log { flex: 1; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #f6f7fb; }
+.qbot-msg { max-width: 86%; padding: 10px 13px; font-size: 14px; line-height: 1.6; border-radius: 14px; }
+.qbot-msg.bot { background: #fff; border: 1px solid #e3e5ea; border-top-left-radius: 4px; align-self: flex-start; }
+.qbot-msg.me { background: var(--navy); color: #fff; border-top-right-radius: 4px; align-self: flex-end; }
+.qbot-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.qbot-acts a { font-size: 13px; font-weight: 700; color: var(--navy); border: 1px solid var(--navy); padding: 3px 10px; border-radius: 14px; }
+.qbot-chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 12px; border-top: 1px solid #eee; }
+.qbot-chips button { flex: none; border: 1px solid #d6dae6; background: #fff; border-radius: 16px; padding: 5px 11px; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.qbot form { display: flex; gap: 6px; padding: 10px 12px; border-top: 1px solid #eee; }
+.qbot form input { flex: 1; height: 40px; border: 1px solid #d6dae6; padding: 0 12px; font: inherit; font-size: 14px; }
+.qbot form button { width: 40px; height: 40px; border: 0; background: var(--navy); color: #fff; cursor: pointer; font-size: 18px; }
+@media (max-width: 720px) {
+  .qbot-btn { right: 14px; bottom: 14px; height: 54px; } .qbot-btn .qbot-face { width: 42px; height: 42px; }
+  .qbot { right: 8px; left: 8px; width: auto; max-width: none; bottom: 78px; height: 70vh; }
+  .deck-grid { grid-template-columns: 1fr; }
+  .viewer-frame { padding: 0; }
+}

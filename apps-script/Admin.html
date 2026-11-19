@@ -84,6 +84,23 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .ops-more td { white-space: normal; background: #fafbff; font-size: 13px; line-height: 1.6; max-width: none; }
 .ops-more textarea { width: 100%; height: 56px; margin-top: 6px; }
 @media (max-width: 900px) { .ops-day { grid-template-columns: 1fr auto; } .ops-day .w { grid-column: 1 / -1; } }
+.mail-grid { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
+.mail-list { background: #fff; border: 1px solid var(--line); }
+.mail-list .g { padding: 8px 14px; font-size: 12px; font-weight: 800; color: var(--gray-2); background: var(--bg-soft); }
+.mail-list button { display: block; width: 100%; text-align: left; border: 0; border-top: 1px solid var(--line); background: #fff; padding: 10px 14px; cursor: pointer; font-size: 14px; }
+.mail-list button.on { background: #eef1fb; box-shadow: inset 3px 0 0 var(--navy); font-weight: 800; }
+.mail-list button small { display: block; color: var(--gray-2); font-size: 12px; font-weight: 400; margin-top: 2px; }
+.mail-list button .due { color: #b45309; font-weight: 700; }
+.mail-ed .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.mail-ed label { display: block; font-size: 12px; font-weight: 800; color: var(--gray-1); margin: 8px 0 4px; }
+.mail-ed input, .mail-ed select, .mail-ed textarea { width: 100%; }
+.mail-ed textarea#mBody { height: 380px; font-size: 14px; line-height: 1.65; }
+.mail-att { background: #fffbea; border: 1px solid #f3e1a0; padding: 10px 14px; font-size: 13px; margin: 10px 0; }
+.mail-att li { margin: 2px 0; }
+.mail-sum { background: #fff; border: 1px solid var(--line); padding: 14px 18px; margin-top: 10px; font-size: 14px; }
+.mail-sum h4 { margin: 10px 0 4px; font-size: 13px; color: var(--navy); } .mail-sum h4:first-child { margin-top: 0; }
+.mail-sum ul { margin: 0; padding-left: 18px; }
+@media (max-width: 900px) { .mail-grid { grid-template-columns: 1fr; } .mail-ed .row2 { grid-template-columns: 1fr; } }
 /* 모달 */
 .modal { position: fixed; inset: 0; background: rgba(14,21,45,.55); display: none; align-items: flex-start; justify-content: center; z-index: 50; padding: 40px 16px; overflow: auto; }
 .modal.open { display: flex; }
@@ -191,6 +208,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
     <div class="grp">운영</div>
     <button data-tab="dash">대시보드</button>
     <button data-tab="ops">운영 업무표 · D-day <span class="cnt" id="cntOps" hidden></span></button>
+    <button data-tab="mail">연수원 메일 봇</button>
     <button data-tab="apps">신청자 명단</button>
     <button data-tab="reqs">셀프신청 처리 <span class="cnt" id="cntReq" hidden></span></button>
     <button data-tab="check">이수정보 점검 <span class="cnt" id="cntChk" hidden></span></button>
@@ -202,6 +220,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
     <button data-tab="notice">공지사항</button>
     <button data-tab="faq">FAQ</button>
     <button data-tab="sched">연수 일정</button>
+    <button data-tab="mats">연수자료 <span class="cnt" id="cntMats" hidden></span></button>
     <div class="grp">강사</div>
     <button data-tab="tsched">강사 일정</button>
     <button data-tab="tinfo">강사 정보 (비공개)</button>
@@ -323,7 +342,7 @@ function tsv(rows) { return rows.map(function (r) { return r.map(function (v) { 
 // ───── 탭 ─────
 var TABS = {
   dash: renderDash, apps: function () { renderTable('신청자', '신청자 명단', '연수원 명단을 붙여넣어 가져오고, 한 줄씩 고칠 수 있어요.', ['기수', '성명', '연락처', '소속학교', '소속청', 'NEIS 번호', '생년월일', '입금일', '상태', '이수(Y/N)'], importBox); },
-  reqs: renderReqs, check: renderCheck, sms: renderSms, roster: renderRoster, attend: renderAttend, board: renderBoard, ops: renderOps,
+  reqs: renderReqs, check: renderCheck, sms: renderSms, roster: renderRoster, attend: renderAttend, board: renderBoard, ops: renderOps, mail: renderMail, mats: renderMats,
   notice: function () { renderTable('공지', '공지사항', '여기서 쓰면 연수생 사이트에 바로 보여요.', ['게시일', '제목', '상단고정(Y)', '공개(Y)']); },
   faq: function () { renderTable('FAQ', 'FAQ', '같은 문의가 두 번 오면 여기에 한 줄 추가하세요.', ['분류', '질문', '공개(Y)']); },
   sched: function () { renderTable('연수일정', '연수 일정', '날짜만 넣으면 요일은 자동이에요. 연수생 사이트 시간표에 바로 반영돼요.', ['기수', '날짜', '요일', '시작', '종료', '시간(h)', '내용', '강사']); },
@@ -350,6 +369,7 @@ function refreshBoot() {
     var r = $('#cntReq'); r.hidden = !b.pending; r.textContent = b.pending;
     var c = $('#cntChk'); c.hidden = !b.issues; c.textContent = b.issues;
     DUPS = b.dups || {};
+    var cm = $('#cntMats'); cm.hidden = !b.materialsPending; cm.textContent = b.materialsPending || '';
     var bp = (b.board || {}), bn = (bp.qna || 0) + (bp.refund || 0); var cb = $('#cntBoard'); cb.hidden = !bn; cb.textContent = bn;
     return b;
   });
@@ -754,6 +774,165 @@ function boardSms(r) {
   if (st === '환불 완료') return head + '환불 처리가 완료되었어요. 입금 내역을 확인해 주세요.\n이번에 함께하지 못해 아쉬워요. 다음에 꼭 만나요 : )';
   return head + '환불 요청(' + r['글번호'] + ')에 대한 답변을 남겼어요.\n' + site + ' > 게시판 > 환불 요청에서 확인해 주세요.';
 }
+// ───── 연수자료 ─────
+function renderMats() {
+  var code = (BOOT.settings || {})['강사자료코드'] || '';
+  renderTable('연수자료', '연수자료', '수강생은 사이트 연수자료 메뉴에서 이름+휴대폰 확인 후 사이트 안에서 바로 봐요. 강사님이 올린 자료는 공개(Y)가 N으로 들어와요. 확인하고 Y로 바꾸면 공개돼요.', ['순서', '기수', '차시', '강사', '제목', '종류', '공개(Y)', '올린사람'], function (el) {
+    var site = String((BOOT.settings || {})['사이트주소'] || '').replace(/\/$/, '');
+    el.innerHTML = '<div class="card" style="margin-bottom:14px;font-size:14px;line-height:1.7"><b>강사님께 보낼 안내</b> · 업로드 주소 <code>' + esc(site) + '/#/materials?upload=1</code> · 강사용 코드 <code>' + esc(code || '(설정에 강사자료코드를 넣으면 열려요)') + '</code>' +
+      ' <button class="btn line sm" id="mCopy">안내 문구 복사</button><br><span class="muted">구글 슬라이드·드라이브·Canva·유튜브 링크를 넣으면 사이트 안에서 바로 열려요. 공유 설정은 \'링크가 있는 모든 사용자 보기\'여야 해요. 링크 주소 자체는 확인된 수강생 화면에만 나와요.</span></div>';
+    $('#mCopy').onclick = function () {
+      copy('[연구하는 교사되기 2027] 강의 자료 올리기 안내\n\n아래 주소에서 자료 링크를 올려 주세요. 운영팀 확인 후 수강생에게만 공개돼요.\n' + site + '/#/materials?upload=1\n강사용 코드: ' + code + '\n\n· 구글 슬라이드/드라이브는 공유를 \'링크가 있는 모든 사용자(뷰어)\'로 바꿔 주세요.\n· 공개를 원하지 않는 자료는 올리지 않으셔도 돼요.').then(function () { toast('안내 문구를 복사했어요'); });
+    };
+  });
+}
+
+// ───── 연수원 메일 봇 ─────
+var MAIL_UI = { id: 'open', term: '', due: '', extra: {} };
+function addBizDays(n) { var d = new Date(Date.now() + 9 * 3600e3); while (n > 0) { d.setUTCDate(d.getUTCDate() + 1); var w = d.getUTCDay(); if (w && w < 6) n--; } return d.toISOString().slice(0, 10); }
+function koDate(s) { if (!s) return ''; var m = String(s).match(/(\d{4})-(\d{2})-(\d{2})/); if (!m) return s; var d = new Date(Date.UTC(+m[1], m[2] - 1, +m[3])); return (+m[2]) + '월 ' + (+m[3]) + '일(' + '일월화수목금토'[d.getUTCDay()] + ')'; }
+var MAIL_KINDS = [
+  { grp: '준비', id: 'open', task: 'T01', t: '개설 협조 · 역할 분담 확인', att: ['운영계획서(1기).hwpx', '운영계획서(2기).hwpx', '홍보용 계획서.hwpx', '포스터'],
+    s: function () { return '[연구하는 교사되기 2027] 직무연수 개설 협조 요청 및 운영 사항 확인'; },
+    b: function (c) { return '「연구하는 교사되기 2027」 직무연수(1기·2기) 개설 협조를 요청드리며, 운영계획서를 첨부합니다.\n\n■ 연수 개요\n· 1기: ' + c.period('1기') + '\n· 2기: ' + c.period('2기') + '\n· 기수별 15시간(3일, 13:00~18:00), 실시간 원격(Zoom)\n· 대상: 유·초·중·고 교원\n\n■ 확인 요청 사항\n1. 신청자 명단: 신청 마감 다음 날 1회, 아래 열 순서의 엑셀 파일로 제공\n   (신청일, NEIS 번호, 성명, 생년월일, 전공, 소속학교, 소속청, 연락처, 연수지명번호, 이메일)\n2. 결원 충원: 신청 시스템의 대기 순번대로 진행 (수기 추가 신청 없음)\n3. 기수 변경: 2027년에는 기수 변경을 받지 않습니다. 연수원으로 문의가 오면 같은 기준으로 안내 부탁드립니다.\n4. 소속교 협조 공문: 요청자에 한해 발급\n5. 제출 양식: 명단·이수생관리부 양식이 바뀌는 경우 연수 시작 30일 전까지 공유\n6. 처리 목표일\n' + c.goal('T04', '개설 승인') + c.goal('T05', '홍보 공문 발송') + c.goal('T22', '강사 위촉 협조 공문') + c.goal('T43', '협조경비 청구·NEIS 등재 요청') + '\n위 사항에 대해 수정이 필요한 부분이 있으면 회신 부탁드립니다.'; } },
+  { grp: '모집', id: 'promo', task: 'T05', t: '홍보 공문 발송 요청', att: ['홍보용 계획서.hwpx', '포스터'], fields: [['open', '수강 신청 시작일', '']],
+    s: function () { return '[연구하는 교사되기 2027] 홍보 공문 발송 요청'; },
+    b: function (c) { return '「연구하는 교사되기 2027」 1기·2기 홍보 공문을 한 번에 발송해 주시기를 요청드립니다.\n\n· 수강 신청 시작: ' + (c.x.open || '(입력)') + '\n· 1기: ' + c.period('1기') + ' / 2기: ' + c.period('2기') + '\n· 대상: 유·초·중·고 교원\n\n홍보용 계획서와 포스터를 첨부합니다. 발송 후 공문 번호를 알려 주시면 운영 사이트 공지에 함께 안내하겠습니다.'; } },
+  { grp: '모집', id: 'roster', task: 'T09', t: '신청자 명단 요청', att: [], term: true, fields: [['close', '신청 마감일', '']],
+    s: function (c) { return '[연구하는 교사되기 2027] ' + c.t + ' 신청자 명단 제공 요청'; },
+    b: function (c) { return c.t + ' 신청이 ' + (c.x.close || '(마감일)') + ' 마감되어, 신청자 명단 제공을 요청드립니다.\n\n· 형식: 엑셀 파일 1부\n· 열 순서: 신청일, NEIS 번호, 성명, 생년월일, 전공, 소속학교, 소속청, 연락처, 연수지명번호, 이메일\n· 대기자는 대기 순번을 함께 표시해 주시기 바랍니다.'; } },
+  { grp: '강사', id: 'tinstr', task: 'T21', t: '강사 위촉 자료 제출', att: ['위촉공문 수록 기본사항 표 (운영자 페이지 > 위촉공문 자료에서 복사)'],
+    s: function () { return '[연구하는 교사되기 2027] 강사 위촉 협조 공문용 자료 제출'; },
+    b: function (c) { return '강사 위촉(외부 출강·겸직) 협조 공문 작성에 필요한 자료를 제출합니다.\n\n■ 강사 일정\n' + c.instr() + '\n\n개인 식별 정보가 포함된 기본사항 표는 첨부 파일로 보냅니다. 공문 발송 예정일을 회신해 주시기 바랍니다.'; } },
+  { grp: '연수 전', id: 'confirmed', task: 'T27', t: '확정명단 제출', att: ['확정명단(엑셀)'], term: true,
+    s: function (c) { return '[연구하는 교사되기 2027] ' + c.t + ' 확정명단 제출'; },
+    b: function (c) { var n = c.n(c.t); return c.t + ' 확정명단을 제출합니다.\n\n· 확정 ' + n.신청 + '명 (대기 ' + n.대기 + '명, 취소 ' + n.취소 + '명 제외)\n· 연수 기간: ' + c.period(c.t) + '\n\n소속교 협조 공문은 요청자에 한해 발급하기로 한 사항에 따라, 요청자 명단은 별도로 보내겠습니다.'; } },
+  { grp: '연수 전', id: 'parking', task: 'T29', t: '강사 주차권 요청', att: [], fields: [['park', '일자별 주차권 매수', '']],
+    s: function () { return '[연구하는 교사되기 2027] 강사 주차권 요청'; },
+    b: function (c) { return '대면 출강 강사의 주차권 발급을 요청드립니다.\n\n' + (c.x.park || c.parkDefault()) + '\n\n수령 방법을 회신해 주시기 바랍니다.'; } },
+  { grp: '연수 후', id: 'completion', task: 'T43', t: '이수생관리부 제출', att: ['이수정보확인서 (운영자 페이지 > 이수생관리부)', '이수대장 (같은 화면)'], term: true,
+    s: function (c) { return '[연구하는 교사되기 2027] ' + c.t + ' 이수생관리부 제출'; },
+    b: function (c) { var n = c.n(c.t); return c.t + ' 연수(' + c.period(c.t) + ')를 마치고 이수생관리부를 제출합니다.\n\n· 이수 ' + n.Y + '명 / 미이수 ' + n.N + '명 (확정 ' + n.신청 + '명)\n· 첨부: 이수정보확인서, 이수대장 (연수원 표준양식 열 순서)\n\n이수 처리 완료 예정일과 NEIS 등재 요청 일정을 회신해 주시기 바랍니다.'; } },
+  { grp: '수시', id: 'refund', task: '', t: '환불 처리 요청', att: [], term: 'all',
+    s: function () { return '[연구하는 교사되기 2027] 수강 취소자 환불 처리 요청'; },
+    b: function (c) { var L = c.refunds(); return '아래 수강 취소자의 환불 처리를 요청드립니다. (운영팀 확인 완료 ' + L.length + '건)\n\n' + (L.length ? L.map(function (r, i) { return (i + 1) + '. ' + r.no + ' / ' + (r.term || '기수 미확인') + ' / ' + r.name + ' / ' + r.phone + ' / 사유: ' + (r.reason || '-') + ' / 요청일: ' + String(r.at).slice(0, 10); }).join('\n') : '(게시판에 \'검토 중\' 상태인 환불 요청이 없어요)') + '\n\n처리 결과(건별 환불 완료일)를 회신해 주시면 신청자에게 안내하겠습니다.'; } },
+  { grp: '수시', id: 'fix', task: '', t: '정정 요청', att: [], fields: [['who', '대상 (기수·성명)', ''], ['item', '정정 항목', ''], ['from', '현재 값', ''], ['to', '바른 값', '']],
+    s: function (c) { return '[연구하는 교사되기 2027] ' + (c.x.item || '정보') + ' 정정 요청'; },
+    b: function (c) { return '아래 정보의 정정을 요청드립니다.\n\n· 대상: ' + (c.x.who || '(입력)') + '\n· 항목: ' + (c.x.item || '(입력)') + '\n· 현재: ' + (c.x.from || '(입력)') + '\n· 정정: ' + (c.x.to || '(입력)') + '\n\n정정 후 반영 여부를 회신해 주시기 바랍니다.'; } },
+  { grp: '수시', id: 'ask', task: '', t: '질의', att: [], fields: [['q', '질의 내용 (한 줄에 하나)', 'area']],
+    s: function (c) { return '[연구하는 교사되기 2027] 운영 관련 질의'; },
+    b: function (c) { var q = String(c.x.q || '(질의 내용)').split('\n').filter(function (x) { return x.trim(); }); return '운영과 관련하여 아래 사항을 질의드립니다.\n\n' + q.map(function (x, i) { return (i + 1) + '. ' + x.trim(); }).join('\n'); } },
+  { grp: '수시', id: 'remind', task: '', t: '회신 재요청', att: [], fields: [['subj', '지난 메일 제목', ''], ['sent', '보낸 날짜', '']],
+    s: function (c) { return 'RE: ' + (c.x.subj || '[연구하는 교사되기 2027]') + ' (회신 재요청)'; },
+    b: function (c) { return (c.x.sent || '(날짜)') + '에 보낸 「' + (c.x.subj || '(제목)') + '」 건의 회신을 받지 못해 다시 요청드립니다.\n일정 진행을 위해 아래 기한까지 회신 부탁드립니다.'; } },
+  { grp: '마무리', id: 'wrap', task: 'T41', t: '만족도 결과 · NEIS 등재 확인', att: [],
+    s: function () { return '[연구하는 교사되기 2027] 만족도 조사 결과 및 NEIS 등재 일정 확인'; },
+    b: function (c) { return '1기·2기 연수 종료에 따라 아래 사항을 요청드립니다.\n\n1. 기수별 만족도 조사 결과 공유\n2. 연수협조경비 청구 절차와 일정\n3. NEIS 이수 등재 요청일 (수강생 문의 안내용)'; } },
+  { grp: '답장', id: 'reply', task: '', t: '회신에 답장', att: [], fields: [['subj', '받은 메일 제목', ''], ['ans', '답변 (한 줄에 하나)', 'area']],
+    s: function (c) { return 'RE: ' + (c.x.subj || ''); },
+    b: function (c) { var a = String(c.x.ans || '').split('\n').filter(function (x) { return x.trim(); }); return '보내 주신 메일 잘 받았습니다. 아래와 같이 회신드립니다.\n\n' + (a.length ? a.map(function (x, i) { return (i + 1) + '. ' + x.trim(); }).join('\n') : '1. (답변)'); } }
+];
+function mailCtxHelpers(ctx, k) {
+  var s = ctx.settings || {};
+  var c = { x: MAIL_UI.extra, t: MAIL_UI.term || ctx.terms[0] || '1기' };
+  c.period = function (t) { var p = String(s['연수기간_' + t] || '').split('~'); return p[0] ? koDate(p[0].trim()) + (p[1] ? ' ~ ' + koDate(p[1].trim()) : '') : '(미정)'; };
+  c.goal = function (id, label) { var d = (ctx.ops[id] || [])[0]; return '   · ' + label + ': ' + (d ? koDate(d.date) + '까지' : '(일정 협의)') + '\n'; };
+  c.n = function (t) { return ctx.by[t] || { 신청: 0, 대기: 0, 취소: 0, Y: 0, N: 0 }; };
+  c.instr = function () {
+    var seen = {}, out = [];
+    ctx.tsched.forEach(function (r) { if (!r.who || r.who === '미정') return; var key = r.who + r.date; if (seen[key]) return; seen[key] = 1; out.push('· ' + r.date + '(' + r.dow + ') ' + r.start + '~' + r.end + ' ' + r.term + ' / ' + r.who + (r.org ? '(' + r.org + ')' : '') + ' / ' + r.topic); });
+    var tbd = ctx.tsched.filter(function (r) { return r.who === '미정'; }).length;
+    return (out.join('\n') || '(강사 일정 표가 비어 있어요)') + (tbd ? '\n· 미정 ' + tbd + '개 차시는 확정되는 대로 추가 제출하겠습니다.' : '');
+  };
+  c.parkDefault = function () { var by = {}; ctx.tsched.forEach(function (r) { if (/대면/.test(r.note)) (by[r.date + '(' + r.dow + ')'] = by[r.date + '(' + r.dow + ')'] || []).push(r.who); }); var ks = Object.keys(by); return ks.length ? ks.map(function (d) { return '· ' + d + ': ' + by[d].length + '매 (' + by[d].join(', ') + ')'; }).join('\n') : '· (날짜): (매수)  ← 강사일정 비고에 \'대면\'을 적으면 자동으로 채워져요'; };
+  c.refunds = function () { return ctx.refunds.filter(function (r) { return k.term !== true || !MAIL_UI.term || r.term === MAIL_UI.term; }); };
+  return c;
+}
+function composeMail(ctx) {
+  var k = MAIL_KINDS.filter(function (x) { return x.id === MAIL_UI.id; })[0], s = ctx.settings || {};
+  var c = mailCtxHelpers(ctx, k);
+  var sign = s['메일서명'] || ((s['운영'] || '연구하는 교사되기 운영팀') + '\n' + (s['문의메일'] || ''));
+  var body = (s['연수원담당'] || '교육연수원 담당자') + '님께\n\n안녕하십니까. 「연구하는 교사되기 2027」 운영팀입니다.\n\n' + k.b(c) +
+    (MAIL_UI.due ? '\n\n회신은 ' + koDate(MAIL_UI.due) + '까지 부탁드립니다.' : '') + '\n\n감사합니다.\n\n' + sign;
+  return { k: k, subject: k.s(c), body: body };
+}
+function renderMail() {
+  run('mailCtx').then(function (ctx) {
+    if (!MAIL_UI.due) MAIL_UI.due = addBizDays(3);
+    var today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+    var sentKinds = {}; ctx.log.forEach(function (l) { if (l.dir === '보냄') sentKinds[l.kind] = l.at; });
+    var grpOrder = []; MAIL_KINDS.forEach(function (k) { if (grpOrder.indexOf(k.grp) < 0) grpOrder.push(k.grp); });
+    var dueOf = function (k) { var d = (ctx.ops[k.task] || [])[0]; return d ? d.date : ''; };
+    var s = ctx.settings || {};
+    $('#main').innerHTML = '<h2>연수원 메일 봇</h2><p class="sub">업무표 시점에 맞춰 연수원에 보낼 메일을 데이터까지 채워 만들어요. 감정 없이 사실·요청·기한만 담았어요. <b>보내기는 Gmail 작성 창에서 두목쿼카님이 직접 눌러야 나가요.</b></p>' +
+      '<div class="mail-grid"><div class="mail-list" id="mList">' + grpOrder.map(function (g) {
+        return '<div class="g">' + esc(g) + '</div>' + MAIL_KINDS.filter(function (k) { return k.grp === g; }).map(function (k) {
+          var d = dueOf(k), soon = d && dayDiff(today, d) <= 7 && !sentKinds[k.t];
+          return '<button data-k="' + k.id + '" class="' + (k.id === MAIL_UI.id ? 'on' : '') + '">' + esc(k.t) + '<small>' + (d ? '<span class="' + (soon ? 'due' : '') + '">' + esc(koDate(d)) + (soon ? ' · 이번 주' : '') + '</span>' : '수시') + (sentKinds[k.t] ? ' · 보냄 ' + esc(String(sentKinds[k.t]).slice(5, 10)) : '') + '</small></button>';
+        }).join('');
+      }).join('') + '</div>' +
+      '<div class="mail-ed card" id="mEd"></div></div>' +
+      '<h3 style="margin-top:28px">연수원 회신 정리</h3><div class="card"><p class="muted" style="margin:0 0 8px">받은 메일 본문을 붙여 넣으면 요청 사항·기한·첨부·질문을 뽑아요. (규칙 기반 자동 추출이라 원문도 꼭 같이 보세요)</p>' +
+      '<textarea id="rIn" rows="7" placeholder="연수원 회신 메일 본문을 여기에 붙여 넣기"></textarea><div class="toolbar" style="margin-top:8px"><button class="btn navy" id="rGo">정리하기</button><button class="btn line" id="rLog">받은 메일 기록</button><button class="btn line" id="rReply">이 메일에 답장 만들기</button></div><div id="rOut"></div></div>' +
+      '<h3 style="margin-top:28px">메일 기록</h3><div class="tbl-wrap" style="max-height:300px"><table class="tbl"><thead><tr><th>시각</th><th>구분</th><th>종류</th><th>제목</th></tr></thead><tbody>' +
+      (ctx.log.length ? ctx.log.map(function (l) { return '<tr><td>' + esc(l.at) + '</td><td>' + esc(l.dir) + '</td><td>' + esc(l.kind) + '</td><td>' + esc(l.subject) + '</td></tr>'; }).join('') : '<tr><td colspan="4" class="muted">아직 기록이 없어요.</td></tr>') + '</tbody></table></div>';
+    $$('#mList button').forEach(function (b) { b.onclick = function () { MAIL_UI.id = b.dataset.k; MAIL_UI.extra = {}; $$('#mList button').forEach(function (x) { x.classList.toggle('on', x === b); }); drawEd(); }; });
+    function drawEd() {
+      var k = MAIL_KINDS.filter(function (x) { return x.id === MAIL_UI.id; })[0];
+      if (k.term && !MAIL_UI.term) MAIL_UI.term = k.term === 'all' ? '' : ctx.terms[0];
+      var m = composeMail(ctx);
+      $('#mEd').innerHTML = '<div class="row2"><div><label>받는 사람 (연수원)</label><input id="mTo" value="' + esc(s['연수원메일'] || '') + '" placeholder="연수원 담당자 메일"></div><div><label>회신 기한</label><input type="date" id="mDue" value="' + esc(MAIL_UI.due) + '"></div></div>' +
+        (k.term ? '<label>기수</label><select id="mTerm">' + (k.term === 'all' ? '<option value="">전체</option>' : '') + ctx.terms.map(function (t) { return '<option' + (t === MAIL_UI.term ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' : '') +
+        (k.fields || []).map(function (f) { var v = MAIL_UI.extra[f[0]] || ''; return '<label>' + esc(f[1]) + '</label>' + (f[2] === 'area' ? '<textarea data-x="' + f[0] + '" rows="4">' + esc(v) + '</textarea>' : '<input data-x="' + f[0] + '" value="' + esc(v) + '">'); }).join('') +
+        '<label>제목</label><input id="mSubj" value="' + esc(m.subject) + '"><label>본문 (고쳐 써도 돼요)</label><textarea id="mBody">' + esc(m.body) + '</textarea>' +
+        (k.att.length ? '<div class="mail-att"><b>첨부할 파일</b> (Gmail 창에서 직접 붙여 주세요)<ul>' + k.att.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul></div>' : '') +
+        '<div class="toolbar" style="margin-top:10px"><button class="btn navy" id="mGmail">Gmail 작성 창 열기</button><button class="btn line" id="mCopy">본문 복사</button><button class="btn line" id="mSent">보냄 기록</button><span class="grow"></span><button class="btn line sm" id="mSaveTo">받는 사람 저장</button></div>' +
+        '<p class="muted" style="margin:6px 0 0">Gmail 창에서 받는 사람·첨부를 확인하고 보내기를 누른 뒤, 여기서 <b>보냄 기록</b>을 눌러 주세요.' + (k.id === 'refund' ? ' 보낸 뒤 게시판에서 해당 글을 \'연수원 전달\'로 바꾸면 신청자 안내 문자가 준비돼요.' : '') + '</p>';
+      var redraw = function () { var m2 = composeMail(ctx); $('#mSubj').value = m2.subject; $('#mBody').value = m2.body; };
+      $$('#mEd [data-x]').forEach(function (el) { el.oninput = function () { MAIL_UI.extra[el.dataset.x] = el.value; redraw(); }; });
+      if ($('#mTerm')) $('#mTerm').onchange = function () { MAIL_UI.term = this.value; redraw(); };
+      $('#mDue').onchange = function () { MAIL_UI.due = this.value; redraw(); };
+      $('#mGmail').onclick = function () {
+        var url = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent($('#mTo').value.trim()) + '&su=' + encodeURIComponent($('#mSubj').value) + '&body=' + encodeURIComponent($('#mBody').value);
+        if (url.length > 7500) { copy($('#mBody').value); url = url.split('&body=')[0]; toast('본문이 길어서 복사해 뒀어요. Gmail 본문에 붙여 넣어 주세요.', 5000); }
+        window.open(url, '_blank');
+      };
+      $('#mCopy').onclick = function () { copy($('#mBody').value).then(function () { toast('본문을 복사했어요'); }); };
+      $('#mSent').onclick = function () { run('mailLog', { dir: '보냄', kind: k.t, subject: $('#mSubj').value, to: $('#mTo').value, body: $('#mBody').value }).then(function () { toast('보냄으로 기록했어요'); renderMail(); }); };
+      $('#mSaveTo').onclick = function () { run('setSetting', { key: '연수원메일', value: $('#mTo').value.trim() }).then(function () { s['연수원메일'] = $('#mTo').value.trim(); if (BOOT.settings) BOOT.settings['연수원메일'] = s['연수원메일']; toast('받는 사람을 저장했어요'); }); };
+    }
+    drawEd();
+    var lastSum = null;
+    $('#rGo').onclick = function () { lastSum = summarizeReply($('#rIn').value); $('#rOut').innerHTML = lastSum.html; };
+    $('#rLog').onclick = function () { var t = $('#rIn').value.trim(); if (!t) return toast('회신 본문을 먼저 붙여 넣어 주세요'); run('mailLog', { dir: '받음', kind: '연수원 회신', subject: (t.split('\n').filter(String)[0] || '').slice(0, 80), body: t }).then(function () { toast('받은 메일로 기록했어요'); }); };
+    $('#rReply').onclick = function () {
+      var t = $('#rIn').value.trim(); if (!t) return toast('회신 본문을 먼저 붙여 넣어 주세요');
+      lastSum = lastSum || summarizeReply(t);
+      MAIL_UI.id = 'reply'; MAIL_UI.extra = { subj: '', ans: lastSum.asks.concat(lastSum.qs).map(function (x) { return x.slice(0, 60) + ' → (답변)'; }).join('\n') };
+      $$('#mList button').forEach(function (x) { x.classList.toggle('on', x.dataset.k === 'reply'); }); drawEd(); $('#mEd').scrollIntoView({ behavior: 'smooth' });
+    };
+  });
+}
+function summarizeReply(text) {
+  var lines = String(text || '').replace(/\r/g, '').split(/\n+|(?<=[.!?])\s+|(?<=다\.)\s*|(?<=요\.)\s*/).map(function (x) { return x.replace(/^[\s>·\-•*\d.)]+/, '').trim(); }).filter(function (x) { return x.length > 3; });
+  var greet = /^(안녕|수고|감사합니다|고맙|.*드림$|.*올림$|보낸 사람|받는 사람|From:|To:|Sent:|Subject:|제목:|날짜:)/;
+  var body = lines.filter(function (x) { return !greet.test(x); });
+  var dateRe = /(\d{4}[.\-/]\s*)?\d{1,2}\s*[월./-]\s*\d{1,2}\s*일?(\s*\([월화수목금토일]\))?(\s*\d{1,2}\s*시)?|오늘|내일|모레|이번\s*주|다음\s*주|금주|차주|\d+\s*일\s*(이내|내)/;
+  var askRe = /(주시기|주십시오|부탁|요청|바랍니다|제출|보내\s*주|회신|작성|수정|보완|확인\s*(해|하여|후)|송부|첨부하여|기재|입력)/;
+  var attRe = /(첨부|양식|서식|파일|hwp|hwpx|xlsx|엑셀|공문)/i;
+  var qRe = /(\?|여쭙|문의드|가능할까|가능한지|어떻게|어떤지|인지요|나요|할까요)/;
+  var uniq = function (a) { var s = {}; return a.filter(function (x) { if (s[x]) return false; s[x] = 1; return true; }); };
+  var asks = uniq(body.filter(function (x) { return askRe.test(x); }));
+  var dues = uniq(body.filter(function (x) { return dateRe.test(x); }).map(function (x) { var m = x.match(dateRe); return m[0] + ' · ' + x; }));
+  var atts = uniq(body.filter(function (x) { return attRe.test(x); }));
+  var qs = uniq(body.filter(function (x) { return qRe.test(x) && asks.indexOf(x) < 0; }));
+  var gist = body.slice(0, 3);
+  var ul = function (a, empty) { return a.length ? '<ul>' + a.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '<p class="muted" style="margin:0">' + empty + '</p>'; };
+  var html = '<div class="mail-sum"><h4>요점</h4>' + ul(gist, '본문을 찾지 못했어요') + '<h4>우리가 할 일 (요청 사항)</h4>' + ul(asks, '요청 문장이 없어요') + '<h4>기한·날짜</h4>' + ul(dues, '날짜 언급이 없어요') + '<h4>첨부·양식 언급</h4>' + ul(atts, '없음') + '<h4>질문</h4>' + ul(qs, '없음') +
+    '<p class="muted" style="margin:10px 0 0">할 일이 업무표에 없는 일이면 <a href="#" data-go="ops">운영 업무표</a> 메모에 남겨 두세요.</p></div>';
+  return { html: html, asks: asks, qs: qs };
+}
+
 // ───── 운영 업무표 · D-day ─────
 var OPS_UI = { filter: 'mine' };
 var OPS_STAGES = ['준비', '홍보·모집', '확정·입금', '강사', '연수 전', '연수 중', '연수 후', '마무리', '상시'];
@@ -878,6 +1057,13 @@ function MOCK(a, p) {
   var D = ['2027-02-01', '2027-02-02', '2027-02-03'];
   people.forEach(function (x, i) { x.school = '예시초등학교'; x.days = {}; D.forEach(function (d, j) { x.days[d] = j < 2 ? (i % 5 === 1 && j === 1 ? { in: '', out: '', hours: 0, status: '결석' } : i % 4 === 2 && j === 1 ? { in: '09:05', out: '', hours: 0, status: '퇴실 미체크' } : { in: '08:5' + (i % 9), out: '15:0' + (i % 5), hours: 5, status: '정상' }) : { in: '', out: '', hours: 0, status: '예정' }; }); x.total = Object.keys(x.days).reduce(function (t, d) { return t + x.days[d].hours; }, 0); x.judge = i % 5 === 1 ? 'N' : i % 4 === 2 ? '확인 필요' : '진행 중'; x.dup = x.name === '김하늘'; x.refund = i === 4 ? '검토 중' : ''; });
   if (a === 'attendance') return { ok: true, term: p.term, need: 12, grace: 10, today: '2027-02-02', days: D.map(function (d, j) { return { date: d, dow: ['월', '화', '수'][j], startHm: '09:00', endHm: '15:00', hours: 5 }; }), counts: { '2027-02-01': { in: 12, out: 12, noIn: 0, noOut: 0 }, '2027-02-02': { in: 9, out: 7, noIn: 3, noOut: 2 }, '2027-02-03': { in: 0, out: 0, noIn: 0, noOut: 0 } }, people: people.filter(function (x) { return x.state === '신청'; }) };
+  if (a === 'mailCtx') return { settings: { 연수원메일: '', 연수원담당: '교육연수원 담당자', 운영: '연구하는 교사되기 운영팀', 문의메일: 'snu27@dumokquoka.com', '연수기간_1기': '2027-01-11~2027-01-13', '연수기간_2기': '2027-02-01~2027-02-03' }, terms: ['1기', '2기'],
+    by: { '1기': { 신청: 398, 대기: 12, 취소: 9, Y: 0, N: 0 }, '2기': { 신청: 352, 대기: 0, 취소: 4, Y: 0, N: 0 } },
+    refunds: [{ no: 'F0002', name: '정민준', phone: '010-1234-1004', term: '1기', reason: '중복 신청', at: '2027-01-02 14:40' }],
+    tsched: [{ date: '2027-01-11', dow: '월', start: '13:00', end: '15:00', term: '1기', who: '박성춘 교수님', org: '', topic: '연구하는 교사의 길', note: '대면' }, { date: '2027-01-11', dow: '월', start: '15:00', end: '18:00', term: '1기', who: '이대형', org: '', topic: '디지털교육 연구대회의 실제', note: '' }, { date: '2027-01-12', dow: '화', start: '13:00', end: '15:00', term: '1기', who: '미정', topic: '수업혁신 사례 연구 (초등)', note: '' }],
+    ops: { T01: [{ date: '2026-11-23' }], T04: [{ date: '2026-11-27' }], T05: [{ date: '2026-12-01' }], T09: [{ date: '2026-12-11' }], T21: [{ date: '2026-12-14' }], T22: [{ date: '2026-12-21' }], T27: [{ date: '2026-12-28' }], T29: [{ date: '2026-12-28' }], T41: [{ date: '2027-02-12' }], T43: [{ date: '2027-02-26' }] },
+    log: [{ at: '2026-11-19 10:00', dir: '보냄', kind: '개설 협조 · 역할 분담 확인', subject: '[연구하는 교사되기 2027] 직무연수 개설 협조 요청 및 운영 사항 확인' }] };
+  if (a === 'mailLog' || a === 'setSetting' || a === 'save') return { ok: true };
   if (a === 'ops') return { tasks: { headers: [], rows: [
     { _row: 2, ID: 'T01', 단계: '준비', 업무명: '개설 협조 요청 공문 + 계획서 제출', 분류: 'AI 초안 → 두목쿼카 확인', 처리방식: '계획서 3종 자동 검사 후 1회 제출', 담당: '교수님 발송 / 두목쿼카 확인', 'D-day': 'D-49', '1기날짜': '11.23.(월)', '2기날짜': '공통', '2026실제': '', 근거: '', 사이트기능: '—', 완료: 'Y', 메모: '' },
     { _row: 3, ID: 'T10', 단계: '홍보·모집', 업무명: '모집 공지 · 사이트 오픈', 분류: '사이트 자동', 처리방식: '사이트 공지 자동 노출', 담당: '사이트', 'D-day': 'D-35', '1기날짜': '12.7.(월)', '2기날짜': '공통', '2026실제': '', 근거: '', 사이트기능: '공지', 완료: '', 메모: '' },

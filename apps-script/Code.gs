@@ -11,7 +11,7 @@
 var SHEETS = {
   설정: ['항목', '값', '설명'],
   공지: ['게시일', '제목', '내용', '상단고정(Y)', '공개(Y)'],
-  FAQ: ['분류', '질문', '답변', '공개(Y)'],
+  FAQ: ['분류', '질문', '답변', '공개(Y)', '키워드'],
   연수일정: ['기수', '날짜', '요일', '시작', '종료', '시간(h)', '내용', '강사'],
   // 연수원 신청자 목록 열 그대로 + 운영 열 (메뉴 "연수원 명단 가져오기"가 채워 줌)
   신청자: ['기수', '신청일', 'NEIS 번호', '성명', '생년월일', '전공', '소속학교', '소속청', '연락처', '연수지명번호', '이메일', '입금액', '입금일', '상태', '이수(Y/N)', '메모'],
@@ -26,7 +26,11 @@ var SHEETS = {
   게시판: ['작성시각', '글번호', '게시판', '제목', '내용', '성명', '휴대폰', '기수', '공개', '환불사유', '처리상태', '답변', '답변시각', '운영메모'],
   // 운영 업무표·D-day 일정표 (2027_연수운영_업무표.xlsx). 운영자 페이지 '운영 업무표' 탭에서 완료 체크
   업무표: ['ID', '단계', '업무명', '분류', '처리방식', '담당', 'D-day', '1기날짜', '2기날짜', '2026실제', '근거', '사이트기능', '완료', '메모'],
-  일정표: ['날짜', '요일', 'D_1기', 'D_2기', '대상', 'ID', '업무', '담당', '분류']
+  일정표: ['날짜', '요일', 'D_1기', 'D_2기', '대상', 'ID', '업무', '담당', '분류'],
+  // 연수자료: 수강생(이름+휴대폰 확인)만 사이트에서 열람. 강사 업로드는 공개=N으로 들어오고 운영자가 Y로 바꾸면 공개
+  연수자료: ['등록시각', '순서', '기수', '차시', '강사', '제목', '종류', '링크', '설명', '공개(Y)', '올린사람'],
+  // 연수원 메일 봇: 보낸 초안·받은 회신 기록
+  메일기록: ['기록시각', '구분', '종류', '제목', '받는사람', '본문']
 };
 // 강사 민감정보는 운영 시트와 다른 파일(비공개)에 저장
 var INSTRUCTOR_HEADERS = ['성명', '소속', '직위', '전화', '이메일', '생년월일', '주민등록번호', '은행', '계좌번호', '예금주', '비고'];
@@ -66,7 +70,11 @@ var DEFAULT_SETTINGS = [
   ['지각허용(분)', '10', '이 시간 안의 지각·조퇴는 감점 없음. 넘으면 1시간 단위로 뺌'],
   ['출석테스트', 'N', 'Y면 연수일이 아니어도 출석체크 가능 (리허설용, 끝나면 N)'],
   ['환불소요', '영업일 기준 2~3주', '환불 요청 화면과 문자에 들어가는 예상 기간'],
-  ['환불규정', '환불 가능 여부와 금액은 교육연수원 환불 규정을 따릅니다.', '환불 요청 화면 안내']
+  ['환불규정', '환불 가능 여부와 금액은 교육연수원 환불 규정을 따릅니다.', '환불 요청 화면 안내'],
+  ['강사자료코드', '', '강사님이 사이트에서 자료를 올릴 때 넣는 코드 (비우면 업로드 닫힘)'],
+  ['연수원메일', '', '연수원 담당자 메일 주소 (메일 봇 받는 사람)'],
+  ['연수원담당', '교육연수원 담당자', '메일 첫 줄 호칭'],
+  ['메일서명', '', '메일 끝 서명 (비우면 운영팀 이름 + 문의메일)']
 ];
 
 // 시도교육청 17개 (표준 약어)
@@ -105,6 +113,7 @@ function doPost(e) {
     if (body.action === 'attend') return json_(attend_(body.data || {}));
     if (body.action === 'boardList') return json_(boardList_(body.data || {}));
     if (body.action === 'boardView') return json_(boardView_(body.data || {}));
+    if (body.action === 'materials') return json_(materials_(body.data || {}));
   } catch (err) {
     return json_({ ok: false, error: String(err.message || err) });
   }
@@ -116,6 +125,7 @@ function doPost(e) {
       case 'info': return json_(submitInfo_(body.data || {}));
       case 'status': return json_(lookupStatus_(body.data || {}));
       case 'boardWrite': return json_(boardWrite_(body.data || {}));
+      case 'materialUpload': return json_(materialUpload_(body.data || {}));
       default: return json_({ ok: false, error: '알 수 없는 요청입니다.' });
     }
   } catch (err) {
@@ -136,7 +146,7 @@ function getContent_() {
     return { date: fmtDate_(r['게시일']), title: r['제목'], body: r['내용'], pinned: yes_(r['상단고정(Y)']) };
   }).sort(function (a, b) { return (b.pinned - a.pinned) || (a.date < b.date ? 1 : -1); });
   var faq = rows_('FAQ').filter(function (r) { return yes_(r['공개(Y)'], true) && r['질문']; }).map(function (r) {
-    return { cat: r['분류'] || '기타', q: r['질문'], a: r['답변'] };
+    return { cat: r['분류'] || '기타', q: r['질문'], a: fillVars_(r['답변'], s), kw: clean_(r['키워드']) };
   });
   var schedule = rows_('연수일정').filter(function (r) { return r['날짜']; }).map(function (r) {
     var d = toDate_(r['날짜']);
@@ -520,6 +530,11 @@ function menuInstructorDoc() {
 // ───────────────────────── 도우미 ─────────────────────────
 function sheet_(n) {
   var sh = SpreadsheetApp.getActive().getSheetByName(n);
+  if (!sh && SHEETS[n] && ['업무표', '일정표'].indexOf(n) < 0) {
+    sh = SpreadsheetApp.getActive().insertSheet(n);
+    sh.getRange(1, 1, 1, SHEETS[n].length).setValues([SHEETS[n]]).setFontWeight('bold').setBackground('#001871').setFontColor('#ffffff');
+    sh.setFrozenRows(1);
+  }
   if (!sh) throw new Error('"' + n + '" 시트가 없어요. 메뉴에서 "처음 설정"을 먼저 실행해 주세요.');
   return sh;
 }
@@ -604,7 +619,7 @@ function isAdmin_() {
   return me.toLowerCase() === owner.toLowerCase() || extra.indexOf(me.toLowerCase()) >= 0;
 }
 
-var ADMIN_SHEETS = ['신청자', '이수정보', '셀프신청', '공지', 'FAQ', '연수일정', '강사일정', '설정', '문자기록', '강사정보', '출석', '게시판', '업무표'];
+var ADMIN_SHEETS = ['신청자', '이수정보', '셀프신청', '공지', 'FAQ', '연수일정', '강사일정', '설정', '문자기록', '강사정보', '출석', '게시판', '업무표', '연수자료', '메일기록'];
 var TEXT_COLS = ['연락처', '휴대폰', '생년월일', 'NEIS 번호', '나이스개인번호', '현금영수증번호', '전화', '주민등록번호', '계좌번호', '연수지명번호'];
 
 function adminApi(action, p) {
@@ -633,6 +648,11 @@ function adminApi(action, p) {
       case 'board': return adminTable_('게시판');
       case 'boardReply': return boardReply_(p);
       case 'ops': return opsData_();
+      case 'mailCtx': return mailCtx_();
+      case 'mailLog':
+        sheet_('메일기록').appendRow([new Date(), p.dir || '보냄', p.kind || '', p.subject || '', p.to || '', String(p.body || '').slice(0, 40000)]);
+        return { ok: true };
+      case 'setSetting': return setSetting_(p.key, p.value);
       default: throw new Error('알 수 없는 요청: ' + action);
     }
   } finally { lock.releaseLock(); }
@@ -652,7 +672,8 @@ function adminBoot_() {
     pending: pending.length, issues: chk.issues.length, total: chk.total,
     ssUrl: SpreadsheetApp.getActive().getUrl(), site: s['사이트주소'] || '',
     dups: dupNames_(),
-    board: boardPending_()
+    board: boardPending_(),
+    materialsPending: materialsPending_()
   };
 }
 
@@ -1070,6 +1091,140 @@ var CURRICULUM_2027 = [
   [2, '15:00', '17:00', 2, '영상·방송 연구대회의 실제', '미정', '교사강사'],
   [2, '17:00', '18:00', 1, '연구하는 교사되기 로드맵 (종합 질의응답)', '박성춘 교수님', '종합']
 ];
+// ───── 설정 한 칸 저장 (메일 봇 받는 사람 등) ─────
+function setSetting_(key, value) {
+  var allow = ['연수원메일', '연수원담당', '메일서명', '강사자료코드'];
+  if (allow.indexOf(key) < 0) throw new Error('바꿀 수 없는 설정이에요.');
+  var st = sheet_('설정'), v = st.getDataRange().getValues();
+  for (var i = 1; i < v.length; i++) if (String(v[i][0]).trim() === key) { st.getRange(i + 1, 2).setValue(value); return { ok: true }; }
+  st.appendRow([key, value, '']);
+  return { ok: true };
+}
+function fillVars_(text, s) {
+  return String(text || '').replace(/\{([^{}]{1,20})\}/g, function (m, k) { return s[k] !== undefined && s[k] !== '' ? String(s[k]) : m; });
+}
+
+// ───── 연수자료 ─────
+function kindOfLink_(u) {
+  u = String(u || '');
+  if (/docs\.google\.com\/presentation/.test(u)) return '슬라이드';
+  if (/docs\.google\.com\/(document|spreadsheets)/.test(u)) return '문서';
+  if (/canva\.com|gamma\.app|miricanvas/.test(u)) return '슬라이드';
+  if (/youtu\.?be/.test(u)) return '영상';
+  if (/\.pdf(\?|$)|drive\.google\.com\/file/.test(u)) return 'PDF·파일';
+  return '링크';
+}
+function materials_(d) {
+  var name = clean_(d.name).replace(/\s/g, ''), phone = normPhone_(d.phone);
+  if (!name || !phone) return { ok: false, error: '성명과 휴대폰 번호를 정확히 입력해 주세요.' };
+  var key = name + '|' + phone;
+  var ctx = attendCtx_(), me = ctx.people[key];
+  if (!me) { ctx = attendCtx_(true); me = ctx.people[key]; }
+  if (!me) return { ok: false, error: '신청자 명단에서 찾지 못했어요. 연수 신청할 때 쓴 이름과 휴대폰 번호인지 확인해 주세요.' };
+  if (me.state === '대기') return { ok: false, error: '아직 대기 상태예요. 수강이 확정되면 연수자료를 볼 수 있어요.' };
+  var cache = CacheService.getScriptCache(), all = null;
+  try { var c = cache.get('materials'); if (c) all = JSON.parse(c); } catch (e) {}
+  if (!all) {
+    all = rows_('연수자료').filter(function (r) { return yes_(r['공개(Y)']) && r['링크'] && r['제목']; }).map(function (r) {
+      return { order: Number(r['순서']) || 99, term: clean_(r['기수']), session: clean_(r['차시']), who: clean_(r['강사']), title: clean_(r['제목']), kind: clean_(r['종류']) || kindOfLink_(r['링크']), link: clean_(r['링크']), desc: clean_(r['설명']) };
+    });
+    try { cache.put('materials', JSON.stringify(all), 120); } catch (e) {}
+  }
+  var items = all.filter(function (x) { return !x.term || x.term === '공통' || x.term === me.term; });
+  items.sort(function (a, b) { return a.order - b.order; });
+  return { ok: true, term: me.term, items: items };
+}
+function materialUpload_(d) {
+  var code = clean_(settings_()['강사자료코드']);
+  if (!code) return { ok: false, error: '지금은 사이트에서 자료를 받지 않아요. 운영팀 메일로 보내 주세요.' };
+  if (clean_(d.code) !== code) return { ok: false, error: '강사용 코드가 맞지 않아요. 운영팀이 보내 드린 코드를 확인해 주세요.' };
+  var link = clean_(d.link), title = clean_(d.title), who = clean_(d.who);
+  if (!/^https:\/\/\S+$/.test(link)) return { ok: false, error: 'https:// 로 시작하는 공유 링크를 넣어 주세요.' };
+  if (!who || !title) return { ok: false, error: '강사명과 자료 제목을 입력해 주세요.' };
+  sheet_('연수자료').appendRow([new Date(), Number(d.order) || '', clean_(d.term) || '공통', clean_(d.session).slice(0, 80), who.slice(0, 30), title.slice(0, 100), kindOfLink_(link), link, clean_(d.desc).slice(0, 300), 'N', '강사 업로드']);
+  return { ok: true };
+}
+function materialsPending_() {
+  try { return rows_('연수자료').filter(function (r) { return r['링크'] && !yes_(r['공개(Y)']); }).length; } catch (e) { return 0; }
+}
+
+// ───── 연수원 메일 봇: 초안에 넣을 숫자·명단 ─────
+function mailCtx_() {
+  var s = settings_(), terms = termList_(), by = {};
+  terms.forEach(function (t) { by[t] = { 신청: 0, 대기: 0, 취소: 0, Y: 0, N: 0 }; });
+  rows_('신청자').forEach(function (r) {
+    var t = by[clean_(r['기수'])]; if (!t) return;
+    var st = clean_(r['상태']) || '신청'; t[st] = (t[st] || 0) + 1;
+    var j = clean_(r['이수(Y/N)']).toUpperCase();
+    if (st !== '취소' && (j === 'Y' || j === 'N')) t[j]++;
+  });
+  var refunds = rows_('게시판').filter(function (r) { return r['게시판'] === '환불요청' && r['처리상태'] === '검토 중'; }).map(function (r) {
+    return { no: clean_(r['글번호']), name: clean_(r['성명']), phone: cellOut_(r['휴대폰']), term: clean_(r['기수']), reason: clean_(r['환불사유']), at: cellOut_(r['작성시각']) };
+  });
+  var tsched = rows_('강사일정').filter(function (r) { return r['날짜']; }).map(function (r) {
+    return { date: cellOut_(r['날짜']), dow: clean_(r['요일']), start: cellOut_(r['시작']), end: cellOut_(r['종료']), hours: clean_(r['시간(h)']), term: clean_(r['기수']), who: clean_(r['강사명']), org: clean_(r['소속']), role: clean_(r['역할']), topic: clean_(r['강의주제']), note: clean_(r['비고']) };
+  });
+  var ops = {};
+  if (SpreadsheetApp.getActive().getSheetByName('일정표')) rows_('일정표').forEach(function (r) { (ops[r['ID']] = ops[r['ID']] || []).push({ date: cellOut_(r['날짜']), term: clean_(r['대상']) }); });
+  var log = rows_('메일기록').slice(-40).reverse().map(function (r) { return { at: cellOut_(r['기록시각']), dir: clean_(r['구분']), kind: clean_(r['종류']), subject: clean_(r['제목']), to: clean_(r['받는사람']) }; });
+  return { settings: s, terms: terms, by: by, refunds: refunds, tsched: tsched, ops: ops, log: log };
+}
+
+// ───── 2027 업그레이드: 새 시트·설정·FAQ(쿼카 챗봇 지식) 채우기. 여러 번 실행해도 안전 ─────
+var FAQ_2027 = [
+  ['신청·변경', '기수를 바꾸고 싶어요.', '2027년에는 기수 변경을 받지 않아요. 신청한 기수 그대로 참여해 주세요. 참여가 어려우면 셀프 신청 > 수강취소로 접수해 주세요. 신청할 때 기수를 신중히 골라 주세요.', '기수 변경 바꾸 옮기 1기 2기 이동'],
+  ['신청·변경', '신청했는데 대기라고 나와요.', '기수별 정원이 차면 대기로 접수돼요. 취소자가 생기면 연수원 신청 시스템의 대기 순번대로 확정되고, 확정되면 문자로 알려 드려요. 운영팀이 순번을 바꿔 드릴 수는 없어요.', '대기 순번 정원 확정 마감 추가'],
+  ['신청·변경', '수강 신청은 어디서 하나요?', '수강 신청은 서울대학교 사범대학 교육연수원 홈페이지에서 해요. 이 사이트는 신청한 뒤의 안내, 출석체크, 셀프 서비스를 위한 곳이에요.', '신청 어디 접수 홈페이지 수강신청 등록'],
+  ['환불', '수강을 취소하고 싶어요.', '셀프 서비스 > 셀프 신청에서 수강취소로 접수해 주세요. 환불이 필요하면 Q&A·환불 > 환불 요청에 사유와 함께 남겨 주세요.', '취소 수강취소 못 듣 불참 포기'],
+  ['환불', '환불은 언제 되나요?', '환불은 실시간으로 처리되지 않아요. 환불 요청에 사유와 함께 남겨 주시면 운영팀 확인 → 교육연수원 전달 → 연수원 환불 처리 순서로 진행되고, {환불소요} 정도 걸릴 수 있어요. 단계가 바뀔 때마다 문자로 알려 드려요.', '환불 언제 입금 돌려 반환 기간 늦'],
+  ['환불', '환불 요청한 게 어떻게 되고 있나요?', '내 현황 조회에서 이름과 휴대폰으로 확인하면 환불 요청 단계(접수 → 검토 중 → 연수원 전달 → 환불 완료)가 보여요. 환불은 실시간이 아니라 {환불소요} 정도 걸릴 수 있어요.', '환불 진행 상황 단계 아직 확인 처리'],
+  ['환불', '환불 금액은 얼마인가요?', '{환불규정} 연수가 시작된 뒤에는 환불이 어렵거나 일부만 될 수 있어요.', '환불 금액 얼마 전액 일부 규정 수수료'],
+  ['입금·증빙', '입금 확인은 어떻게 하나요?', '내 현황 조회에서 입금 확인 여부를 볼 수 있어요. 입금 확인은 반영까지 하루 이틀 걸릴 수 있어요.', '입금 확인 납부 결제 계좌 송금'],
+  ['입금·증빙', '연수비 납입증명서가 필요해요.', '내 현황 조회에서 입금이 확인된 분은 납입확인서를 바로 인쇄하거나 PDF로 저장할 수 있어요.', '납입증명서 영수증 증빙 납입확인서 출력 학교 제출 서류'],
+  ['입금·증빙', '현금영수증 번호를 잘못 넣었어요.', '셀프 서비스 > 셀프 신청에서 현금영수증 수정으로 올바른 번호를 접수해 주세요.', '현금영수증 번호 수정 소득공제 사업자'],
+  ['출석', '출석은 어떻게 하나요?', '연수 당일 출석체크 메뉴에서 출석 → 강의실(Zoom) 입장 → 끝날 때 퇴실체크까지 눌러 주세요. 출석과 퇴실이 둘 다 있어야 그날 출석이 인정돼요. 출석체크는 시작 {입실가능(분)}분 전부터 돼요.', '출석 체크 입실 방법 출석체크 들어가'],
+  ['출석', '퇴실체크를 깜빡했어요.', '퇴실체크는 연수 종료 {퇴실가능(분)}분 전부터 종료 후 2시간까지 할 수 있어요. 시간이 지났다면 Q&A 게시판에 날짜와 함께 남겨 주세요. 운영팀이 Zoom 기록으로 확인해요.', '퇴실 깜빡 못 눌 빠뜨 놓쳤 잊'],
+  ['출석', 'Zoom이 끊겼어요.', '출석체크를 다시 누르면 강의실 링크가 다시 나와요. 잠깐 끊긴 것은 출석에 영향이 없어요.', '줌 zoom 끊김 끊겼 튕 재접속 인터넷 나가졌'],
+  ['출석', 'Zoom 이름은 어떻게 바꾸나요?', 'Zoom 이름은 기수_성명(예: 1기_홍길동)으로 바꿔 주세요. 참가자 목록에서 내 이름 > 이름 바꾸기로 바꿀 수 있어요.', '줌 zoom 이름 변경 표시 닉네임 대화명'],
+  ['출석', '늦게 들어가거나 일찍 나가야 해요.', '{지각허용(분)}분 안의 지각·조퇴는 그대로 인정돼요. 그보다 길면 1시간 단위로 인정 시간에서 빠져요. 총 {이수인정시간}시간 이상이면 이수돼요.', '지각 조퇴 늦게 일찍 늦 먼저 나가'],
+  ['출석', '하루를 빠져야 해요.', '하루(5시간)를 빠지면 인정 시간이 10시간이 되어 이수 기준({이수인정시간}시간)에 못 미쳐요. 일정이 어렵다면 수강취소를 생각해 주세요. 기수 변경은 받지 않아요.', '하루 결석 빠지 못 들 일정 안 되 출장'],
+  ['이수', '이수 기준이 어떻게 되나요?', '{이수기준}이면 이수돼요. 출석체크와 퇴실체크로 날짜별 인정 시간이 쌓이고, 내 현황 조회에서 확인할 수 있어요.', '이수 기준 몇 시간 80% 조건'],
+  ['이수', '이수정보를 잘못 입력했어요.', '같은 이름과 휴대폰 번호로 이수정보를 다시 제출하면 최신 내용으로 바뀌어요. 메일을 따로 보내지 않으셔도 돼요.', '이수정보 수정 잘못 다시 오타 틀렸'],
+  ['이수', 'NEIS 개인번호는 어디서 확인하나요?', '나이스(업무포털) > 나의 메뉴 > 개인정보에서 확인할 수 있어요. 영문 1자 + 숫자 9자(예: A123456789) 형식이에요.', '나이스 neis 개인번호 번호 확인 어디'],
+  ['이수', '이수증은 언제 나오나요?', '연수가 끝나고 교육연수원에서 이수 처리를 마치면 연수원 홈페이지에서 발급돼요.', '이수증 발급 언제 출력 수료증'],
+  ['이수', '나이스에 이수가 안 올라와요.', '나이스 등재는 연수원이 이수 처리를 마친 뒤 교육청을 거쳐 반영돼요. 연수가 끝나고 한두 달 걸릴 수 있어요. 오래 걸리면 소속 교육청에 연수원 공문 번호로 문의해 주세요.', '나이스 neis 등재 반영 기록 안 올라 학점'],
+  ['연수', '강의 자료는 어디서 보나요?', '연수자료 메뉴에서 이름과 휴대폰으로 확인하면 차시별 자료를 사이트 안에서 바로 볼 수 있어요. 강사님이 공개를 허락한 자료만 올라와요.', '자료 강의안 ppt 슬라이드 다운로드 패들렛 pdf'],
+  ['연수', '연수 일정과 시간이 궁금해요.', '1기 {연수기간_1기}, 2기 {연수기간_2기}, 매일 13:00~18:00(5시간)이에요. 연수 안내 > 일정·시간표에서 차시별로 볼 수 있어요.', '일정 시간 언제 몇 시 날짜 시간표 커리큘럼'],
+  ['연수', '소속 학교에 낼 공문이 필요해요.', '소속교 협조 공문은 요청한 분에 한해 연수원에서 발급해요. Q&A 게시판에 소속 학교와 함께 남겨 주세요.', '공문 소속 학교 출장 복무 협조'],
+  ['연수', '오픈채팅방은 어디서 들어가나요?', '확정 문자와 연수 안내 > 접속 안내에 기수별 오픈채팅 링크가 있어요.', '오픈채팅 카톡 단톡 카카오 채팅방'],
+  ['기타', '같은 이름이 있으면 어떻게 구분하나요?', '이 사이트는 모든 확인을 이름과 휴대폰 번호로 해요. 신청할 때 쓴 휴대폰 번호를 꼭 같이 입력해 주세요.', '동명이인 같은 이름 구분'],
+  ['기타', '명단에서 저를 못 찾는대요.', '연수 신청할 때 쓴 휴대폰 번호인지 확인해 주세요. 그래도 안 되면 Q&A 게시판에 남겨 주세요.', '못 찾 명단 없 조회 안 돼 안되 오류']
+];
+function upgrade2027() {
+  var ss = SpreadsheetApp.getActive();
+  ['연수자료', '메일기록'].forEach(function (n) { sheet_(n); });
+  var st = sheet_('설정'), have = st.getRange(2, 1, Math.max(st.getLastRow() - 1, 1), 1).getValues().map(function (r) { return String(r[0]).trim(); });
+  var miss = DEFAULT_SETTINGS.filter(function (r) { return have.indexOf(r[0]) < 0; }).map(function (r) {
+    return r[0] === '강사자료코드' ? [r[0], 'quoka-' + Math.floor(1000 + Math.random() * 9000), r[2]] : r;
+  });
+  if (miss.length) st.getRange(st.getLastRow() + 1, 1, miss.length, 3).setValues(miss);
+  var fq = sheet_('FAQ');
+  var head = fq.getRange(1, 1, 1, Math.max(fq.getLastColumn(), 4)).getValues()[0].map(String);
+  var kwCol = head.indexOf('키워드') + 1;
+  if (!kwCol) { kwCol = head.filter(String).length + 1; fq.getRange(1, kwCol).setValue('키워드').setFontWeight('bold').setBackground('#001871').setFontColor('#ffffff'); }
+  var v = fq.getDataRange().getValues(), norm = function (x) { return String(x).replace(/[\s.?!]/g, ''); };
+  var at = {}; for (var i = 1; i < v.length; i++) at[norm(v[i][1])] = i + 1;
+  var add = [];
+  FAQ_2027.forEach(function (f) {
+    var r = at[norm(f[1])];
+    if (r) { fq.getRange(r, 3).setValue(f[2]); fq.getRange(r, kwCol).setValue(f[3]); }
+    else { var row = [f[0], f[1], f[2], 'Y']; while (row.length < kwCol - 1) row.push(''); row[kwCol - 1] = f[3]; add.push(row); }
+  });
+  if (add.length) fq.getRange(fq.getLastRow() + 1, 1, add.length, kwCol).setValues(add);
+  try { CacheService.getScriptCache().removeAll(['attendCtx', 'materials']); } catch (e) {}
+  Logger.log('업그레이드 완료: 설정 ' + miss.length + '개, FAQ 추가 ' + add.length + '개');
+}
+
 // ───── 운영 업무표 ─────
 function opsData_() {
   var ss = SpreadsheetApp.getActive();
