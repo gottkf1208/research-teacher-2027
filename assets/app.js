@@ -101,7 +101,7 @@
 
   // ───────── 홈 ─────────
   function renderHome() {
-    $('#hero').innerHTML = '<section class="hero home"><p style="margin:0 0 12px">CENTER FOR RESEARCHING TEACHERS</p><h1>연구하는 교사되기 2027</h1><p class="lead">필요한 건 여기서 바로. 신청 변경부터 이수정보, 납입 확인까지 한 곳에서 해결하세요.</p></section>';
+    $('#hero').innerHTML = '<section class="hero home"><p style="margin:0 0 12px">CENTER FOR RESEARCHING TEACHERS</p><h1>연구하는 교사되기 2027</h1><p class="lead">필요한 건 여기서 바로. 신청 변경부터 이수정보, 납입 확인까지 한 곳에서 해결하세요.</p><div class="hero-qk" aria-hidden="true"><img src="assets/img/quoka-snu.webp" alt=""><img src="assets/img/quoka-researcher.webp" alt=""><img src="assets/img/quoka-teacher.webp" alt=""></div></section>';
     $('#subtabs').innerHTML = '';
     $('#ptitle').innerHTML = '';
     $$('#gnb a').forEach(function (a) { a.classList.remove('on'); });
@@ -719,9 +719,9 @@
   function botInit() {
     if ($('#qbotBtn')) return;
     var btn = document.createElement('button'); btn.id = 'qbotBtn'; btn.className = 'qbot-btn'; btn.setAttribute('aria-label', '쿼카에게 물어보기');
-    btn.innerHTML = '<span class="qbot-face">' + (window.QK ? window.QK('cheer') : '') + '</span><span class="qbot-label">쿼카에게 물어보기</span>';
+    btn.innerHTML = '<span class="qbot-face img"><img src="assets/img/quoka-researcher.webp" alt=""></span><span class="qbot-label">쿼카에게 물어보기</span>';
     var panel = document.createElement('section'); panel.id = 'qbot'; panel.className = 'qbot'; panel.hidden = true;
-    panel.innerHTML = '<header><span class="qbot-face sm">' + (window.QK ? window.QK('people') : '') + '</span><div><b>쿼카 도우미</b><small>자주 묻는 질문에 바로 답해요</small></div><button id="qbotX" aria-label="닫기">×</button></header>' +
+    panel.innerHTML = '<header><span class="qbot-face sm img"><img src="assets/img/quoka-researcher.webp" alt=""></span><div><b>쿼카 도우미</b><small>자주 묻는 질문에 바로 답해요</small></div><button id="qbotX" aria-label="닫기">×</button></header>' +
       '<div class="qbot-log" id="qbotLog"></div><div class="qbot-chips" id="qbotChips"></div>' +
       '<form id="qbotForm"><input id="qbotIn" autocomplete="off" placeholder="궁금한 걸 적어 주세요" maxlength="120"><button aria-label="보내기"><i class="xi-arrow-up"></i></button></form>';
     document.body.appendChild(btn); document.body.appendChild(panel);
