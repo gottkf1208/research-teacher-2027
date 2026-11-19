@@ -107,7 +107,7 @@
     window.scrollTo(0, 0);
   }
 
-  var QK_EYES = { snu: [26, 61.9, 49.1, 12.5, 14.2], researcher: [26.6, 62, 41.6, 11.7, 15.6], teacher: [26.3, 61.8, 40.3, 12.4, 16.4] };
+  var QK_EYES = { snu: [27.4, 60.5, 50.2, 12.1, 12.5], researcher: [27, 60.3, 41.6, 12.4, 14.8], teacher: [27.2, 60.4, 45.4, 12.2, 13.8] };
   function qkHead(kind, cls, label) {
     var e = QK_EYES[kind], lid = function (x) { return '<i class="lid" style="left:' + x + '%;top:' + e[2] + '%;width:' + e[3] + '%;height:' + e[4] + '%"></i>'; };
     return '<button type="button" class="qk ' + cls + '" aria-label="' + label + '"><span><img src="assets/img/qk-' + kind + '.webp" alt="">' + lid(e[0]) + lid(e[1]) + '</span></button>';
