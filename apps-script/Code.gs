@@ -587,6 +587,7 @@ function sheet_(n) {
   return sh;
 }
 function rows_(n) {
+  if (n === '출석' || n === '부하테스트') flushAttend_(true);   // 아직 시트로 못 옮긴 출석 줄을 먼저 옮기고 읽는다
   var v = sheet_(n).getDataRange().getValues();
   var h = v.shift() || [];
   return v.filter(function (r) { return r.join('') !== ''; }).map(function (r) {
@@ -965,18 +966,37 @@ function attendCtx_(fresh) {
   try { cache.put('attendCtx', JSON.stringify(ctx), 600); cache.put('attendCtxAt', String(Date.now()), 600); } catch (e) {}
   return ctx;
 }
-// 출석 한 줄 쓰기. 여러 명이 같은 순간에 appendRow를 하면 서로 덮어써서 줄이 사라진다(부하 테스트로 확인)
-// → 잠금으로 한 번에 한 줄씩만 쓰고, 일시 오류는 짧게 쉬고 다시
+// 출석 한 줄 쓰기. 400명 동시 테스트 두 번으로 확인한 것:
+//  · 잠금 없이 appendRow → 서로 덮어써서 줄이 사라짐   · 잠금 걸고 한 줄씩 → 밀려서 시간 초과
+// → 각자 자기 칸(스크립트 속성)에 먼저 적어 두고, 잠금을 잡은 요청 하나가 쌓인 줄을 한 번에 시트로 옮긴다
 function appendRetry_(name, row) {
-  var lock = LockService.getScriptLock(), err;
+  var p = PropertiesService.getScriptProperties(), err;
+  var key = 'aq|' + Date.now() + '|' + Utilities.getUuid().slice(0, 8);
+  var rec = JSON.stringify({ s: name, t: row[0].getTime(), r: row.slice(1) });
   for (var i = 0; i < 4; i++) {
-    try {
-      lock.waitLock(25000);
-      try { sheet_(name).appendRow(row); SpreadsheetApp.flush(); } finally { lock.releaseLock(); }
-      return;
-    } catch (e) { err = e; Utilities.sleep(250 + Math.floor(Math.random() * 500) + i * 400); }
+    try { p.setProperty(key, rec); err = null; break; } catch (e) { err = e; Utilities.sleep(150 + Math.floor(Math.random() * 400) + i * 300); }
   }
-  throw err;
+  if (err) throw err;
+  try { flushAttend_(false); } catch (e2) {}   // 옮기기는 다음 요청이나 조회 때 다시 하므로 여기서 실패해도 기록은 남아 있다
+}
+// 쌓인 출석 줄을 시트로 옮긴다. wait=true면 잠금을 기다렸다가 전부, false면 잠금이 비어 있을 때만 조금
+function flushAttend_(wait) {
+  var lock = LockService.getScriptLock(), had = lock.hasLock(), moved = 0;
+  if (!had && !lock.tryLock(wait ? 20000 : 0)) return 0;
+  try {
+    var p = PropertiesService.getScriptProperties();
+    for (var round = 0; round < (wait ? 20 : 1); round++) {
+      var all = p.getProperties(), keys = Object.keys(all).filter(function (k) { return k.indexOf('aq|') === 0; }).sort().slice(0, 80);
+      if (!keys.length) break;
+      var by = {};
+      keys.forEach(function (k) { try { var o = JSON.parse(all[k]); (by[o.s] = by[o.s] || []).push([new Date(o.t)].concat(o.r)); } catch (e) {} });
+      Object.keys(by).forEach(function (n) { var sh = sheet_(n), rows = by[n]; sh.getRange(sh.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows); });
+      SpreadsheetApp.flush();
+      keys.forEach(function (k) { p.deleteProperty(k); });
+      moved += keys.length;
+    }
+  } finally { if (!had) lock.releaseLock(); }
+  return moved;
 }
 
 function attend_(d) {
@@ -1673,6 +1693,7 @@ function report_() {
 
 // 부하 테스트 결과 보기 / 지우기
 function loadtest_(clear) {
+  flushAttend_(true);
   var sh = sheet_('부하테스트'), n = Math.max(sh.getLastRow() - 1, 0);
   if (clear && n) sh.deleteRows(2, n);
   return { ok: true, rows: clear ? 0 : n };
