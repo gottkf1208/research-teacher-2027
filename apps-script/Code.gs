@@ -595,7 +595,8 @@ function rows_(n) {
 }
 function settings_() {
   var o = {};
-  rows_('설정').forEach(function (r) { o[String(r['항목']).trim()] = r['값']; });
+  // 날짜 칸은 글자로 바꿔 둔다 (Date 값은 운영자 페이지로 넘어가지 못해 화면이 멈춘다)
+  rows_('설정').forEach(function (r) { var v = r['값']; if (v instanceof Date) v = Utilities.formatDate(v, 'Asia/Seoul', 'yyyy-MM-dd'); o[String(r['항목']).trim()] = v; });
   return o;
 }
 function freshSheet_(name) {
