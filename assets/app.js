@@ -266,7 +266,7 @@
       field('시도교육청', true, '<select name="sido"><option value="">선택</option>' + SIDO.map(function (s) { return '<option>' + s + '</option>'; }).join('') + '</select>', 'sido', '근무하는 학교가 속한 교육청을 골라 주세요.') +
       field('학교명', true, '<input type="text" name="school" placeholder="OO초등학교">', 'school', '"OO초", "OO중"처럼 줄이지 말고 정식 명칭으로 적어 주세요.') +
       field('나이스 개인번호', true, '<input type="text" name="neis" autocapitalize="characters" placeholder="J123456789" maxlength="10">', 'neis', '영문 1자 + 숫자 9자. 나이스 > 나의 메뉴 > 인사기록에서 확인할 수 있어요.') +
-      field('이메일', false, '<input type="email" name="email" autocomplete="email" placeholder="선택 입력">', 'email') +
+      field('이메일', true, '<input type="email" name="email" autocomplete="email" placeholder="name@example.com">', 'email', '환불·이수 안내를 이메일로 보내 드려요.') +
       '</form>' + agreeBox() +
       '<div class="btns"><button class="btn navy" id="infoSubmit"><i class="xi-check"></i>이수정보 제출</button></div></div>';
     var f = $('#infoForm');
@@ -290,7 +290,7 @@
       if (!d.sido) bad = setErr(f, 'sido', '시도교육청을 골라 주세요.') || true;
       if (!/(학교|유치원|교육청|교육지원청|연구원|센터)$/.test(d.school)) bad = setErr(f, 'school', '정식 학교명으로 입력해 주세요. (예: OO초등학교)') || true;
       if (!/^[A-Z][0-9]{9}$/.test(d.neis)) bad = setErr(f, 'neis', '나이스 개인번호는 영문 1자 + 숫자 9자예요. (예: J123456789)') || true;
-      if (d.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) bad = setErr(f, 'email', '이메일 형식을 확인해 주세요.') || true;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) bad = setErr(f, 'email', '이메일 형식을 확인해 주세요.') || true;
       if (!$('#agree').checked) { alertBox('개인정보 수집·이용에 동의해 주세요.'); bad = true; }
       if (bad) return focusErr(f);
       submit(this, 'info', d, function (res) {
@@ -394,7 +394,7 @@
     var r = C.refund || { wait: '영업일 기준 2~3주', rule: '' };
     return '<div class="refund-note"><b><i class="xi-time-o"></i> 환불은 실시간으로 처리되지 않아요</b>' +
       '<ol class="refund-flow"><li>접수</li><li>운영팀 확인</li><li>교육연수원 전달</li><li>연수원 환불 처리</li></ol>' +
-      '<p>연수원 처리 일정에 따라 <b>' + esc(r.wait) + '</b> 정도 걸릴 수 있어요. 단계가 바뀔 때마다 문자로 알려 드리고, 이 게시판과 내 현황 조회에서도 언제든 확인할 수 있어요.' +
+      '<p>연수원 처리 일정에 따라 <b>' + esc(r.wait) + '</b> 정도 걸릴 수 있어요. 접수되면 확인 메일을, <b>최종 환불이 완료되면 이메일로</b> 알려 드려요. 진행 단계는 이 게시판과 내 현황 조회에서 언제든 확인할 수 있어요.' +
       (short ? '' : ' 같은 내용으로 메일이나 전화를 다시 주시지 않아도 순서대로 처리돼요.') + '</p>' +
       (r.rule ? '<p class="note" style="margin:6px 0 0">' + esc(r.rule) + '</p>' : '') + '</div>';
   }
@@ -404,6 +404,7 @@
     v.innerHTML = '<div class="narrow">' + (refund ? refundNotice(false) : '') + '<form class="form" id="bForm" novalidate>' +
       field('성명', true, '<input type="text" name="name" autocomplete="name" value="' + esc(me.name || '') + '" placeholder="연수 신청할 때 쓴 이름">', 'name') +
       field('휴대폰', true, '<input type="tel" name="phone" inputmode="numeric" autocomplete="tel" value="' + esc(me.phone || '') + '" placeholder="010-0000-0000">', 'phone', '답변 확인과 본인 확인에 써요. 목록에는 이름 가운데가 가려져 보여요.') +
+      field('이메일', refund, '<input type="email" name="email" autocomplete="email" value="' + esc(me.email || '') + '" placeholder="' + (refund ? '환불 완료 안내를 받을 이메일' : '답변 알림 (선택)') + '">', 'email', refund ? '최종 환불이 완료되면 이 주소로 알려 드려요.' : '') +
       (refund
         ? field('환불 사유', true, '<select name="reason"><option value="">선택</option>' + REFUND_REASONS.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('') + '</select>', 'reason') +
           field('자세한 사유', true, '<textarea name="content" placeholder="예: 학교 업무 일정과 겹쳐 참여가 어려워 환불을 요청드립니다."></textarea>', 'content', '10자 이상. 사유를 알려 주셔야 연수원에 전달할 수 있어요. 계좌번호는 쓰지 마세요.')
@@ -417,10 +418,11 @@
     autoPhone(f.phone);
     $('#bSubmit').onclick = function () {
       clearErrs(f);
-      var d = { board: board, name: f.name.value.replace(/\s/g, ''), phone: normPhone(f.phone.value), content: f.content.value.trim() };
+      var d = { board: board, name: f.name.value.replace(/\s/g, ''), phone: normPhone(f.phone.value), content: f.content.value.trim(), email: f.email.value.trim() };
       var bad = false;
       if (d.name.length < 2) bad = setErr(f, 'name', '성명을 입력해 주세요.') || true;
       if (!d.phone) bad = setErr(f, 'phone', '010-0000-0000 형식으로 입력해 주세요.') || true;
+      if ((refund || d.email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) bad = setErr(f, 'email', '이메일을 정확히 입력해 주세요.') || true;
       if (refund) {
         d.reason = f.reason.value; d.agree = $('#waitOk').checked;
         if (!d.reason) bad = setErr(f, 'reason', '환불 사유를 골라 주세요.') || true;
@@ -436,7 +438,7 @@
       submit(this, 'boardWrite', d, function (res) {
         v.innerHTML = '<div class="narrow"><div class="result"><i class="xi-check-circle-o"></i><h4>' + (refund ? '환불 요청이 접수됐어요' : '글이 등록됐어요') + '</h4>' +
           '<p>글번호 <b style="color:var(--navy);font-size:20px">' + esc(res.no) + '</b></p>' +
-          '<p class="note">' + (refund ? '운영팀 확인 → 연수원 전달 → 환불 처리 순서로 진행돼요. <b>' + esc((C.refund || {}).wait || '') + '</b> 정도 걸릴 수 있고, 단계가 바뀌면 문자로 알려 드릴게요.' : '답변이 달리면 이 게시판에서 이름과 휴대폰 번호로 확인할 수 있어요.') +
+          '<p class="note">' + (refund ? '운영팀 확인 → 연수원 전달 → 환불 처리 순서로 진행돼요. <b>' + esc((C.refund || {}).wait || '') + '</b> 정도 걸릴 수 있고, 최종 환불이 완료되면 이메일로 알려 드릴게요. 접수 확인 메일도 곧 보내 드려요.' : '답변이 달리면 ' + (d.email ? '이메일로 알려 드리고, ' : '') + '이 게시판에서 이름과 휴대폰 번호로 확인할 수 있어요.') +
           (res.matched ? '' : '<br><b style="color:var(--danger)">신청자 명단에서 이름·번호를 바로 찾지 못했어요. 운영팀이 직접 확인할게요.</b>') + '</p></div>' +
           '<div class="btns"><a class="btn line" href="#/' + page + '">목록</a><a class="btn" href="#/status">내 현황 조회</a></div></div>';
       });

@@ -94,7 +94,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .mail-ed .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
 .mail-ed label { display: block; font-size: 12px; font-weight: 800; color: var(--gray-1); margin: 8px 0 4px; }
 .mail-ed input, .mail-ed select, .mail-ed textarea { width: 100%; }
-.mail-ed textarea#mBody { height: 380px; font-size: 14px; line-height: 1.65; }
+.mail-ed textarea#mlBody { height: 380px; font-size: 14px; line-height: 1.65; }
 .mail-att { background: #fffbea; border: 1px solid #f3e1a0; padding: 10px 14px; font-size: 13px; margin: 10px 0; }
 .mail-att li { margin: 2px 0; }
 .mail-sum { background: #fff; border: 1px solid var(--line); padding: 14px 18px; margin-top: 10px; font-size: 14px; }
@@ -209,6 +209,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
     <button data-tab="dash">대시보드</button>
     <button data-tab="ops">운영 업무표 · D-day <span class="cnt" id="cntOps" hidden></span></button>
     <button data-tab="mail">연수원 메일 봇</button>
+    <button data-tab="outbox">메일 발송 대기함 <span class="cnt" id="cntOut" hidden></span></button>
     <button data-tab="apps">신청자 명단</button>
     <button data-tab="reqs">셀프신청 처리 <span class="cnt" id="cntReq" hidden></span></button>
     <button data-tab="check">이수정보 점검 <span class="cnt" id="cntChk" hidden></span></button>
@@ -342,7 +343,7 @@ function tsv(rows) { return rows.map(function (r) { return r.map(function (v) { 
 // ───── 탭 ─────
 var TABS = {
   dash: renderDash, apps: function () { renderTable('신청자', '신청자 명단', '연수원 명단을 붙여넣어 가져오고, 한 줄씩 고칠 수 있어요.', ['기수', '성명', '연락처', '소속학교', '소속청', 'NEIS 번호', '생년월일', '입금일', '상태', '이수(Y/N)'], importBox); },
-  reqs: renderReqs, check: renderCheck, sms: renderSms, roster: renderRoster, attend: renderAttend, board: renderBoard, ops: renderOps, mail: renderMail, mats: renderMats,
+  reqs: renderReqs, check: renderCheck, sms: renderSms, roster: renderRoster, attend: renderAttend, board: renderBoard, ops: renderOps, mail: renderMail, outbox: renderOutbox, mats: renderMats,
   notice: function () { renderTable('공지', '공지사항', '여기서 쓰면 연수생 사이트에 바로 보여요.', ['게시일', '제목', '상단고정(Y)', '공개(Y)']); },
   faq: function () { renderTable('FAQ', 'FAQ', '같은 문의가 두 번 오면 여기에 한 줄 추가하세요.', ['분류', '질문', '공개(Y)']); },
   sched: function () { renderTable('연수일정', '연수 일정', '날짜만 넣으면 요일은 자동이에요. 연수생 사이트 시간표에 바로 반영돼요.', ['기수', '날짜', '요일', '시작', '종료', '시간(h)', '내용', '강사']); },
@@ -369,6 +370,7 @@ function refreshBoot() {
     var r = $('#cntReq'); r.hidden = !b.pending; r.textContent = b.pending;
     var c = $('#cntChk'); c.hidden = !b.issues; c.textContent = b.issues;
     DUPS = b.dups || {};
+    var co = $('#cntOut'); co.hidden = !b.outbox; co.textContent = b.outbox || '';
     var cm = $('#cntMats'); cm.hidden = !b.materialsPending; cm.textContent = b.materialsPending || '';
     var bp = (b.board || {}), bn = (bp.qna || 0) + (bp.refund || 0); var cb = $('#cntBoard'); cb.hidden = !bn; cb.textContent = bn;
     return b;
@@ -640,7 +642,7 @@ function renderSms() {
 // ───── 이수생관리부 ─────
 function renderRoster() {
   $('#main').innerHTML = '<h2>이수생관리부</h2><p class="sub">연수원 표준양식(서식변경금지)과 똑같은 열 순서로 만들어요. 복사해서 양식 파일의 같은 시트 첫 데이터 칸에 <b>값만 붙여넣기(Ctrl+Shift+V)</b> 하면 끝이에요.</p>' +
-    '<div class="toolbar"><select id="rt">' + BOOT.terms.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select><button class="btn navy" id="rgo">만들기</button><span class="muted">신청자 명단 원본 + 사이트 보완 입력을 합치고, 취소·이수 N은 빼요.</span></div><div id="rout"></div>';
+    '<div class="toolbar"><select id="rt">' + BOOT.terms.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select><button class="btn navy" id="rgo">만들기</button><span class="muted">신청자 명단 원본 + 사이트 보완 입력을 합치고, 최종 판정 이수(Y)만 들어가요.</span></div><div id="rout"></div>';
   $('#rgo').onclick = function () {
     var term = $('#rt').value;
     run('roster', { term: term }).then(function (r) {
@@ -670,19 +672,25 @@ function renderDoc() {
 }
 
 // ───── 출결 · 이수 판정 ─────
-var ATT_STATE = { term: '', filter: 'all', q: '' };
+var ATT_STATE_DEFAULT_FILTER = 'open';
+var ATT_STATE = { term: '', filter: 'open', q: '' };
 function renderAttend() {
   var term = ATT_STATE.term || (BOOT.terms[0] || '');
   ATT_STATE.term = term;
   run('attendance', { term: term }).then(function (r) {
     var days = r.days || [];
-    var cnt = { all: r.people.length, check: 0, n: 0, y: 0, dup: 0 };
-    r.people.forEach(function (x) { if (x.judge === '확인 필요') cnt.check++; if (x.judge === 'N') cnt.n++; if (x.judge === 'Y') cnt.y++; if (x.dup) cnt.dup++; });
-    $('#main').innerHTML = '<h2>출결 · 이수 판정</h2><p class="sub">연수생이 사이트에서 누른 출석체크·퇴실체크로 자동 집계해요. 이름이 아니라 <b>이름+휴대폰</b>으로 묶어서 동명이인이 섞이지 않아요. 기준 ' + r.need + '시간, 지각·조퇴 ' + r.grace + '분 넘으면 1시간 단위로 빼요.</p>' +
+    var cnt = { all: r.people.length, open: 0, check: 0, fy: 0, fn: 0, dup: 0 };
+    r.people.forEach(function (x) { if (!x.final) cnt.open++; if (!x.final && x.judge !== 'Y') cnt.check++; if (x.final === 'Y') cnt.fy++; if (x.final === 'N') cnt.fn++; if (x.dup) cnt.dup++; });
+    if (!ATT_STATE.sel) ATT_STATE.sel = {};
+    var rank = function (x) { return x.final ? 3 : x.judge === '확인 필요' ? 0 : x.judge === 'N' ? 1 : 2; };
+    r.people.sort(function (a, b) { return rank(a) - rank(b) || a.name.localeCompare(b.name, 'ko'); });
+    $('#main').innerHTML = '<h2>출결 · 이수 판정</h2><p class="sub">출석·퇴실체크로 자동 집계한 판정은 <b>제안</b>이에요. <b>최종 판정</b>은 두목쿼카님이 확정한 값만 신청자 명단 이수(Y/N)와 이수생관리부에 들어가요. 확인 필요·미달인 분이 맨 위에 모여요. (기준 ' + r.need + '시간, 지각·조퇴 ' + r.grace + '분 넘으면 1시간 단위로 뺌)</p>' +
+      '<div class="stats" style="grid-template-columns:repeat(4,1fr)"><div class="stat" style="cursor:default"><small>미확정</small><b>' + cnt.open + '<span>명</span></b></div><div class="stat ' + (cnt.check ? 'warn' : '') + '" style="cursor:default"><small>미확정 중 확인 필요·미달</small><b>' + cnt.check + '<span>명</span></b></div><div class="stat" style="cursor:default"><small>최종 이수</small><b>' + cnt.fy + '<span>명</span></b></div><div class="stat" style="cursor:default"><small>최종 미이수</small><b>' + cnt.fn + '<span>명</span></b></div></div>' +
       '<div class="toolbar"><select id="aTerm">' + BOOT.terms.map(function (t) { return '<option' + (t === term ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' +
-      '<div class="seg" id="aSeg">' + [['all', '전체 ' + cnt.all], ['check', '확인 필요 ' + cnt.check], ['n', '미달 ' + cnt.n], ['y', '이수 ' + cnt.y], ['dup', '동명이인 ' + cnt.dup]].map(function (f) { return '<button data-f="' + f[0] + '" class="' + (ATT_STATE.filter === f[0] ? 'on' : '') + '">' + f[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="seg" id="aSeg">' + [['open', '미확정 ' + cnt.open], ['check', '확인 필요·미달 ' + cnt.check], ['fy', '최종 이수 ' + cnt.fy], ['fn', '최종 미이수 ' + cnt.fn], ['all', '전체 ' + cnt.all], ['dup', '동명이인 ' + cnt.dup]].map(function (f) { return '<button data-f="' + f[0] + '" class="' + (ATT_STATE.filter === f[0] ? 'on' : '') + '">' + f[1] + '</button>'; }).join('') + '</div>' +
       '<input type="search" id="aQ" placeholder="이름·학교·번호" value="' + esc(ATT_STATE.q) + '" style="width:180px"><span class="grow"></span>' +
-      '<button class="btn line sm" id="aCopy">표 복사</button><button class="btn navy sm" id="aApply">이수 판정 → 신청자 명단 반영</button></div>' +
+      '<button class="btn line sm" id="aCopy">표 복사</button><button class="btn line sm" id="aApply">자동 판정 이수(Y) 일괄 확정</button></div>' +
+      '<div class="toolbar" id="aBulk" style="background:#eef1fb;padding:8px 12px"><b id="aSelN">0명 선택</b><input id="aMemo" placeholder="사유 메모 (예: 퇴실체크 누락, Zoom 기록 확인)" style="flex:1;min-width:200px"><button class="btn navy sm" id="aSetY">선택 → 최종 이수</button><button class="btn red sm" id="aSetN">선택 → 최종 미이수</button><button class="btn line sm" id="aSetX">선택 → 확정 해제</button></div>' +
       '<div class="stats" style="grid-template-columns:repeat(' + Math.max(1, Math.min(days.length, 4)) + ',1fr)">' + (days.length ? days.map(function (d) {
         var c = r.counts[d.date] || {};
         return '<div class="stat" style="cursor:default"><small>' + esc(d.date) + '(' + esc(d.dow) + ') ' + esc(d.startHm) + '~' + esc(d.endHm) + ' · ' + d.hours + 'h</small><b>' + (c.in || 0) + '<span>/ ' + r.people.length + '명 입실</span></b>' +
@@ -692,28 +700,53 @@ function renderAttend() {
       '<p class="muted" style="margin:8px 0">Zoom 보고서의 참가자 이름 열을 통째로 붙여넣으면, 출석체크는 했는데 Zoom 명단에 이름이 없는 분과 그 반대를 보여 줘요. 이름으로만 찾기 때문에 참고용이에요. 저장하지 않아요.</p>' +
       '<div class="toolbar"><select id="zDate">' + days.map(function (d) { return '<option>' + esc(d.date) + '</option>'; }).join('') + '</select><button class="btn navy sm" id="zGo">대조하기</button></div>' +
       '<textarea id="zText" rows="5" placeholder="1기_홍길동&#10;1기_김하늘&#10;…"></textarea><div id="zOut"></div></details>' +
-      '<div class="tbl-wrap"><table class="tbl att-tbl"><thead><tr><th>성명</th><th>학교</th>' + days.map(function (d) { return '<th style="text-align:center">' + esc(d.date.slice(5)) + '(' + esc(d.dow) + ')</th>'; }).join('') + '<th>인정</th><th>판정</th></tr></thead><tbody id="aTb"></tbody></table></div>' +
+      '<div class="tbl-wrap"><table class="tbl att-tbl"><thead><tr><th style="width:34px"><input type="checkbox" id="aAll"></th><th>성명</th><th>학교</th>' + days.map(function (d) { return '<th style="text-align:center">' + esc(d.date.slice(5)) + '(' + esc(d.dow) + ')</th>'; }).join('') + '<th>인정</th><th>자동 제안</th><th>최종 판정</th></tr></thead><tbody id="aTb"></tbody></table></div>' +
       '<p class="muted" style="margin-top:8px">칸을 누르면 그날 인정 시간을 직접 고칠 수 있어요. (퇴실체크를 깜빡한 분 등)</p>';
     function draw() {
       var q = ATT_STATE.q.trim();
       var list = r.people.filter(function (x) {
-        if (ATT_STATE.filter === 'check' && x.judge !== '확인 필요') return false;
-        if (ATT_STATE.filter === 'n' && x.judge !== 'N') return false;
-        if (ATT_STATE.filter === 'y' && x.judge !== 'Y') return false;
+        if (ATT_STATE.filter === 'open' && x.final) return false;
+        if (ATT_STATE.filter === 'check' && (x.final || x.judge === 'Y')) return false;
+        if (ATT_STATE.filter === 'fy' && x.final !== 'Y') return false;
+        if (ATT_STATE.filter === 'fn' && x.final !== 'N') return false;
         if (ATT_STATE.filter === 'dup' && !x.dup) return false;
         return !q || (x.name + x.phone + x.school).indexOf(q) >= 0;
       });
       $('#aTb').innerHTML = list.length ? list.map(function (x, i) {
-        return '<tr><td><b>' + esc(x.name) + '</b>' + dupTag(x.name) + '<div class="muted">' + esc(x.phone) + '</div></td><td class="muted">' + esc(x.school) + '</td>' +
+        var key = x.name + '|' + x.phone;
+        return '<tr><td><input type="checkbox" class="aChk" data-k="' + esc(key) + '"' + (ATT_STATE.sel[key] ? ' checked' : '') + '></td><td><b>' + esc(x.name) + '</b>' + dupTag(x.name) + '<div class="muted">' + esc(x.phone) + '</div></td><td class="muted">' + esc(x.school) + '</td>' +
           days.map(function (d) {
             var o = x.days[d.date] || {};
             var cls = /미체크/.test(o.status) ? 'chk' : (o.status === '결석' || o.status === '미입실') ? 'bad' : (o.status === '정상' || o.status === '조정') ? 'okc' : '';
             return '<td class="d ' + cls + '" data-i="' + r.people.indexOf(x) + '" data-d="' + d.date + '" style="cursor:pointer">' + esc(o.in || '-') + ' ~ ' + esc(o.out || '-') + '<small>' + esc(o.status) + (o.hours ? ' · ' + o.hours + 'h' : '') + '</small></td>';
           }).join('') +
-          '<td><b>' + x.total + '</b>h</td><td>' + (x.judge === 'Y' ? '<span class="badge b-ok">이수</span>' : x.judge === 'N' ? '<span class="badge b-red">미달</span>' : '<span class="badge b-navy">' + esc(x.judge) + '</span>') + '</td></tr>';
-      }).join('') : '<tr><td colspan="' + (days.length + 4) + '" class="empty">해당하는 분이 없어요.</td></tr>';
+          '<td><b>' + x.total + '</b>h</td><td>' + (x.judge === 'Y' ? '<span class="badge b-gray">이수 제안</span>' : x.judge === 'N' ? '<span class="badge b-red">미달</span>' : '<span class="badge b-navy">' + esc(x.judge) + '</span>') + '</td>' +
+          '<td style="white-space:nowrap"><div class="seg fin" data-i="' + r.people.indexOf(x) + '"><button data-v="Y" class="' + (x.final === 'Y' ? 'on' : '') + '" style="height:30px;padding:0 10px">이수</button><button data-v="N" class="' + (x.final === 'N' ? 'on' : '') + '" style="height:30px;padding:0 10px">미이수</button></div>' + (x.finalMemo ? '<div class="muted" style="font-size:12px;max-width:180px;white-space:normal">' + esc(x.finalMemo) + '</div>' : '') + '</td></tr>';
+      }).join('') : '<tr><td colspan="' + (days.length + 6) + '" class="empty">해당하는 분이 없어요.</td></tr>';
       $$('#aTb td.d').forEach(function (td) { td.onclick = function () { adjust(r.people[+td.dataset.i], td.dataset.d); }; });
+      $$('#aTb .aChk').forEach(function (c) { c.onchange = function () { if (c.checked) ATT_STATE.sel[c.dataset.k] = 1; else delete ATT_STATE.sel[c.dataset.k]; selN(); }; });
+      $$('#aTb .fin').forEach(function (sg) { $$('button', sg).forEach(function (b) { b.onclick = function () {
+        var x = r.people[+sg.dataset.i], v = b.classList.contains('on') ? '' : b.dataset.v;
+        var memo = (v === 'N' || (v === 'Y' && x.judge !== 'Y')) ? prompt(x.name + ' 최종 ' + (v === 'Y' ? '이수' : '미이수') + ' 사유 (자동 제안과 다를 때 남겨 두면 좋아요)', x.finalMemo || '') : '';
+        if (memo === null) return;
+        finalize([{ name: x.name, phone: x.phone, final: v, memo: memo || (v ? '자동 제안대로 확정' : '확정 해제') }]);
+      }; }); });
+      $('#aAll').checked = false;
+      $('#aAll').onchange = function () { var on = this.checked; $$('#aTb .aChk').forEach(function (c) { c.checked = on; if (on) ATT_STATE.sel[c.dataset.k] = 1; else delete ATT_STATE.sel[c.dataset.k]; }); selN(); };
+      selN();
     }
+    function selN() { $('#aSelN').textContent = Object.keys(ATT_STATE.sel).length + '명 선택'; }
+    function finalize(items) {
+      run('attendFinal', { term: term, items: items }).then(function (res) { toast(res.count + '명 최종 판정을 저장했어요'); ATT_STATE.sel = {}; PEOPLE = null; renderAttend(); });
+    }
+    function bulk(v) {
+      var keys = Object.keys(ATT_STATE.sel); if (!keys.length) return toast('표에서 체크박스로 먼저 골라 주세요');
+      var memo = $('#aMemo').value.trim();
+      if (v === 'N' && !memo) return toast('미이수는 사유 메모를 적어 주세요');
+      if (!confirm(keys.length + '명을 최종 ' + (v === 'Y' ? '이수' : v === 'N' ? '미이수' : '확정 해제') + '로 저장할까요?')) return;
+      finalize(keys.map(function (k) { var p = k.split('|'); return { name: p[0], phone: p[1], final: v, memo: memo || (v === 'Y' ? '운영자 일괄 이수 확정' : '확정 해제') }; }));
+    }
+    $('#aSetY').onclick = function () { bulk('Y'); }; $('#aSetN').onclick = function () { bulk('N'); }; $('#aSetX').onclick = function () { bulk(''); };
     function adjust(x, date) {
       var o = x.days[date] || {}, d = days.filter(function (y) { return y.date === date; })[0] || {};
       $('#mTitle').textContent = x.name + ' · ' + date + ' 출결 고치기';
@@ -738,7 +771,7 @@ function renderAttend() {
       copy(tsv(rows)).then(function () { toast(r.people.length + '명 출결표를 복사했어요.'); });
     };
     $('#aApply').onclick = function () {
-      if (!confirm(term + ' 이수 판정을 신청자 명단의 이수(Y/N)에 반영할까요?\n확인 필요·진행 중인 분은 그대로 둬요.')) return;
+      if (!confirm(term + ' 자동 판정이 이수(Y)이고 아직 확정 안 된 분을 모두 최종 이수로 확정할까요?\n이미 확정한 분과 확인 필요·미달인 분은 그대로 둬요.')) return;
       this.disabled = true;
       run('attendApply', { term: term }).then(function (x) { toast(x.msg, 5000); PEOPLE = null; renderAttend(); });
     };
@@ -774,6 +807,36 @@ function boardSms(r) {
   if (st === '환불 완료') return head + '환불 처리가 완료되었어요. 입금 내역을 확인해 주세요.\n이번에 함께하지 못해 아쉬워요. 다음에 꼭 만나요 : )';
   return head + '환불 요청(' + r['글번호'] + ')에 대한 답변을 남겼어요.\n' + site + ' > 게시판 > 환불 요청에서 확인해 주세요.';
 }
+// ───── 메일 발송 대기함 (이메일 자동화) ─────
+var OUT_UI = { filter: 'wait' };
+function renderOutbox() {
+  run('outbox').then(function (o) {
+    var rows = o.rows, f = OUT_UI.filter;
+    var list = rows.filter(function (r) { return f === 'all' || (f === 'wait' ? (r['상태'] === '대기' || r['상태'] === '주소 없음') : r['상태'] === f); });
+    var n = function (st) { return rows.filter(function (r) { return st === 'wait' ? (r['상태'] === '대기' || r['상태'] === '주소 없음') : r['상태'] === st; }).length; };
+    $('#main').innerHTML = '<h2>메일 발송 대기함</h2><p class="sub">환불 접수·환불 완료·반려, Q&A 답변이 생기면 수강생에게 보낼 메일이 자동으로 여기 쌓여요. 확인하고 <b>보내기</b>를 눌러야만 나가요.' + (o.quota >= 0 ? ' 오늘 남은 발송 한도 ' + o.quota + '통.' : '') + '</p>' +
+      '<div class="toolbar"><div class="seg" id="oxSeg">' + [['wait', '보낼 메일 ' + n('wait')], ['발송', '보낸 메일 ' + n('발송')], ['보류', '보류 ' + n('보류')], ['all', '전체']].map(function (x) { return '<button data-f="' + x[0] + '" class="' + (f === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div><span class="grow"></span>' +
+      (f === 'wait' && list.length ? '<button class="btn navy" id="oxAll">체크한 메일 보내기</button>' : '') + '</div>' +
+      (list.length ? list.map(function (r) {
+        var sent = r['상태'] === '발송', noTo = r['상태'] === '주소 없음';
+        return '<div class="post" data-row="' + r._row + '"><div class="h">' + (sent ? '' : '<input type="checkbox" class="oxChk"' + (noTo ? '' : ' checked') + '>') + '<b>' + esc(r['종류']) + '</b>' + cell('처리상태', r['상태']) + '<b>' + esc(r['성명']) + '</b><span class="muted">' + esc(r['휴대폰']) + ' · ' + esc(r['관련']) + ' · ' + esc(r['생성시각']) + (sent ? ' · 보냄 ' + esc(r['발송시각']) : '') + '</span></div>' +
+          (sent ? '<div class="c"><b>' + esc(r['제목']) + '</b> → ' + esc(r['받는사람']) + '</div>' :
+          '<div style="display:grid;gap:6px;margin-top:10px"><input class="oxTo" value="' + esc(r['받는사람']) + '" placeholder="받는 사람 이메일 (없으면 입력)"><input class="oxSubj" value="' + esc(r['제목']) + '"><textarea class="oxBody" style="height:170px">' + esc(r['본문']) + '</textarea>' +
+          '<div class="toolbar" style="margin:0"><button class="btn navy sm oxOne">이 메일 보내기</button><button class="btn line sm oxHold">보류</button>' + (r['메모'] ? '<span class="muted">' + esc(r['메모']) + '</span>' : '') + '</div></div>') + '</div>';
+      }).join('') : '<div class="card muted">' + (f === 'wait' ? '보낼 메일이 없어요. 게시판에서 환불 완료로 바꾸거나 답변을 달면 여기에 생겨요.' : '없어요.') + '</div>');
+    $$('#oxSeg button').forEach(function (b) { b.onclick = function () { OUT_UI.filter = b.dataset.f; renderOutbox(); }; });
+    var pick = function (card) { return { row: Number(card.dataset.row), to: $('.oxTo', card).value.trim(), subject: $('.oxSubj', card).value, body: $('.oxBody', card).value }; };
+    var send = function (items, btn) {
+      if (!items.length) return toast('보낼 메일을 체크해 주세요');
+      btn.disabled = true;
+      run('outboxSend', { rows: items }).then(function (res) { toast(res.sent + '통 보냈어요' + (res.fail.length ? ' · 실패 ' + res.fail.length + '건: ' + res.fail.join(', ') : ''), 5000); refreshBoot(); renderOutbox(); });
+    };
+    $$('.oxOne').forEach(function (b) { b.onclick = function () { send([pick(b.closest('.post'))], b); }; });
+    $$('.oxHold').forEach(function (b) { b.onclick = function () { run('save', { sheet: '메일대기', row: Number(b.closest('.post').dataset.row), data: { 상태: '보류' } }).then(function () { toast('보류했어요'); refreshBoot(); renderOutbox(); }); }; });
+    if ($('#oxAll')) $('#oxAll').onclick = function () { send($$('.post').filter(function (c) { var k = $('.oxChk', c); return k && k.checked; }).map(pick), this); };
+  });
+}
+
 // ───── 연수자료 ─────
 function renderMats() {
   var code = (BOOT.settings || {})['강사자료코드'] || '';
@@ -810,7 +873,7 @@ var MAIL_KINDS = [
   { grp: '연수 전', id: 'parking', task: 'T29', t: '강사 주차권 요청', att: [], fields: [['park', '일자별 주차권 매수', '']],
     s: function () { return '[연구하는 교사되기 2027] 강사 주차권 요청'; },
     b: function (c) { return '대면 출강 강사의 주차권 발급을 요청드립니다.\n\n' + (c.x.park || c.parkDefault()) + '\n\n수령 방법을 회신해 주시기 바랍니다.'; } },
-  { grp: '연수 후', id: 'completion', task: 'T43', t: '이수생관리부 제출', att: ['이수정보확인서 (운영자 페이지 > 이수생관리부)', '이수대장 (같은 화면)'], term: true,
+  { grp: '연수 후', id: 'completion', task: 'T38', t: '이수생관리부 제출', att: ['이수정보확인서 (운영자 페이지 > 이수생관리부)', '이수대장 (같은 화면)'], term: true,
     s: function (c) { return '[연구하는 교사되기 2027] ' + c.t + ' 이수생관리부 제출'; },
     b: function (c) { var n = c.n(c.t); return c.t + ' 연수(' + c.period(c.t) + ')를 마치고 이수생관리부를 제출합니다.\n\n· 이수 ' + n.Y + '명 / 미이수 ' + n.N + '명 (확정 ' + n.신청 + '명)\n· 첨부: 이수정보확인서, 이수대장 (연수원 표준양식 열 순서)\n\n이수 처리 완료 예정일과 NEIS 등재 요청 일정을 회신해 주시기 바랍니다.'; } },
   { grp: '수시', id: 'refund', task: '', t: '환불 처리 요청', att: [], term: 'all',
@@ -884,21 +947,21 @@ function renderMail() {
       $('#mEd').innerHTML = '<div class="row2"><div><label>받는 사람 (연수원)</label><input id="mTo" value="' + esc(s['연수원메일'] || '') + '" placeholder="연수원 담당자 메일"></div><div><label>회신 기한</label><input type="date" id="mDue" value="' + esc(MAIL_UI.due) + '"></div></div>' +
         (k.term ? '<label>기수</label><select id="mTerm">' + (k.term === 'all' ? '<option value="">전체</option>' : '') + ctx.terms.map(function (t) { return '<option' + (t === MAIL_UI.term ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' : '') +
         (k.fields || []).map(function (f) { var v = MAIL_UI.extra[f[0]] || ''; return '<label>' + esc(f[1]) + '</label>' + (f[2] === 'area' ? '<textarea data-x="' + f[0] + '" rows="4">' + esc(v) + '</textarea>' : '<input data-x="' + f[0] + '" value="' + esc(v) + '">'); }).join('') +
-        '<label>제목</label><input id="mSubj" value="' + esc(m.subject) + '"><label>본문 (고쳐 써도 돼요)</label><textarea id="mBody">' + esc(m.body) + '</textarea>' +
+        '<label>제목</label><input id="mSubj" value="' + esc(m.subject) + '"><label>본문 (고쳐 써도 돼요)</label><textarea id="mlBody">' + esc(m.body) + '</textarea>' +
         (k.att.length ? '<div class="mail-att"><b>첨부할 파일</b> (Gmail 창에서 직접 붙여 주세요)<ul>' + k.att.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul></div>' : '') +
         '<div class="toolbar" style="margin-top:10px"><button class="btn navy" id="mGmail">Gmail 작성 창 열기</button><button class="btn line" id="mCopy">본문 복사</button><button class="btn line" id="mSent">보냄 기록</button><span class="grow"></span><button class="btn line sm" id="mSaveTo">받는 사람 저장</button></div>' +
         '<p class="muted" style="margin:6px 0 0">Gmail 창에서 받는 사람·첨부를 확인하고 보내기를 누른 뒤, 여기서 <b>보냄 기록</b>을 눌러 주세요.' + (k.id === 'refund' ? ' 보낸 뒤 게시판에서 해당 글을 \'연수원 전달\'로 바꾸면 신청자 안내 문자가 준비돼요.' : '') + '</p>';
-      var redraw = function () { var m2 = composeMail(ctx); $('#mSubj').value = m2.subject; $('#mBody').value = m2.body; };
+      var redraw = function () { var m2 = composeMail(ctx); $('#mSubj').value = m2.subject; $('#mlBody').value = m2.body; };
       $$('#mEd [data-x]').forEach(function (el) { el.oninput = function () { MAIL_UI.extra[el.dataset.x] = el.value; redraw(); }; });
       if ($('#mTerm')) $('#mTerm').onchange = function () { MAIL_UI.term = this.value; redraw(); };
       $('#mDue').onchange = function () { MAIL_UI.due = this.value; redraw(); };
       $('#mGmail').onclick = function () {
-        var url = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent($('#mTo').value.trim()) + '&su=' + encodeURIComponent($('#mSubj').value) + '&body=' + encodeURIComponent($('#mBody').value);
-        if (url.length > 7500) { copy($('#mBody').value); url = url.split('&body=')[0]; toast('본문이 길어서 복사해 뒀어요. Gmail 본문에 붙여 넣어 주세요.', 5000); }
+        var url = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent($('#mTo').value.trim()) + '&su=' + encodeURIComponent($('#mSubj').value) + '&body=' + encodeURIComponent($('#mlBody').value);
+        if (url.length > 7500) { copy($('#mlBody').value); url = url.split('&body=')[0]; toast('본문이 길어서 복사해 뒀어요. Gmail 본문에 붙여 넣어 주세요.', 5000); }
         window.open(url, '_blank');
       };
-      $('#mCopy').onclick = function () { copy($('#mBody').value).then(function () { toast('본문을 복사했어요'); }); };
-      $('#mSent').onclick = function () { run('mailLog', { dir: '보냄', kind: k.t, subject: $('#mSubj').value, to: $('#mTo').value, body: $('#mBody').value }).then(function () { toast('보냄으로 기록했어요'); renderMail(); }); };
+      $('#mCopy').onclick = function () { copy($('#mlBody').value).then(function () { toast('본문을 복사했어요'); }); };
+      $('#mSent').onclick = function () { run('mailLog', { dir: '보냄', kind: k.t, subject: $('#mSubj').value, to: $('#mTo').value, body: $('#mlBody').value }).then(function () { toast('보냄으로 기록했어요'); renderMail(); }); };
       $('#mSaveTo').onclick = function () { run('setSetting', { key: '연수원메일', value: $('#mTo').value.trim() }).then(function () { s['연수원메일'] = $('#mTo').value.trim(); if (BOOT.settings) BOOT.settings['연수원메일'] = s['연수원메일']; toast('받는 사람을 저장했어요'); }); };
     }
     drawEd();
@@ -1064,6 +1127,10 @@ function MOCK(a, p) {
     ops: { T01: [{ date: '2026-11-23' }], T04: [{ date: '2026-11-27' }], T05: [{ date: '2026-12-01' }], T09: [{ date: '2026-12-11' }], T21: [{ date: '2026-12-14' }], T22: [{ date: '2026-12-21' }], T27: [{ date: '2026-12-28' }], T29: [{ date: '2026-12-28' }], T41: [{ date: '2027-02-12' }], T43: [{ date: '2027-02-26' }] },
     log: [{ at: '2026-11-19 10:00', dir: '보냄', kind: '개설 협조 · 역할 분담 확인', subject: '[연구하는 교사되기 2027] 직무연수 개설 협조 요청 및 운영 사항 확인' }] };
   if (a === 'mailLog' || a === 'setSetting' || a === 'save') return { ok: true };
+  if (a === 'outboxSend') return { ok: true, sent: (p.rows || []).length, fail: [] };
+  if (a === 'outbox') return { quota: 98, rows: [
+    { _row: 3, 생성시각: '2027-01-20 10:02', 상태: '대기', 종류: '환불 완료', 받는사람: 'teacher@example.com', 성명: '정민준', 휴대폰: '010-1234-1004', 제목: '[연구하는 교사되기 2027] 환불이 완료되었습니다 (F0002)', 본문: '정민준 선생님, 안녕하세요.\n「연구하는 교사되기 2027」 운영팀입니다.\n\n요청하신 연수비 환불이 완료되었습니다.\n\n· 글번호: F0002\n\n입금 계좌에서 확인해 주시기 바랍니다.', 관련: 'F0002', 발송시각: '', 메모: '' },
+    { _row: 2, 생성시각: '2027-01-02 14:40', 상태: '발송', 종류: '환불 접수', 받는사람: 'teacher@example.com', 성명: '정민준', 휴대폰: '010-1234-1004', 제목: '[연구하는 교사되기 2027] 환불 요청이 접수되었습니다 (F0002)', 본문: '', 관련: 'F0002', 발송시각: '2027-01-02 15:10', 메모: '' }] };
   if (a === 'ops') return { tasks: { headers: [], rows: [
     { _row: 2, ID: 'T01', 단계: '준비', 업무명: '개설 협조 요청 공문 + 계획서 제출', 분류: 'AI 초안 → 두목쿼카 확인', 처리방식: '계획서 3종 자동 검사 후 1회 제출', 담당: '교수님 발송 / 두목쿼카 확인', 'D-day': 'D-49', '1기날짜': '11.23.(월)', '2기날짜': '공통', '2026실제': '', 근거: '', 사이트기능: '—', 완료: 'Y', 메모: '' },
     { _row: 3, ID: 'T10', 단계: '홍보·모집', 업무명: '모집 공지 · 사이트 오픈', 분류: '사이트 자동', 처리방식: '사이트 공지 자동 노출', 담당: '사이트', 'D-day': 'D-35', '1기날짜': '12.7.(월)', '2기날짜': '공통', '2026실제': '', 근거: '', 사이트기능: '공지', 완료: '', 메모: '' },

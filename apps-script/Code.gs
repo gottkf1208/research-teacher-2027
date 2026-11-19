@@ -23,14 +23,18 @@ var SHEETS = {
   // 출석: 연수생이 사이트에서 직접 입실/퇴실 체크. 운영자가 고치면 구분=조정 + 인정시간
   출석: ['기록시각', '기수', '날짜', '구분', '성명', '휴대폰', '인정시간', '비고'],
   // 게시판: Q&A, 환불요청. 내용은 본인(이름+휴대폰)만 열람
-  게시판: ['작성시각', '글번호', '게시판', '제목', '내용', '성명', '휴대폰', '기수', '공개', '환불사유', '처리상태', '답변', '답변시각', '운영메모'],
+  게시판: ['작성시각', '글번호', '게시판', '제목', '내용', '성명', '휴대폰', '기수', '공개', '환불사유', '처리상태', '답변', '답변시각', '운영메모', '이메일'],
   // 운영 업무표·D-day 일정표 (2027_연수운영_업무표.xlsx). 운영자 페이지 '운영 업무표' 탭에서 완료 체크
   업무표: ['ID', '단계', '업무명', '분류', '처리방식', '담당', 'D-day', '1기날짜', '2기날짜', '2026실제', '근거', '사이트기능', '완료', '메모'],
   일정표: ['날짜', '요일', 'D_1기', 'D_2기', '대상', 'ID', '업무', '담당', '분류'],
   // 연수자료: 수강생(이름+휴대폰 확인)만 사이트에서 열람. 강사 업로드는 공개=N으로 들어오고 운영자가 Y로 바꾸면 공개
   연수자료: ['등록시각', '순서', '기수', '차시', '강사', '제목', '종류', '링크', '설명', '공개(Y)', '올린사람'],
   // 연수원 메일 봇: 보낸 초안·받은 회신 기록
-  메일기록: ['기록시각', '구분', '종류', '제목', '받는사람', '본문']
+  메일기록: ['기록시각', '구분', '종류', '제목', '받는사람', '본문'],
+  // 이메일 자동화: 상태가 바뀌면 수강생에게 보낼 메일이 여기 쌓임 → 운영자 페이지 '메일 발송 대기함'에서 확인 후 발송
+  // 최종 이수 판정 기록 (자동 판정은 제안, 운영자가 확정한 값이 신청자 '이수(Y/N)'에 들어감)
+  판정기록: ['기록시각', '기수', '성명', '휴대폰', '자동판정', '인정시간', '최종', '사유', '처리자'],
+  메일대기: ['생성시각', '상태', '종류', '받는사람', '성명', '휴대폰', '제목', '본문', '관련', '발송시각', '메모']
 };
 // 강사 민감정보는 운영 시트와 다른 파일(비공개)에 저장
 var INSTRUCTOR_HEADERS = ['성명', '소속', '직위', '전화', '이메일', '생년월일', '주민등록번호', '은행', '계좌번호', '예금주', '비고'];
@@ -224,6 +228,7 @@ function validateInfo_(d, s) {
   var neis = clean_(d.neis).replace(/\s/g, '').toUpperCase();
   var email = clean_(d.email);
   var term = clean_(d.term);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('이메일을 정확히 입력해 주세요. (환불·이수 안내를 이메일로 보내 드려요)');
   if (!name || name.length < 2) errors.push('성명을 정확히 입력해 주세요.');
   if (!phone) errors.push('휴대폰 번호 형식이 맞지 않아요. (예: 010-1234-5678)');
   if (!birth) errors.push('생년월일은 8자리로 입력해 주세요. (예: 19850315)');
@@ -416,7 +421,7 @@ function mergedRoster_() {
       school: clean_(f ? f['학교명'] : r['소속학교']),
       sido: normSido_(f ? f['시도교육청'] : r['소속청']),
       email: clean_(f ? f['이메일'] : r['이메일']),
-      done: clean_(r['이수(Y/N)']).toUpperCase() !== 'N',
+      done: clean_(r['이수(Y/N)']).toUpperCase() === 'Y', // 이수생관리부: 운영자 최종 판정 Y만
       fixed: !!f
     };
   });
@@ -619,7 +624,7 @@ function isAdmin_() {
   return me.toLowerCase() === owner.toLowerCase() || extra.indexOf(me.toLowerCase()) >= 0;
 }
 
-var ADMIN_SHEETS = ['신청자', '이수정보', '셀프신청', '공지', 'FAQ', '연수일정', '강사일정', '설정', '문자기록', '강사정보', '출석', '게시판', '업무표', '연수자료', '메일기록'];
+var ADMIN_SHEETS = ['신청자', '이수정보', '셀프신청', '공지', 'FAQ', '연수일정', '강사일정', '설정', '문자기록', '강사정보', '출석', '게시판', '업무표', '연수자료', '메일기록', '메일대기', '판정기록'];
 var TEXT_COLS = ['연락처', '휴대폰', '생년월일', 'NEIS 번호', '나이스개인번호', '현금영수증번호', '전화', '주민등록번호', '계좌번호', '연수지명번호'];
 
 function adminApi(action, p) {
@@ -645,6 +650,7 @@ function adminApi(action, p) {
       case 'attendance': return attendanceReport_(String(p.term || '').trim());
       case 'attendAdjust': return attendAdjust_(p);
       case 'attendApply': return attendApply_(String(p.term || '').trim());
+      case 'attendFinal': return attendFinal_(String(p.term || '').trim(), p.items || []);
       case 'board': return adminTable_('게시판');
       case 'boardReply': return boardReply_(p);
       case 'ops': return opsData_();
@@ -653,6 +659,8 @@ function adminApi(action, p) {
         sheet_('메일기록').appendRow([new Date(), p.dir || '보냄', p.kind || '', p.subject || '', p.to || '', String(p.body || '').slice(0, 40000)]);
         return { ok: true };
       case 'setSetting': return setSetting_(p.key, p.value);
+      case 'outbox': return outbox_();
+      case 'outboxSend': return outboxSend_(p.rows || []);
       default: throw new Error('알 수 없는 요청: ' + action);
     }
   } finally { lock.releaseLock(); }
@@ -673,7 +681,8 @@ function adminBoot_() {
     ssUrl: SpreadsheetApp.getActive().getUrl(), site: s['사이트주소'] || '',
     dups: dupNames_(),
     board: boardPending_(),
-    materialsPending: materialsPending_()
+    materialsPending: materialsPending_(),
+    outbox: outboxCount_()
   };
 }
 
@@ -935,6 +944,8 @@ function attendanceReport_(term) {
   });
   var counts = {};
   days.forEach(function (d) { counts[d.date] = { in: 0, out: 0, noIn: 0, noOut: 0 }; });
+  var flog = {};
+  rows_('판정기록').forEach(function (r) { if (clean_(r['기수']) === term) flog[personKey_(r['성명'], r['휴대폰'])] = { memo: clean_(r['사유']), at: cellOut_(r['기록시각']) }; });
   var people = rows_('신청자').filter(function (r) { return clean_(r['기수']) === term && (r['상태'] || '신청') === '신청'; }).map(function (r) {
     var name = clean_(r['성명']).replace(/\s/g, ''), phone = normPhone_(r['연락처']);
     var total = 0, pending = 0, checks = 0, out = {};
@@ -960,7 +971,8 @@ function attendanceReport_(term) {
       out[d.date] = o;
     });
     var judge = total >= need ? 'Y' : (total + pending + checks < need ? 'N' : (pending ? '진행 중' : '확인 필요'));
-    return { name: name, phone: phone, school: clean_(r['소속학교']), dup: !!dups[name], days: out, total: total, judge: judge };
+    var fin = clean_(r['이수(Y/N)']).toUpperCase(), fl = flog[name + '|' + phone] || {};
+    return { name: name, phone: phone, school: clean_(r['소속학교']), dup: !!dups[name], days: out, total: total, judge: judge, final: fin === 'Y' || fin === 'N' ? fin : '', finalMemo: fl.memo || '', finalAt: fl.at || '' };
   });
   return { ok: true, term: term, need: need, grace: grace, today: now.date, days: days, counts: counts, people: people };
 }
@@ -986,7 +998,7 @@ function attendAdjust_(p) {
 function attendApply_(term) {
   var rep = attendanceReport_(term);
   var judge = {};
-  rep.people.forEach(function (x) { if (x.judge === 'Y' || x.judge === 'N') judge[x.name + '|' + x.phone] = x.judge; });
+  rep.people.forEach(function (x) { if (x.judge === 'Y' && !x.final) judge[x.name + '|' + x.phone] = 'Y'; });
   var sh = sheet_('신청자');
   var data = sh.getDataRange().getValues();
   var h = data[0].map(String), ni = h.indexOf('성명'), pi = h.indexOf('연락처'), ti = h.indexOf('기수'), yi = h.indexOf('이수(Y/N)');
@@ -996,10 +1008,35 @@ function attendApply_(term) {
     var v = judge[personKey_(data[i][ni], data[i][pi])];
     if (!v) continue;
     sh.getRange(i + 1, yi + 1).setValue(v);
-    if (v === 'Y') y++; else n++;
+    y++;
   }
-  var left = rep.people.length - y - n;
-  return { ok: true, y: y, n: n, left: left, msg: term + ' 이수 Y ' + y + '명, N ' + n + '명 반영' + (left ? ' (확인 필요·진행 중 ' + left + '명은 그대로)' : '') };
+  var me = Session.getActiveUser().getEmail(), logs = [];
+  rep.people.forEach(function (x) { if (judge[x.name + '|' + x.phone]) logs.push([new Date(), term, x.name, "'" + x.phone, x.judge, x.total, 'Y', '자동 판정 Y 일괄 확정', me]); });
+  if (logs.length) { var lg = sheet_('판정기록'); lg.getRange(lg.getLastRow() + 1, 1, logs.length, logs[0].length).setValues(logs); }
+  var left = rep.people.filter(function (x) { return !x.final; }).length - y;
+  return { ok: true, y: y, n: n, left: left, msg: term + ' 자동 판정 이수 ' + y + '명 확정' + (left ? ' · 아직 미확정 ' + left + '명' : '') };
+}
+
+// 최종 판정: 운영자가 한 명씩/여러 명 확정 또는 덮어쓰기. 신청자 이수(Y/N)에 쓰고 판정기록에 남김
+function attendFinal_(term, items) {
+  var rep = attendanceReport_(term), by = {};
+  rep.people.forEach(function (x) { by[x.name + '|' + x.phone] = x; });
+  var want = {};
+  items.forEach(function (it) { var k = personKey_(it.name, it.phone), v = clean_(it.final).toUpperCase(); if (by[k] && (v === 'Y' || v === 'N' || v === '')) want[k] = { v: v, memo: clean_(it.memo) }; });
+  var sh = sheet_('신청자'), data = sh.getDataRange().getValues();
+  var h = data[0].map(String), ni = h.indexOf('성명'), pi = h.indexOf('연락처'), ti = h.indexOf('기수'), yi = h.indexOf('이수(Y/N)');
+  var me = Session.getActiveUser().getEmail(), logs = [], done = 0;
+  for (var i = 1; i < data.length; i++) {
+    if (clean_(data[i][ti]) !== term) continue;
+    var k = personKey_(data[i][ni], data[i][pi]), w = want[k];
+    if (!w) continue;
+    sh.getRange(i + 1, yi + 1).setValue(w.v);
+    var x = by[k];
+    logs.push([new Date(), term, x.name, "'" + x.phone, x.judge, x.total, w.v || '(해제)', w.memo, me]);
+    done++;
+  }
+  if (logs.length) { var lg = sheet_('판정기록'); lg.getRange(lg.getLastRow() + 1, 1, logs.length, logs[0].length).setValues(logs); }
+  return { ok: true, count: done };
 }
 
 // ───────────────────────── 게시판: Q&A · 환불요청 ─────────────────────────
@@ -1017,6 +1054,9 @@ function boardWrite_(d) {
   if (!name || name.length < 2) errs.push('성명을 입력해 주세요.');
   if (!phone) errs.push('휴대폰 번호를 010-0000-0000 형식으로 입력해 주세요.');
   if (board === 'Q&A' && !title) errs.push('제목을 입력해 주세요.');
+  var email = clean_(d.email);
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.push('이메일 형식을 확인해 주세요.');
+  if (board === '환불요청' && !email) errs.push('환불 완료 안내를 받을 이메일을 입력해 주세요.');
   if (board === '환불요청') {
     if (REFUND_REASONS.indexOf(reason) < 0) errs.push('환불 사유를 골라 주세요.');
     if (content.length < 10) errs.push('환불 사유를 10자 이상 적어 주세요.');
@@ -1028,7 +1068,8 @@ function boardWrite_(d) {
   var sh = sheet_('게시판');
   var same = rows_('게시판').filter(function (r) { return r['게시판'] === board; }).length;
   var no = (board === '환불요청' ? 'F' : 'Q') + ('000' + (same + 1)).slice(-4);
-  sh.appendRow([new Date(), no, board, title, content, name, "'" + phone, a ? a['기수'] : clean_(d.term), board === 'Q&A' && d.public === true ? 'Y' : 'N', board === '환불요청' ? reason : '', '접수', '', '', a ? '' : '신청자 명단에서 찾지 못함']);
+  sh.appendRow([new Date(), no, board, title, content, name, "'" + phone, a ? a['기수'] : clean_(d.term), board === 'Q&A' && d.public === true ? 'Y' : 'N', board === '환불요청' ? reason : '', '접수', '', '', a ? '' : '신청자 명단에서 찾지 못함', email]);
+  if (board === '환불요청') queueBoardMail_('환불 접수', { no: no, name: name, phone: phone, email: email, reason: reason, term: a ? a['기수'] : clean_(d.term) });
   return { ok: true, no: no, matched: !!a };
 }
 
@@ -1076,7 +1117,11 @@ function boardReply_(p) {
   sh.getRange(row, h.indexOf('답변') + 1).setValue(answer);
   if (answer !== clean_(o['답변']) || state !== o['처리상태']) sh.getRange(row, h.indexOf('답변시각') + 1).setValue(new Date());
   if (p.memo !== undefined) sh.getRange(row, h.indexOf('운영메모') + 1).setValue(clean_(p.memo));
-  return { ok: true, state: state };
+  var info = { no: clean_(o['글번호']), name: clean_(o['성명']), phone: normPhone_(o['휴대폰']), email: clean_(o['이메일']), reason: clean_(o['환불사유']), term: clean_(o['기수']), title: clean_(o['제목']), answer: answer };
+  var queued = '';
+  if (state !== o['처리상태'] && (state === '환불 완료' || state === '반려')) queued = queueBoardMail_(state === '환불 완료' ? '환불 완료' : '환불 반려', info);
+  if (o['게시판'] === 'Q&A' && state === '답변 완료' && answer && answer !== clean_(o['답변'])) queued = queueBoardMail_('Q&A 답변', info);
+  return { ok: true, state: state, queued: queued };
 }
 
 // ───────────────────────── 2027 커리큘럼 넣기 (한 번만 실행) ─────────────────────────
@@ -1091,6 +1136,59 @@ var CURRICULUM_2027 = [
   [2, '15:00', '17:00', 2, '영상·방송 연구대회의 실제', '미정', '교사강사'],
   [2, '17:00', '18:00', 1, '연구하는 교사되기 로드맵 (종합 질의응답)', '박성춘 교수님', '종합']
 ];
+// ───── 이메일 자동화 에이전트: 상태 변화 → 메일 초안 생성 → 운영자 확인 → 발송 ─────
+function mailSign_(s) { return s['메일서명'] || ((s['운영'] || '연구하는 교사되기 운영팀') + '\n문의: ' + (s['문의메일'] || '') + '\n' + (s['사이트주소'] || '')); }
+function emailOf_(name, phone, given) {
+  if (given) return given;
+  var a = findApplicant_(name, phone);
+  if (a && clean_(a['이메일'])) return clean_(a['이메일']);
+  var key = personKey_(name, phone), hit = '';
+  rows_('이수정보').forEach(function (r) { if (personKey_(r['성명'], r['휴대폰']) === key && clean_(r['이메일'])) hit = clean_(r['이메일']); });
+  return hit;
+}
+function queueBoardMail_(kind, x) {
+  var s = settings_(), title = s['연수명'] || '연구하는 교사되기 2027', site = s['사이트주소'] || '';
+  var to = emailOf_(x.name, x.phone, x.email);
+  var subj = '', body = x.name + ' 선생님, 안녕하세요.\n「' + title + '」 운영팀입니다.\n\n';
+  if (kind === '환불 접수') {
+    subj = '[' + title + '] 환불 요청이 접수되었습니다 (' + x.no + ')';
+    body += '환불 요청이 접수되었습니다.\n\n· 글번호: ' + x.no + '\n· 사유: ' + (x.reason || '-') + '\n· 처리 순서: 운영팀 확인 → 교육연수원 전달 → 연수원 환불 처리\n\n환불은 실시간으로 처리되지 않으며 ' + (s['환불소요'] || '영업일 기준 2~3주') + ' 정도 걸릴 수 있습니다. 최종 환불이 완료되면 이 메일 주소로 다시 알려 드리겠습니다.\n진행 상황은 ' + site + ' > 내 현황 조회에서도 확인할 수 있습니다.';
+  } else if (kind === '환불 완료') {
+    subj = '[' + title + '] 환불이 완료되었습니다 (' + x.no + ')';
+    body += '요청하신 연수비 환불이 완료되었습니다.\n\n· 글번호: ' + x.no + '\n' + (x.answer ? '· 안내: ' + x.answer + '\n' : '') + '\n입금 계좌에서 확인해 주시기 바랍니다. 함께하지 못해 아쉽습니다. 다음 기회에 뵙겠습니다.';
+  } else if (kind === '환불 반려') {
+    subj = '[' + title + '] 환불 요청 처리 결과 안내 (' + x.no + ')';
+    body += '요청하신 환불은 아래 사유로 진행되지 않았습니다.\n\n· 글번호: ' + x.no + '\n· 사유: ' + (x.answer || '(운영팀 답변 참고)') + '\n\n자세한 내용은 ' + site + ' > Q&A·환불 > 환불 요청에서 이름과 휴대폰 번호로 확인할 수 있습니다.';
+  } else if (kind === 'Q&A 답변') {
+    subj = '[' + title + '] 문의하신 글에 답변이 등록되었습니다 (' + x.no + ')';
+    body += '문의하신 「' + (x.title || '') + '」에 답변이 등록되었습니다.\n\n' + x.answer + '\n\n글 전체는 ' + site + ' > Q&A·환불에서 확인할 수 있습니다.';
+  }
+  body += '\n\n' + mailSign_(s);
+  sheet_('메일대기').appendRow([new Date(), to ? '대기' : '주소 없음', kind, to, x.name, "'" + x.phone, subj, body, x.no, '', '']);
+  return kind;
+}
+function outbox_() {
+  var t = adminTable_('메일대기');
+  var quota = -1; try { quota = MailApp.getRemainingDailyQuota(); } catch (e) {}
+  return { rows: t.rows.reverse(), quota: quota };
+}
+function outboxCount_() { try { return rows_('메일대기').filter(function (r) { return r['상태'] === '대기' || r['상태'] === '주소 없음'; }).length; } catch (e) { return 0; } }
+function outboxSend_(list) {
+  var s = settings_(), sh = sheet_('메일대기'), h = SHEETS['메일대기'], sent = 0, fail = [];
+  list.forEach(function (it) {
+    var row = Number(it.row), cur = sh.getRange(row, 1, 1, h.length).getValues()[0];
+    if (cur[1] === '발송') return;
+    var to = clean_(it.to || cur[3]), subj = clean_(it.subject || cur[6]), body = String(it.body || cur[7]);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) { fail.push(cur[4] + ': 주소 없음'); return; }
+    try {
+      MailApp.sendEmail({ to: to, subject: subj, body: body, name: s['운영'] || '연구하는 교사되기 운영팀', replyTo: s['문의메일'] || undefined });
+      sh.getRange(row, 2).setValue('발송'); sh.getRange(row, 4).setValue(to); sh.getRange(row, 7).setValue(subj); sh.getRange(row, 8).setValue(body); sh.getRange(row, 10).setValue(new Date());
+      sent++;
+    } catch (e) { fail.push(cur[4] + ': ' + e.message); sh.getRange(row, 11).setValue('실패: ' + e.message); }
+  });
+  return { ok: true, sent: sent, fail: fail };
+}
+
 // ───── 설정 한 칸 저장 (메일 봇 받는 사람 등) ─────
 function setSetting_(key, value) {
   var allow = ['연수원메일', '연수원담당', '메일서명', '강사자료코드'];
@@ -1176,8 +1274,8 @@ var FAQ_2027 = [
   ['신청·변경', '신청했는데 대기라고 나와요.', '기수별 정원이 차면 대기로 접수돼요. 취소자가 생기면 연수원 신청 시스템의 대기 순번대로 확정되고, 확정되면 문자로 알려 드려요. 운영팀이 순번을 바꿔 드릴 수는 없어요.', '대기 순번 정원 확정 마감 추가'],
   ['신청·변경', '수강 신청은 어디서 하나요?', '수강 신청은 서울대학교 사범대학 교육연수원 홈페이지에서 해요. 이 사이트는 신청한 뒤의 안내, 출석체크, 셀프 서비스를 위한 곳이에요.', '신청 어디 접수 홈페이지 수강신청 등록'],
   ['환불', '수강을 취소하고 싶어요.', '셀프 서비스 > 셀프 신청에서 수강취소로 접수해 주세요. 환불이 필요하면 Q&A·환불 > 환불 요청에 사유와 함께 남겨 주세요.', '취소 수강취소 못 듣 불참 포기'],
-  ['환불', '환불은 언제 되나요?', '환불은 실시간으로 처리되지 않아요. 환불 요청에 사유와 함께 남겨 주시면 운영팀 확인 → 교육연수원 전달 → 연수원 환불 처리 순서로 진행되고, {환불소요} 정도 걸릴 수 있어요. 단계가 바뀔 때마다 문자로 알려 드려요.', '환불 언제 입금 돌려 반환 기간 늦'],
-  ['환불', '환불 요청한 게 어떻게 되고 있나요?', '내 현황 조회에서 이름과 휴대폰으로 확인하면 환불 요청 단계(접수 → 검토 중 → 연수원 전달 → 환불 완료)가 보여요. 환불은 실시간이 아니라 {환불소요} 정도 걸릴 수 있어요.', '환불 진행 상황 단계 아직 확인 처리'],
+  ['환불', '환불은 언제 되나요?', '환불은 실시간으로 처리되지 않아요. 환불 요청에 사유와 이메일을 남겨 주시면 운영팀 확인 → 교육연수원 전달 → 연수원 환불 처리 순서로 진행되고, {환불소요} 정도 걸릴 수 있어요. 접수되면 확인 메일을, 최종 환불이 완료되면 완료 메일을 보내 드려요.', '환불 언제 입금 돌려 반환 기간 늦'],
+  ['환불', '환불 요청한 게 어떻게 되고 있나요?', '내 현황 조회에서 이름과 휴대폰으로 확인하면 환불 요청 단계(접수 → 검토 중 → 연수원 전달 → 환불 완료)가 보여요. 환불은 실시간이 아니라 {환불소요} 정도 걸릴 수 있고, 최종 환불이 완료되면 이메일로 알려 드려요.', '환불 진행 상황 단계 아직 확인 처리'],
   ['환불', '환불 금액은 얼마인가요?', '{환불규정} 연수가 시작된 뒤에는 환불이 어렵거나 일부만 될 수 있어요.', '환불 금액 얼마 전액 일부 규정 수수료'],
   ['입금·증빙', '입금 확인은 어떻게 하나요?', '내 현황 조회에서 입금 확인 여부를 볼 수 있어요. 입금 확인은 반영까지 하루 이틀 걸릴 수 있어요.', '입금 확인 납부 결제 계좌 송금'],
   ['입금·증빙', '연수비 납입증명서가 필요해요.', '내 현황 조회에서 입금이 확인된 분은 납입확인서를 바로 인쇄하거나 PDF로 저장할 수 있어요.', '납입증명서 영수증 증빙 납입확인서 출력 학교 제출 서류'],
@@ -1198,11 +1296,15 @@ var FAQ_2027 = [
   ['연수', '소속 학교에 낼 공문이 필요해요.', '소속교 협조 공문은 요청한 분에 한해 연수원에서 발급해요. Q&A 게시판에 소속 학교와 함께 남겨 주세요.', '공문 소속 학교 출장 복무 협조'],
   ['연수', '오픈채팅방은 어디서 들어가나요?', '확정 문자와 연수 안내 > 접속 안내에 기수별 오픈채팅 링크가 있어요.', '오픈채팅 카톡 단톡 카카오 채팅방'],
   ['기타', '같은 이름이 있으면 어떻게 구분하나요?', '이 사이트는 모든 확인을 이름과 휴대폰 번호로 해요. 신청할 때 쓴 휴대폰 번호를 꼭 같이 입력해 주세요.', '동명이인 같은 이름 구분'],
+  ['환불', '환불되면 어떻게 알 수 있나요?', '최종 환불이 완료되면 환불 요청할 때 적은 이메일로 완료 안내를 보내 드려요. 진행 중인 단계는 내 현황 조회에서 언제든 볼 수 있어요.', '환불 완료 알림 메일 이메일 연락 문자'],
+  ['기타', '안내 메일이 안 와요.', '스팸함을 먼저 확인해 주세요. 그래도 없으면 이메일 주소가 잘못 들어갔을 수 있어요. 이수정보를 같은 이름·휴대폰으로 다시 제출하면서 이메일을 고치거나 Q&A 게시판에 남겨 주세요.', '메일 이메일 안 와 못 받 스팸'],
   ['기타', '명단에서 저를 못 찾는대요.', '연수 신청할 때 쓴 휴대폰 번호인지 확인해 주세요. 그래도 안 되면 Q&A 게시판에 남겨 주세요.', '못 찾 명단 없 조회 안 돼 안되 오류']
 ];
 function upgrade2027() {
   var ss = SpreadsheetApp.getActive();
-  ['연수자료', '메일기록'].forEach(function (n) { sheet_(n); });
+  ['연수자료', '메일기록', '메일대기', '판정기록'].forEach(function (n) { sheet_(n); });
+  var bd = sheet_('게시판'), bh = bd.getRange(1, 1, 1, bd.getLastColumn()).getValues()[0].map(String);
+  if (bh.indexOf('이메일') < 0) bd.getRange(1, SHEETS['게시판'].length).setValue('이메일').setFontWeight('bold').setBackground('#001871').setFontColor('#ffffff');
   var st = sheet_('설정'), have = st.getRange(2, 1, Math.max(st.getLastRow() - 1, 1), 1).getValues().map(function (r) { return String(r[0]).trim(); });
   var miss = DEFAULT_SETTINGS.filter(function (r) { return have.indexOf(r[0]) < 0; }).map(function (r) {
     return r[0] === '강사자료코드' ? [r[0], 'quoka-' + Math.floor(1000 + Math.random() * 9000), r[2]] : r;
