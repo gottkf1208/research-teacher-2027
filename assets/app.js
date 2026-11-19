@@ -107,9 +107,12 @@
     window.scrollTo(0, 0);
   }
 
+  var ORBS = '<span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span>';
   function renderChrome(key, p) {
+    document.body.classList.remove('is-home');
     var g = p.g ? GROUPS[p.g] : { name: p.t, en: '', tabs: [] };
-    $('#hero').innerHTML = '<section class="hero sub"><div class="wrap"><div><h1>' + esc(g.name) + '</h1><p>' + esc(g.en) + '</p></div>' + (g.qk ? '<img src="assets/img/quoka-' + g.qk + '.webp" alt="">' : '') + '</div></section>';
+    $('#hero').innerHTML = '<section class="hero sub">' + ORBS + '<div class="wrap"><div><h1>' + esc(g.name) + '</h1><p>' + esc(g.en) + '</p></div>' + (g.qk ? '<button type="button" class="qk solo" aria-label="쿼카"><span><img src="assets/img/quoka-' + g.qk + '.webp" alt=""></span></button>' : '') + '</div></section>';
+    qkBind($('#hero'));
     $('#subtabs').innerHTML = g.tabs.length ? '<div class="subtabs"><div class="wrap"><ul>' + g.tabs.map(function (t) {
       var on = t[0] === key;
       return '<li class="' + (on ? 'on' : '') + '"><a class="' + (on ? 'on' : '') + '" href="#/' + t[0] + '">' + (on ? '<small>' + esc(g.name) + '</small>' : '') + esc(t[1]) + '</a></li>';
@@ -126,39 +129,110 @@
   }
 
   // ───────── 홈 ─────────
+  function ymd(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function dayDiff(a, b) { var x = a.split('-'), y = b.split('-'); return Math.round((new Date(+y[0], +y[1] - 1, +y[2]) - new Date(+x[0], +x[1] - 1, +x[2])) / 86400000); }
+  function termDays(t) { var seen = {}, out = []; C.schedule.forEach(function (x) { if (x.term === t && !seen[x.date]) { seen[x.date] = 1; out.push(x); } }); return out.sort(function (x, y) { return x.date < y.date ? -1 : 1; }); }
+  function termRange(t) { var d = termDays(t); return d.length ? md(d[0].date) + '(' + d[0].dow + ') ~ ' + md(d[d.length - 1].date) + '(' + d[d.length - 1].dow + ')' : '일정 안내 예정'; }
+
+  // ───────── 쿼카 움직임: 숨쉬기·깡충·눌렀을 때 반응·말풍선 ─────────
+  var sayTimer = null, sayLoop = null;
+  function qkSay(text) {
+    var el = $('#hhSay'); if (!el) return;
+    clearInterval(sayTimer); el.classList.add('on');
+    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches, i = 0;
+    if (reduce) { el.textContent = text; return; }
+    el.textContent = '';
+    sayTimer = setInterval(function () { i++; el.textContent = text.slice(0, i); if (i >= text.length) clearInterval(sayTimer); }, 38);
+  }
+  function qkBind(root) {
+    $$('.qk', root).forEach(function (q) {
+      q.onclick = function () {
+        q.classList.remove('boing'); void q.offsetWidth; q.classList.add('boing');
+        if (q.dataset.say) { clearInterval(sayLoop); qkSay(q.dataset.say); }
+      };
+      q.addEventListener('animationend', function (e) { if (e.animationName === 'qk-boing') q.classList.remove('boing'); });
+    });
+    var stage = $('.hh-stage', root); if (!stage || !window.matchMedia || !matchMedia('(hover: hover)').matches) return;
+    var sec = stage.closest('section');
+    sec.onmousemove = function (e) { var r = stage.getBoundingClientRect(), x = (e.clientX - (r.left + r.width / 2)) / (r.width / 2); stage.style.setProperty('--lx', Math.max(-1.5, Math.min(1.5, x)).toFixed(2)); };
+    sec.onmouseleave = function () { stage.style.setProperty('--lx', 0); };
+  }
+
+  // ───────── 홈 ─────────
   function renderHome() {
-    $('#hero').innerHTML = '<section class="home-hero"><div class="wrap"><div class="hh-text"><p class="eyebrow">서울대학교 사범대학 교육연수원 직무연수</p><h1>연구하는 교사되기 <em>2027</em></h1><p class="lead">교사를 위한 현장 교육 연구 실천의 방법과 실제</p><div class="hh-btns"><a class="btn navy" href="#/attend"><i class="xi-check-circle-o"></i>출석체크</a><a class="btn line" href="#/schedule">시간표 보기</a></div></div><div class="hh-stage" aria-hidden="true"><img src="assets/img/quoka-snu.webp" alt=""><img src="assets/img/quoka-researcher.webp" alt=""><img src="assets/img/quoka-teacher.webp" alt=""></div></div></section>';
+    document.body.classList.add('is-home');
+    $('#hero').innerHTML = '<section class="home-hero">' + ORBS + '<div class="wrap"><div class="hh-text"><p class="eyebrow"><span class="chip">교원 직무연수</span>서울대학교 사범대학 교육연수원</p><h1>연구하는 교사되기 <em>2027</em></h1><p class="lead">교사를 위한 현장 교육 연구 실천의 방법과 실제</p><div class="hh-tags" id="hhTags"></div><div class="hh-btns"><a class="btn navy" href="#/attend"><i class="xi-check-circle-o"></i>출석체크</a><a class="btn line" href="#/schedule"><i class="xi-calendar-check"></i>강의 시간표</a></div></div>' +
+      '<div class="hh-stage"><i class="spk s1"></i><i class="spk s2"></i><i class="spk s3"></i><i class="spk s4"></i><div class="hh-say" id="hhSay" aria-live="polite"></div>' +
+      '<button type="button" class="qk q1" aria-label="서울대 쿼카"><span><img src="assets/img/quoka-snu.webp" alt=""></span></button>' +
+      '<button type="button" class="qk q2" aria-label="연구원 쿼카"><span><img src="assets/img/quoka-researcher.webp" alt=""></span></button>' +
+      '<button type="button" class="qk q3" aria-label="선생님 쿼카"><span><img src="assets/img/quoka-teacher.webp" alt=""></span></button></div></div></section>';
     $('#subtabs').innerHTML = '';
     $('#ptitle').innerHTML = '';
     $$('#gnb a').forEach(function (a) { a.classList.remove('on'); });
+    qkBind($('#hero'));
     var v = $('#view');
     v.innerHTML = '<div class="loading">불러오는 중…</div>';
     loadContent().then(function () {
+      if (!document.body.classList.contains('is-home')) return;
+      var ts = ymd(new Date());
+      var all = C.schedule.slice().sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : hm(x.start) - hm(y.start); });
+      var up = all.filter(function (x) { return x.date >= ts; })[0];
+      var first = all[0], last = all[all.length - 1];
+      var timeTxt = first ? first.start + '~' + all.filter(function (x) { return x.date === first.date; }).slice(-1)[0].end : '';
+
+      // 첫 화면: 기수별 날짜 꼬리표
+      $('#hhTags').innerHTML = C.terms.map(function (t) { return '<span class="tag"><b>' + esc(t) + '</b>' + esc(termRange(t)) + '</span>'; }).join('') + (timeTxt ? '<span class="tag soft">매일 ' + esc(timeTxt) + ' · Zoom</span>' : '');
+
+      // 다가오는 연수 카드
+      var next, msg;
+      if (up) {
+        var td = termDays(up.term), d0 = dayDiff(ts, td[0].date), nth = td.map(function (x) { return x.date; }).indexOf(ts) + 1;
+        var badge = nth ? '오늘 ' + nth + '일차' : d0 > 0 ? 'D-' + d0 : '진행 중';
+        next = '<small>' + (nth || d0 <= 0 ? '지금 진행 중인 연수' : '다가오는 연수') + '</small><strong>' + esc(up.term) + '<em>' + esc(badge) + '</em></strong><p>' + esc(termRange(up.term)) + '<br>매일 ' + esc(timeTxt) + ' · 실시간 원격(Zoom)</p>' +
+          (nth ? '<a class="btn white" href="#/attend">출석체크 하러 가기<i class="xi-arrow-right"></i></a>' : '<a class="btn white" href="#/schedule">시간표 확인하기<i class="xi-arrow-right"></i></a>');
+        msg = nth ? '오늘은 ' + up.term + ' ' + nth + '일차예요. 출석체크 잊지 마세요!' : d0 > 0 ? up.term + ' 시작까지 ' + d0 + '일 남았어요 : )' : up.term + ' 연수가 진행 중이에요.';
+      } else {
+        next = '<small>연수 일정</small><strong>' + (last ? '모든 기수 종료' : '일정 안내 예정') + '</strong><p>' + (last ? '함께해 주셔서 고맙습니다.<br>이수정보와 내 현황을 확인해 주세요.' : '일정이 정해지면 여기에 가장 먼저 알려 드릴게요.') + '</p><a class="btn white" href="#/status">내 현황 보기<i class="xi-arrow-right"></i></a>';
+        msg = last ? '함께 연구해 주셔서 고맙습니다 : )' : '일정은 곧 알려 드릴게요!';
+      }
+      var says = [msg, '강의 시간표는 바로 아래에 있어요.', '궁금한 건 오른쪽 아래 쿼카에게 물어보세요.'];
+      var q = $$('.hh-stage .qk');
+      if (q[0]) q[0].dataset.say = '이수 기준: ' + (C.site.criteria || '공지사항을 확인해 주세요');
+      if (q[1]) q[1].dataset.say = '오늘도 같이 연구해요. 궁금한 건 언제든 물어보세요!';
+      if (q[2]) q[2].dataset.say = '선생님, 오늘도 정말 수고 많으셨어요 : )';
+      clearInterval(sayLoop); var si = 0; qkSay(says[0]);
+      sayLoop = setInterval(function () { if (!$('#hhSay')) return clearInterval(sayLoop); si = (si + 1) % says.length; qkSay(says[si]); }, 7000);
+
       var notices = C.notices.slice(0, 5);
-      var terms = C.terms.map(function (t) {
-        var days = C.schedule.filter(function (s) { return s.term === t; });
-        var range = days.length ? days[0].date + '(' + days[0].dow + ') ~ ' + days[days.length - 1].date + '(' + days[days.length - 1].dow + ')' : '일정 안내 예정';
-        return '<tr><th>' + esc(t) + '</th><td>' + esc(range) + '</td></tr>';
-      }).join('');
       v.innerHTML =
-        '<div class="quick">' +
-        quick('#/attend', 'xi-check-circle-o', '출석체크', '연수 당일 여기서 출석 → 강의실 입장 → 퇴실체크') +
-        quick('#/info', 'xi-pen-o', '이수정보 입력', '이수증 발급에 꼭 필요해요. 생년월일·나이스 번호를 정확히!') +
-        quick('#/request', 'xi-exchange', '취소 · 현금영수증', '메일 대신 여기서 신청하면 바로 접수돼요. (기수 변경 불가)') +
-        quick('#/qna', 'xi-forum', 'Q&A · 환불 요청', '궁금한 점과 환불 요청은 게시판에 남겨 주세요.') +
-        '</div>' +
+        '<div class="dock"><div class="tiles">' +
+        tile('#/attend', 'xi-check-circle-o', '출석체크', '입실·퇴실 체크') +
+        tile('#/schedule', 'xi-calendar-check', '강의 시간표', '기수별 일정과 강사') +
+        tile('#/materials', 'xi-presentation', '연수자료', '강의 자료 내려받기') +
+        tile('#/info', 'xi-pen-o', '이수정보 입력', '이수증 발급에 필요') +
+        tile('#/request', 'xi-exchange', '취소 · 현금영수증', '메일 없이 바로 신청') +
+        tile('#/qna', 'xi-forum', 'Q&A·환불', '게시판에 남기기') +
+        tile('#/status', 'xi-search', '내 현황', '신청·출석·이수 조회') +
+        tile('#/faq', 'xi-help-o', '자주 묻는 질문', '먼저 찾아보기') +
+        '</div><aside class="next">' + next + '</aside></div>' +
+        '<section class="hcard"><header><h3><i class="xi-calendar-check"></i>강의 시간표</h3><a href="#/schedule">크게 보기<i class="xi-angle-right-min"></i></a></header><div class="hcard-b" id="homeTT"></div></section>' +
         '<div class="home-grid"><section><div class="sec-row"><h3 class="sec">공지사항</h3><a class="more" href="#/notice">더보기 <i class="xi-plus"></i></a></div>' +
-        (notices.length ? '<ul class="list-simple">' + notices.map(function (n, i) {
-          return '<li data-i="' + C.notices.indexOf(n) + '">' + '<b>' + (n.pinned ? '<span class="badge navy">공지</span> ' : '') + esc(n.title) + '</b><time>' + esc(n.date) + '</time></li>';
+        (notices.length ? '<ul class="nlist">' + notices.map(function (n) {
+          var m = String(n.date || '').match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+          return '<li data-i="' + C.notices.indexOf(n) + '"><time>' + (m ? '<b>' + ('0' + m[3]).slice(-2) + '</b><span>' + m[1] + '.' + ('0' + m[2]).slice(-2) + '</span>' : '<span>' + esc(n.date) + '</span>') + '</time><p>' + (n.pinned ? '<span class="chip sm">공지</span>' : '') + esc(n.title) + '</p><i class="xi-angle-right-min"></i></li>';
         }).join('') + '</ul>' : '<div class="empty">등록된 공지가 없어요.</div>') +
-        '</section><section><div class="sec-row"><h3 class="sec">연수 일정</h3><a class="more" href="#/schedule">시간표 <i class="xi-plus"></i></a></div>' +
-        '<table class="info-table">' + terms + '<tr><th>이수 기준</th><td>' + esc(C.site.criteria) + '</td></tr>' +
-        (C.deadlines.info ? '<tr><th>이수정보 마감</th><td><b style="color:var(--danger)">' + esc(C.deadlines.info) + '</b></td></tr>' : '') +
-        '</table></section></div>';
-      $$('.list-simple li', v).forEach(function (li) { li.onclick = function () { location.hash = '#/notice?i=' + li.dataset.i; }; });
+        '</section><section><div class="sec-row"><h3 class="sec">한눈에 보기</h3></div><div class="glance">' +
+        C.terms.map(function (t) { return '<dl><dt>' + esc(t) + '</dt><dd>' + esc(termRange(t)) + '</dd></dl>'; }).join('') +
+        '<dl><dt>이수 기준</dt><dd>' + esc(C.site.criteria) + '</dd></dl>' +
+        (C.deadlines.info ? '<dl><dt>이수정보 마감</dt><dd><b>' + esc(C.deadlines.info) + '</b></dd></dl>' : '') +
+        '<dl><dt>문의</dt><dd>Q&A 게시판이 가장 빨라요. <a href="#/qna">글 남기기</a></dd></dl>' +
+        '</div></section></div>';
+      renderSchedule($('#homeTT'));
+      $$('.nlist li', v).forEach(function (li) { li.onclick = function () { location.hash = '#/notice?i=' + li.dataset.i; }; });
     }).catch(showLoadError);
     window.scrollTo(0, 0);
   }
+  function tile(href, icon, title, desc) { return '<a class="tile" href="' + href + '"><span class="ic"><i class="' + icon + '"></i></span><b>' + esc(title) + '</b><small>' + esc(desc) + '</small></a>'; }
   function quick(href, icon, title, desc) { return '<a href="' + href + '"><i class="' + icon + '"></i><b>' + esc(title) + '</b><span>' + esc(desc) + '</span></a>'; }
 
   // ───────── 연수 안내 ─────────
@@ -767,6 +841,10 @@
   }
   function botInit() {
     if ($('#qbotBtn')) return;
+    var top = document.createElement('button'); top.id = 'toTop'; top.className = 'to-top'; top.setAttribute('aria-label', '맨 위로'); top.innerHTML = '<i class="xi-angle-up"></i><span>TOP</span>';
+    top.onclick = function () { window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    document.body.appendChild(top);
+    window.addEventListener('scroll', function () { top.classList.toggle('on', window.scrollY > 500); }, { passive: true });
     var btn = document.createElement('button'); btn.id = 'qbotBtn'; btn.className = 'qbot-btn'; btn.setAttribute('aria-label', '쿼카에게 물어보기');
     btn.innerHTML = '<span class="qbot-face img"><img src="assets/img/quoka-researcher.webp" alt=""></span><span class="qbot-label">쿼카에게 물어보기</span>';
     var panel = document.createElement('section'); panel.id = 'qbot'; panel.className = 'qbot'; panel.hidden = true;
