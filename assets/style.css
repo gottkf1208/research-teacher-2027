@@ -713,3 +713,29 @@ h3.sec::before { background: var(--pink); }
 .subtabs a:hover { color: var(--pink-deep); background: var(--pink-soft); }
 .subtabs a.on:hover { color: #fff; background: var(--blue); }
 @media (max-width: 760px) { .hero.sub .qk.solo { margin-bottom: 8px; } .hero.sub .wrap::after { width: 90px; right: 14px; } }
+
+/* ───── v7: 시간표 디테일 ───── */
+.tt-flow { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0; padding: 10px 8px; background: #fff; border-bottom: 1px solid var(--line); }
+.tt-flow span { display: flex; flex-direction: column; align-items: center; font-size: 11.5px; color: var(--gray-1); line-height: 1.35; text-align: center; position: relative; }
+.tt-flow span + span::before { content: ""; position: absolute; left: -4px; top: 9px; width: 8px; height: 1px; background: #c5d0e2; }
+.tt-flow b { font-size: 14px; font-weight: 800; color: var(--title); font-variant-numeric: tabular-nums; }
+.tt-body small { display: flex; align-items: center; gap: 6px; }
+.tt-body small em { font-style: normal; font-size: 11px; font-weight: 700; padding: 0 7px; border-radius: 10px; background: var(--soft-2); color: var(--blue); line-height: 18px; }
+.tt-body small em.lab { background: var(--pink-soft); color: var(--pink-deep); }
+.tt-who { flex-wrap: wrap; } .tt-who b { font-weight: 700; color: #2b3350; } .tt-who span { font-size: 13px; color: var(--gray-2); }
+.tt-who span::before { content: "·"; margin-right: 4px; }
+.tt-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; counter-reset: st; }
+.tt-steps li { counter-increment: st; position: relative; display: flex; flex-direction: column; gap: 2px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 16px; background: #fff; }
+.tt-steps li.on { background: var(--soft); border-color: #b9d4f5; }
+.tt-steps small { font-size: 13px; font-weight: 700; color: var(--blue); }
+.tt-steps small::before { content: counter(st); display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 6px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 12px; }
+.tt-steps b { font-size: 15.5px; line-height: 1.45; } .tt-steps span { font-size: 13px; color: var(--gray-1); }
+.tt-how { list-style: none; margin: 0; padding: 6px 22px; background: var(--soft); border-radius: 16px; counter-reset: hw; }
+.tt-how li { counter-increment: hw; display: flex; gap: 14px; align-items: baseline; padding: 13px 0; } .tt-how li + li { border-top: 1px dashed #cfe0f5; }
+.tt-how b { flex: 0 0 110px; color: var(--title); } .tt-how b::before { content: counter(hw) ". "; color: var(--pink); }
+.tt-how span { font-size: 15px; } .tt-how a { color: var(--blue); font-weight: 700; text-decoration: underline; }
+.tt-people { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.tt-people li { display: flex; flex-direction: column; gap: 2px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 16px; }
+.tt-people b { font-size: 16px; } .tt-people em { font-style: normal; font-size: 13px; color: var(--blue); font-weight: 700; } .tt-people span { font-size: 13.5px; color: var(--gray-1); margin-top: 4px; }
+@media (max-width: 1024px) { .tt-steps { grid-template-columns: repeat(2, 1fr); } .tt-people { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px) { .tt-steps, .tt-people { grid-template-columns: 1fr; } .tt-how { padding: 4px 16px; } .tt-how li { flex-direction: column; gap: 2px; } .tt-how b { flex: none; } }

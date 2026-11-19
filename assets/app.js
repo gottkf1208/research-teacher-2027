@@ -227,7 +227,7 @@
         (C.deadlines.info ? '<dl><dt>이수정보 마감</dt><dd><b>' + esc(C.deadlines.info) + '</b></dd></dl>' : '') +
         '<dl><dt>문의</dt><dd>Q&A 게시판이 가장 빨라요. <a href="#/qna">글 남기기</a></dd></dl>' +
         '</div></section></div>';
-      renderSchedule($('#homeTT'));
+      renderSchedule($('#homeTT'), true);
       $$('.nlist li', v).forEach(function (li) { li.onclick = function () { location.hash = '#/notice?i=' + li.dataset.i; }; });
     }).catch(showLoadError);
     window.scrollTo(0, 0);
@@ -253,35 +253,58 @@
   var curTerm = null;
   function hm(t) { var m = String(t || '').match(/(\d+):(\d+)/); return m ? +m[1] * 60 + +m[2] : 0; }
   function md(d) { var m = String(d).match(/\d+-(\d+)-(\d+)/); return m ? +m[1] + '.' + +m[2] : d; }
-  function renderSchedule(v) {
+  // 운영계획서(1기·2기)의 신청·확정·납부 일정. 계획서가 바뀌면 여기도 같이 고친다.
+  var TERM_INFO = {
+    '1기': [['신청 기간', '2026.12.14.(월) 10:00 ~ 12.28.(월) 18:00', '기수별 정원 400명'], ['대상자 확정 공지', '2026.12.29.(화) 18:00 이후', '개별 문자로 알려 드려요'], ['연수비 납부', '2027.1.6.(수)까지', '납부 방법은 확정 공지에서 안내해요']],
+    '2기': [['신청 기간', '2026.12.14.(월) 10:00 ~ 2027.1.18.(월) 18:00', '기수별 정원 400명'], ['대상자 확정 공지', '2027.1.19.(화) 18:00 이후', '개별 문자로 알려 드려요'], ['연수비 납부', '2027.1.26.(화)까지', '납부 방법은 확정 공지에서 안내해요']]
+  };
+  function hmTxt(m) { return ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + m % 60).slice(-2); }
+  function renderSchedule(v, brief) {
     var today = new Date(), ts = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2);
     if (!curTerm) {
       // 오늘이 속한 기수, 없으면 다가오는 기수부터 보여준다
       var next = C.schedule.filter(function (x) { return x.date >= ts; })[0];
       curTerm = next ? next.term : C.terms[0];
     }
+    var at = C.attend || { before: 30, outBefore: 20, need: 12 };
     var list = C.schedule.filter(function (x) { return x.term === curTerm; });
     var days = [], byDate = {};
     list.forEach(function (x) { if (!byDate[x.date]) { byDate[x.date] = { date: x.date, dow: x.dow, rows: [] }; days.push(byDate[x.date]); } byDate[x.date].rows.push(x); });
-    var n = 0, total = 0;
+    var n = 0, total = 0, people = [], seen = {};
     var cards = days.map(function (d, i) {
       d.rows.sort(function (x, y) { return hm(x.start) - hm(y.start); });
-      var first = d.rows[0], last = d.rows[d.rows.length - 1];
-      return '<section class="tt-day' + (d.date === ts ? ' today' : '') + '"><header><b>' + (i + 1) + '일차</b><span>' + esc(md(d.date)) + ' (' + esc(d.dow) + ')</span><em>' + esc(first.start) + '~' + esc(last.end) + '</em>' + (d.date === ts ? '<i>오늘</i>' : '') + '</header><ol>' +
-        d.rows.map(function (x) {
-          var h = Math.max(1, Math.round((hm(x.end) - hm(x.start)) / 60)) || 1, from = n + 1; n += h; total += h;
-          var who = String(x.who || '').trim(), tbd = !who || /미정|섭외/.test(who);
-          return '<li><div class="tt-time"><b>' + esc(x.start) + '</b><span>~' + esc(x.end) + '</span></div><div class="tt-body"><small>' + (h > 1 ? from + '~' + n : n) + '차시</small><strong>' + esc(x.title) + '</strong>' +
-            (tbd ? '<span class="tt-who tbd">강사 섭외 중</span>' : '<span class="tt-who"><i class="xi-user-o"></i>' + esc(who) + '</span>') + '</div></li>';
-        }).join('') + '</ol></section>';
+      var first = d.rows[0], last = d.rows[d.rows.length - 1], dh = 0;
+      var lis = d.rows.map(function (x) {
+        var h = Math.max(1, Math.round((hm(x.end) - hm(x.start)) / 60)) || 1, from = n + 1; n += h; total += h; dh += h;
+        var who = String(x.who || '').trim(), tbd = !who || /미정|섭외/.test(who);
+        var m = who.match(/^(.*?)\s*\((.*)\)\s*$/), name = m ? m[1] : who, org = m ? m[2] : '';
+        var title = String(x.title || ''), lab = /실습/.test(title), t2 = title.replace(/^\[실습\]\s*/, '');
+        if (!tbd && !seen[name]) { seen[name] = 1; people.push({ name: name, org: org, titles: [] }); }
+        if (!tbd) people.filter(function (q) { return q.name === name; })[0].titles.push(t2);
+        return '<li><div class="tt-time"><b>' + esc(x.start) + '</b><span>~' + esc(x.end) + '</span></div><div class="tt-body"><small>' + (h > 1 ? from + '~' + n : n) + '차시 · ' + h + '시간<em class="' + (lab ? 'lab' : '') + '">' + (lab ? '실습' : '강의') + '</em></small><strong>' + esc(t2) + '</strong>' +
+          (tbd ? '<span class="tt-who tbd">강사 확정 후 안내</span>' : '<span class="tt-who"><i class="xi-user-o"></i><b>' + esc(name) + '</b>' + (org ? '<span>' + esc(org) + '</span>' : '') + '</span>') + '</div></li>';
+      }).join('');
+      var s0 = hm(first.start), e0 = hm(last.end);
+      return '<section class="tt-day' + (d.date === ts ? ' today' : '') + '"><header><b>' + (i + 1) + '일차</b><span>' + esc(md(d.date)) + ' (' + esc(d.dow) + ')</span><em>' + esc(first.start) + '~' + esc(last.end) + ' · ' + dh + '시간</em>' + (d.date === ts ? '<i>오늘</i>' : '') + '</header>' +
+        '<p class="tt-flow"><span><b>' + hmTxt(s0 - at.before) + '</b>출석체크 열림</span><span><b>' + esc(first.start) + '</b>강의 시작</span><span><b>' + hmTxt(e0 - at.outBefore) + '</b>퇴실체크 열림</span><span><b>' + esc(last.end) + '</b>종료</span></p><ol>' + lis + '</ol></section>';
     }).join('');
+    var info = TERM_INFO[curTerm] || [];
     v.innerHTML = '<div class="tt-tabs">' + C.terms.map(function (t) {
       var ds = C.schedule.filter(function (x) { return x.term === t; }).map(function (x) { return x.date; }).sort();
       return '<button class="' + (t === curTerm ? 'on' : '') + '" data-t="' + esc(t) + '"><b>' + esc(t) + '</b><span>' + (ds.length ? esc(md(ds[0])) + ' ~ ' + esc(md(ds[ds.length - 1])) : '일정 안내 예정') + '</span></button>';
     }).join('') + '</div>' +
-      (days.length ? '<p class="tt-sum">매일 <b>' + esc(days[0].rows[0].start) + '~' + esc(days[0].rows[days[0].rows.length - 1].end) + '</b> · 실시간 원격(Zoom) · 총 <b>' + total + '시간</b> · ' + esc(C.site.criteria) + '</p><div class="tt-grid n' + Math.min(days.length, 3) + '">' + cards + '</div>' : '<div class="empty">' + esc(curTerm) + ' 시간표는 곧 안내할게요.</div>') +
-      '<p class="note" style="margin-top:20px">강사와 강의 순서는 사정에 따라 바뀔 수 있어요. 바뀌면 이 화면에 가장 먼저 반영돼요.</p>';
-    $$('.tt-tabs button', v).forEach(function (b) { b.onclick = function () { curTerm = b.dataset.t; renderSchedule(v); }; });
+      (days.length ? '<p class="tt-sum">매일 <b>' + esc(days[0].rows[0].start) + '~' + esc(days[0].rows[days[0].rows.length - 1].end) + '</b> · 실시간 원격(Zoom) · 총 <b>' + total + '시간(' + n + '차시)</b> · ' + esc(C.site.criteria) + '</p><div class="tt-grid n' + Math.min(days.length, 3) + '">' + cards + '</div>' : '<div class="empty">' + esc(curTerm) + ' 시간표는 곧 안내할게요.</div>') +
+      (brief ? '' :
+        (info.length ? '<h3 class="sec" style="margin-top:44px">' + esc(curTerm) + ' 신청부터 연수까지</h3><ol class="tt-steps">' + info.map(function (r) { return '<li><small>' + esc(r[0]) + '</small><b>' + esc(r[1]) + '</b><span>' + esc(r[2]) + '</span></li>'; }).join('') +
+          '<li class="on"><small>연수</small><b>' + esc(termRange(curTerm)) + '</b><span>매일 ' + (days.length ? esc(days[0].rows[0].start) + '~' + esc(days[0].rows[days[0].rows.length - 1].end) : '') + ' · Zoom</span></li></ol>' : '') +
+        (days.length ? '<h3 class="sec" style="margin-top:44px">연수 당일 이렇게 해요</h3><ol class="tt-how">' +
+          '<li><b>출석체크</b><span>강의 시작 ' + at.before + '분 전부터 이 사이트 <a href="#/attend">출석체크</a>에서 이름과 휴대폰 번호로 눌러요.</span></li>' +
+          '<li><b>강의실 입장</b><span>출석체크를 하면 Zoom 강의실 버튼이 나와요. Zoom 이름은 기수_성명_휴대폰 뒷 4자리(예: 1기_홍길동_1234)로 바꿔 주세요.</span></li>' +
+          '<li><b>퇴실체크</b><span>끝나기 ' + at.outBefore + '분 전부터 눌러요. 출석과 퇴실이 둘 다 있어야 그날 출석으로 인정돼요.</span></li>' +
+          '<li><b>이수</b><span>' + esc(C.site.criteria) + '이면 이수예요. 기수 변경은 받지 않아요.</span></li></ol>' : '') +
+        (people.length ? '<h3 class="sec" style="margin-top:44px">강사진</h3><ul class="tt-people">' + people.map(function (q) { return '<li><b>' + esc(q.name) + '</b>' + (q.org ? '<em>' + esc(q.org) + '</em>' : '') + '<span>' + q.titles.map(esc).join('<br>') + '</span></li>'; }).join('') + '</ul>' : '')) +
+      '<p class="note" style="margin-top:20px">강사와 강의 순서는 사정에 따라 일부 바뀔 수 있어요. 바뀌면 이 화면에 가장 먼저 반영돼요. 강의 사이 쉬는 시간은 확정되면 안내할게요.</p>';
+    $$('.tt-tabs button', v).forEach(function (b) { b.onclick = function () { curTerm = b.dataset.t; renderSchedule(v, brief); }; });
   }
 
   function renderAccess(v) {
@@ -891,9 +914,9 @@
     var wait = function (x) { return new Promise(function (r) { setTimeout(function () { r(x); }, 350); }); };
     if (action === 'content') {
       var sch = [];
-      var CUR = [[0, '13:00', '15:00', '연구하는 교사의 길', '박성춘 교수님'], [0, '15:00', '18:00', '디지털교육 연구대회의 실제', '이대형'],
-        [1, '13:00', '15:00', '수업혁신 사례 연구 (초등)', '미정'], [1, '15:00', '17:00', '수업혁신 사례 연구 (중등)', '한세웅'], [1, '17:00', '18:00', '연구 주제 선정 (실습)', '김햇살'],
-        [2, '13:00', '15:00', '인성교육 실천사례 연구', '방정은'], [2, '15:00', '17:00', '영상·방송 연구대회의 실제', '미정'], [2, '17:00', '18:00', '연구하는 교사되기 로드맵 (종합 질의응답)', '박성춘 교수님']];
+      var CUR = [[0, '13:00', '15:00', '교사 주도 현장 연구의 가치와 연구윤리', '박성춘 교수님 (전 서울대학교 교수)'], [0, '15:00', '18:00', '디지털교육연구대회의 실제', '이대형 선생님 (미림마이스터고)'],
+        [1, '13:00', '15:00', '수업혁신사례연구대회의 실제(초등)', '미정'], [1, '15:00', '17:00', '수업혁신사례연구대회의 실제(중등)', '한세웅 선생님'], [1, '17:00', '18:00', '[실습] 현장 맞춤 연구 주제 선정', '김햇살 선생님 (원일초)'],
+        [2, '13:00', '15:00', '인성교육실천사례연구대회의 실제', '방정은 선생님'], [2, '15:00', '17:00', '수업 영상 촬영 및 편집 방법(영상·방송연구대회)', '미정'], [2, '17:00', '18:00', '연구하는 교사되기 로드맵(종합 질의응답)', '박성춘 교수님 외 강사진']];
       [['1기', '2027-01-11'], ['2기', '2027-02-01']].forEach(function (t) {
         CUR.forEach(function (c) {
           var d = new Date(t[1] + 'T00:00:00'); d.setDate(d.getDate() + c[0]);
