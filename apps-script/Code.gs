@@ -34,7 +34,16 @@ var SHEETS = {
   // 이메일 자동화: 상태가 바뀌면 수강생에게 보낼 메일이 여기 쌓임 → 운영자 페이지 '메일 발송 대기함'에서 확인 후 발송
   // 최종 이수 판정 기록 (자동 판정은 제안, 운영자가 확정한 값이 신청자 '이수(Y/N)'에 들어감)
   판정기록: ['기록시각', '기수', '성명', '휴대폰', '자동판정', '인정시간', '최종', '사유', '처리자'],
-  메일대기: ['생성시각', '상태', '종류', '받는사람', '성명', '휴대폰', '제목', '본문', '관련', '발송시각', '메모']
+  메일대기: ['생성시각', '상태', '종류', '받는사람', '성명', '휴대폰', '제목', '본문', '관련', '발송시각', '메모'],
+  // 공문·계약서: 운영자 페이지 '문서' 탭에서 쓰고 고치고 PDF로 받음. 내용은 JSON 한 칸
+  문서: ['ID', '종류', '제목', '수정시각', '내용'],
+  회의: ['날짜', '제목', '참석자', '안건', '회의록', '결정사항', '할 일', '상태'],
+  // 납입영수증 발급 기록, 현금영수증(홈택스 일괄발급) 처리 기록
+  영수증기록: ['발급번호', '발급시각', '기수', '성명', '휴대폰', '금액', '종류'],
+  현금영수증: ['기수', '성명', '휴대폰', '발급수단번호', '금액', '발급(Y)', '발급일', '메모'],
+  // 계약서·공문 양식(본문에 회사 정보가 있어 공개 저장소가 아니라 시트에만 둠)
+  문서양식: ['이름', '종류', '설명', '내용'],
+  부하테스트: ['기록시각', '번호', '구분']
 };
 // 강사 민감정보는 운영 시트와 다른 파일(비공개)에 저장
 var INSTRUCTOR_HEADERS = ['성명', '소속', '직위', '전화', '이메일', '생년월일', '주민등록번호', '은행', '계좌번호', '예금주', '비고'];
@@ -78,7 +87,17 @@ var DEFAULT_SETTINGS = [
   ['강사자료코드', '', '강사님이 사이트에서 자료를 올릴 때 넣는 코드 (비우면 업로드 닫힘)'],
   ['연수원메일', '', '연수원 담당자 메일 주소 (메일 봇 받는 사람)'],
   ['연수원담당', '교육연수원 담당자', '메일 첫 줄 호칭'],
-  ['메일서명', '', '메일 끝 서명 (비우면 운영팀 이름 + 문의메일)']
+  ['메일서명', '', '메일 끝 서명 (비우면 운영팀 이름 + 문의메일)'],
+  ['발급처_상호', '', '영수증·공문·계약서에 찍히는 회사 이름'],
+  ['발급처_사업자번호', '', '영수증에 표기'],
+  ['발급처_대표', '', '영수증·공문 발신 명의'],
+  ['발급처_주소', '', '영수증·공문 머리'],
+  ['발급처_연락처', '', '영수증·공문 문의처'],
+  ['공문_문서번호머리', 'KIENALP', '문서번호 앞부분 (예: KIENALP-261201-1)'],
+  ['정산_협회비율', '40', '전체 연수금액 중 교사크리에이터협회로 가는 비율(%)'],
+  ['정산_협회몫', '10', '협회 지급액 중 협회 몫(%)'],
+  ['정산_운영비몫', '20', '협회 지급액 중 쿼카연구회 간사통장 운영비(%)'],
+  ['정산_PM강사몫', '70', '협회 지급액 중 PM비·강사비(%)']
 ];
 
 // 시도교육청 17개 (표준 약어)
@@ -145,6 +164,15 @@ function json_(obj) {
 
 // 공개 콘텐츠: 공지·FAQ·일정·안내 (개인정보 없음)
 function getContent_() {
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get('content');
+  if (hit) return JSON.parse(hit);
+  var out = buildContent_();
+  try { cache.put('content', JSON.stringify(out), 180); } catch (e) {}
+  return out;
+}
+function bust_() { try { CacheService.getScriptCache().removeAll(['content', 'attendCtx', 'attendCtxAt', 'materials']); } catch (e) {} }
+function buildContent_() {
   var s = settings_();
   var notices = rows_('공지').filter(function (r) { return yes_(r['공개(Y)'], true); }).map(function (r) {
     return { date: fmtDate_(r['게시일']), title: r['제목'], body: r['내용'], pinned: yes_(r['상단고정(Y)']) };
@@ -466,12 +494,23 @@ function menuCheck() {
 }
 
 // 이수생관리부: 연수원 표준양식의 두 시트(이수정보확인서, 이수대장)와 같은 열 순서
-function rosterData_(term) {
+function rosterData_(term, after) {
   var s = settings_();
   var period = String(s['연수기간_' + term] || '').split('~');
   var start = (period[0] || '').replace(/\D/g, ''), end = (period[1] || '').replace(/\D/g, '');
+  // 이미 한 번 제출한 뒤 추가된 이수자는 연번이 흔들리지 않게 맨 끝에 붙인다 (2026: 6명 추가 사례)
+  var late = {};
+  if (after) {
+    var cut = toDate_(after); if (cut) cut.setHours(23, 59, 59);
+    rows_('판정기록').forEach(function (r) { if (clean_(r['기수']) === term && cut && r['기록시각'] instanceof Date) late[personKey_(r['성명'], r['휴대폰'])] = r['기록시각'] > cut; });
+  }
   var list = mergedRoster_().filter(function (x) { return x.term === term && x.done; })
-    .sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
+    .sort(function (a, b) { var la = late[a.name + '|' + a.phone] ? 1 : 0, lb = late[b.name + '|' + b.phone] ? 1 : 0; return (la - lb) || a.name.localeCompare(b.name, 'ko'); });
+  // 동일인 중복 검사: 성명+생년월일, NEIS 번호
+  var seen = {}, dups = [];
+  list.forEach(function (x) {
+    [x.name + '|' + x.birth, x.neis ? 'N|' + x.neis : ''].forEach(function (k) { if (!k) return; if (seen[k] && dups.indexOf(x.name) < 0) dups.push(x.name); seen[k] = 1; });
+  });
   var a = [['연번', '성명(가나다순)', '생년월일(주민번호 앞 6자리)', 'NEIS 개인번호', '소속학교명', '소속교육청', '연락처', '본인 확인', '확인결과']];
   list.forEach(function (x, i) {
     a.push([i + 1, x.name, x.birth ? x.birth.replace(/-/g, '').slice(2) : '', x.neis, x.school, x.sido, x.phone, '☑', '확인 완료']);
@@ -481,7 +520,7 @@ function rosterData_(term) {
     b.push(['', '', i + 1, x.name, x.neis, start.slice(0, 4), String(s['이수대장_교육유형구분코드']), String(s['이수대장_연수구분코드']), String(s['이수대장_연수내용구분코드']),
       String(s['이수대장_연수시간(분)']), s['이수대장_직무관련성여부'], s['이수대장_연수과정명'], s['이수대장_교육형태코드'], start, end, x.school, x.birth.replace(/-/g, '.'), '', '', '', '']);
   });
-  return { count: list.length, a: a, b: b, period: start && end };
+  return { count: list.length, a: a, b: b, period: start && end, dups: dups, added: list.filter(function (x) { return late[x.name + '|' + x.phone]; }).length };
 }
 
 function menuRoster() {
@@ -624,7 +663,7 @@ function isAdmin_() {
   return me.toLowerCase() === owner.toLowerCase() || extra.indexOf(me.toLowerCase()) >= 0;
 }
 
-var ADMIN_SHEETS = ['신청자', '이수정보', '셀프신청', '공지', 'FAQ', '연수일정', '강사일정', '설정', '문자기록', '강사정보', '출석', '게시판', '업무표', '연수자료', '메일기록', '메일대기', '판정기록'];
+var ADMIN_SHEETS = ['신청자', '이수정보', '셀프신청', '공지', 'FAQ', '연수일정', '강사일정', '설정', '문자기록', '강사정보', '출석', '게시판', '업무표', '연수자료', '메일기록', '메일대기', '판정기록', '문서', '회의', '영수증기록', '현금영수증'];
 var TEXT_COLS = ['연락처', '휴대폰', '생년월일', 'NEIS 번호', '나이스개인번호', '현금영수증번호', '전화', '주민등록번호', '계좌번호', '연수지명번호'];
 
 function adminApi(action, p) {
@@ -641,7 +680,7 @@ function adminApi(action, p) {
       case 'process': return adminProcess_(p.row, p.state, p.memo);
       case 'check': return checkIssues_();
       case 'import': return importRows_(Utilities.parseCsv(String(p.text || ''), '\t'), String(p.term || '').trim());
-      case 'roster': return rosterData_(String(p.term || '').trim());
+      case 'roster': return rosterData_(String(p.term || '').trim(), p.after);
       case 'people': return peopleList_();
       case 'smsLog':
         sheet_('문자기록').appendRow([new Date(), p.kind, p.target, p.count, p.text]);
@@ -661,6 +700,20 @@ function adminApi(action, p) {
       case 'setSetting': return setSetting_(p.key, p.value);
       case 'outbox': return outbox_();
       case 'outboxSend': return outboxSend_(p.rows || []);
+      case 'docs': return docList_();
+      case 'docTpls': return docTpls_();
+      case 'docGet': return docGet_(p.id);
+      case 'docSave': return docSave_(p);
+      case 'docDel': return docDel_(p.id);
+      case 'pdf': return pdf_(p.html, p.name);
+      case 'receipts': return receiptList_();
+      case 'receiptLog': return receiptLog_(p.items || [], p.kind);
+      case 'cashMark': return cashMark_(p.items || [], p.done !== false);
+      case 'payApply': return payApply_(p.items || []);
+      case 'report': return report_();
+      case 'attendAdjustBulk': return attendAdjustBulk_(p);
+      case 'loadtestClear': return loadtest_(true);
+      case 'loadtest': return loadtest_(false);
       default: throw new Error('알 수 없는 요청: ' + action);
     }
   } finally { lock.releaseLock(); }
@@ -743,12 +796,14 @@ function adminSave_(name, row, data) {
   if (row) sh.getRange(row, 1, 1, headers.length).setValues([vals]);
   else sh.appendRow(vals);
   if (name === '연수일정' || name === '강사일정') menuRecalcDowSilent_();
+  bust_();
   return { ok: true };
 }
 
 function adminDel_(name, row) {
   if (name === '설정') throw new Error('설정은 지울 수 없어요.');
   targetSheet_(name).deleteRow(Number(row));
+  bust_();
   return { ok: true };
 }
 
@@ -798,7 +853,7 @@ function peopleList_() {
     var name = clean_(r['성명']).replace(/\s/g, ''), phone = normPhone_(r['연락처']);
     var key = name + '|' + phone, at = att[key] || {};
     return { name: name, phone: phone, term: r['기수'], state: r['상태'] || '신청', paid: !!clean_(r['입금일']), issue: bad[key] || '', done: clean_(r['이수(Y/N)']).toUpperCase() !== 'N',
-      school: clean_(r['소속학교']), days: at.days || {}, judge: at.judge || '', total: at.total || 0, refund: refund[key] || '' };
+      school: clean_(r['소속학교']), days: at.days || {}, judge: at.judge || '', total: at.total || 0, refund: refund[key] || '', info: !!fixed[key] };
   }).filter(function (x) { return x.name; });
 }
 
@@ -819,7 +874,19 @@ function instructorDoc_() {
     var x = info[k] || {};
     rows.push([i + 1, k, x['소속'] || by[k].소속 || '', x['직위'] || '', by[k].역할 || '', x['전화'] || '', x['이메일'] || '', x['생년월일'] || '', by[k].items.join(' / '), by[k].hours]);
   });
-  return { rows: rows };
+  // 일자별 주차권: 그날 강의하는 강사 수 (비고에 '원격'·'온라인'이 있으면 제외)
+  var park = {};
+  rows_('강사일정').filter(function (r) { return r['강사명'] && r['날짜'] && !/원격|온라인|zoom/i.test(clean_(r['비고'])); }).forEach(function (r) {
+    var d = toDate_(r['날짜']), k = fmtDate_(d) + '(' + DOW[d.getDay()] + ')';
+    (park[k] = park[k] || {})[clean_(r['강사명'])] = 1;
+  });
+  var parking = Object.keys(park).sort().map(function (k) { return [k, Object.keys(park[k]).length, Object.keys(park[k]).join(', ')]; });
+  var s = settings_();
+  var guides = Object.keys(by).map(function (k) {
+    return { name: k, text: '[연구하는 교사되기 2027] ' + k + ' 선생님, 강의 안내드립니다.\n\n■ 강의 일시\n' + by[k].items.map(function (x) { return '· ' + x; }).join('\n') +
+      '\n\n■ 준비\n· 강의 15분 전까지 입장 부탁드립니다.\n· 강의안은 ' + (s['사이트주소'] || '') + '/#/materials?upload=1 에서 올려 주세요. (업로드 코드: ' + (s['강사자료코드'] || '') + ')\n· 문의: ' + (s['문의메일'] || '') };
+  });
+  return { rows: rows, parking: parking, guides: guides };
 }
 
 function menuRecalcDowSilent_() {
@@ -876,7 +943,8 @@ function termDays_(term) {
   return Object.keys(by).sort().map(function (k) { var d = by[k]; d.hours = Math.round(d.hours * 10) / 10; d.startHm = hmStr_(d.start || 0); d.endHm = hmStr_(d.end || 0); return d; });
 }
 
-// 400명이 몰려도 버티도록 명단·일정은 5분 캐시
+// 400명이 한꺼번에 눌러도 버티도록: 명단·일정은 10분 캐시(시트를 안 읽음), 기록은 잠금 없이 한 줄 추가
+// 캐시 한 칸은 100KB까지라 사람 정보는 "기수" 또는 "기수|w"(대기)로 짧게 담는다
 function attendCtx_(fresh) {
   var cache = CacheService.getScriptCache();
   if (!fresh) { var c = cache.get('attendCtx'); if (c) return JSON.parse(c); }
@@ -884,31 +952,50 @@ function attendCtx_(fresh) {
   var people = {};
   rows_('신청자').forEach(function (r) {
     if (r['상태'] === '취소') return;
-    people[personKey_(r['성명'], r['연락처'])] = { term: clean_(r['기수']), state: r['상태'] || '신청' };
+    people[personKey_(r['성명'], r['연락처'])] = clean_(r['기수']) + ((r['상태'] || '신청') === '대기' ? '|w' : '');
   });
   var days = {}, zoom = {};
   termList_().forEach(function (t) { days[t] = termDays_(t); zoom[t] = s['줌링크_' + t] || ''; });
   var ctx = { people: people, days: days, zoom: zoom, before: Number(s['입실가능(분)'] || 30), outBefore: Number(s['퇴실가능(분)'] || 20), test: yes_(s['출석테스트']) };
-  try { cache.put('attendCtx', JSON.stringify(ctx), 300); } catch (e) {}
+  try { cache.put('attendCtx', JSON.stringify(ctx), 600); cache.put('attendCtxAt', String(Date.now()), 600); } catch (e) {}
   return ctx;
+}
+// 시트 쓰기는 가끔 일시 오류가 난다 → 짧게 쉬고 다시
+function appendRetry_(name, row) {
+  var err;
+  for (var i = 0; i < 4; i++) {
+    try { sheet_(name).appendRow(row); return; } catch (e) { err = e; Utilities.sleep(250 + Math.floor(Math.random() * 500) + i * 400); }
+  }
+  throw err;
 }
 
 function attend_(d) {
   var name = clean_(d.name).replace(/\s/g, ''), phone = normPhone_(d.phone), kind = d.kind === 'out' ? 'out' : 'in';
+  var cache = CacheService.getScriptCache();
+  var ctx = attendCtx_();
+  // 부하 테스트: 설정 '출석테스트'=Y일 때만, 이름이 '부하테스트'로 시작하면 실제 출석과 같은 길(캐시 읽기+한 줄 쓰기)을 '부하테스트' 시트에 기록
+  if (ctx.test && name.indexOf('부하테스트') === 0) {
+    appendRetry_('부하테스트', [new Date(), name, kind]);
+    return { ok: true, kind: kind, time: nowKst_().hm, loadtest: true };
+  }
   if (!name || !phone) return { ok: false, error: '성명과 휴대폰 번호를 정확히 입력해 주세요.' };
   var key = name + '|' + phone;
-  var ctx = attendCtx_();
   var me = ctx.people[key];
-  if (!me) { ctx = attendCtx_(true); me = ctx.people[key]; }
+  if (!me) {
+    // 명단에 방금 추가된 사람일 수 있으니 새로 읽되, 오타가 몰려도 30초에 한 번만 시트를 읽는다
+    var at = Number(cache.get('attendCtxAt') || 0);
+    if (Date.now() - at > 30000) { ctx = attendCtx_(true); me = ctx.people[key]; }
+  }
   if (!me) return { ok: false, error: '신청자 명단에서 찾지 못했어요. 연수 신청할 때 쓴 휴대폰 번호인지 확인해 주세요.\n(같은 이름이 여러 분 계셔서 휴대폰 번호로 본인을 확인해요.)' };
-  if (me.state === '대기') return { ok: false, error: '아직 대기 상태예요. 확정 문자를 받은 뒤에 출석할 수 있어요.' };
+  var term = me.split('|')[0];
+  if (me.indexOf('|w') > 0) return { ok: false, error: '아직 대기 상태예요. 확정 문자를 받은 뒤에 출석할 수 있어요.' };
   var now = nowKst_();
-  var days = ctx.days[me.term] || [];
+  var days = ctx.days[term] || [];
   var day = days.filter(function (x) { return x.date === now.date; })[0];
   if (!day && ctx.test && days.length) day = { date: now.date, start: days[0].start, end: days[0].end, hours: days[0].hours, test: true };
   if (!day) {
     var next = days.filter(function (x) { return x.date > now.date; })[0];
-    return { ok: false, error: '오늘은 ' + me.term + ' 연수일이 아니에요.' + (next ? '\n다음 연수일: ' + next.date + '(' + next.dow + ') ' + next.startHm : '') };
+    return { ok: false, error: '오늘은 ' + term + ' 연수일이 아니에요.' + (next ? '\n다음 연수일: ' + next.date + '(' + next.dow + ') ' + next.startHm : '') };
   }
   if (!day.test) {
     if (kind === 'in') {
@@ -919,9 +1006,15 @@ function attend_(d) {
       if (now.min > day.end + 120) return { ok: false, error: '퇴실체크 시간이 지났어요. Q&A 게시판에 남겨 주시면 확인해 드릴게요.' };
     }
   }
-  sheet_('출석').appendRow([new Date(), me.term, "'" + now.date, kind === 'in' ? '입실' : '퇴실', name, "'" + phone, '', day.test ? '테스트' : '']);
-  var out = { ok: true, kind: kind, time: now.hm, term: me.term, date: now.date, start: hmStr_(day.start), end: hmStr_(day.end), test: !!day.test };
-  if (kind === 'in') { out.zoom = ctx.zoom[me.term] || ''; out.late = Math.max(0, now.min - day.start); }
+  // 같은 사람이 연달아 누르거나(자동 재시도 포함) 다시 들어올 때: 입실은 첫 기록을 그대로 돌려주고 줄을 더 만들지 않는다
+  var dk = 'at|' + key + '|' + now.date + '|' + kind, first = kind === 'in' ? cache.get(dk) : null, time = now.hm;
+  if (first) time = first;
+  else {
+    appendRetry_('출석', [new Date(), term, "'" + now.date, kind === 'in' ? '입실' : '퇴실', name, "'" + phone, '', day.test ? '테스트' : '']);
+    try { cache.put(dk, now.hm, kind === 'in' ? 21600 : 60); } catch (e) {}
+  }
+  var out = { ok: true, kind: kind, time: time, term: term, date: now.date, start: hmStr_(day.start), end: hmStr_(day.end), test: !!day.test, again: !!first };
+  if (kind === 'in') { out.zoom = ctx.zoom[term] || ''; out.late = Math.max(0, hm_(time) - day.start); }
   return out;
 }
 
@@ -1191,7 +1284,8 @@ function outboxSend_(list) {
 
 // ───── 설정 한 칸 저장 (메일 봇 받는 사람 등) ─────
 function setSetting_(key, value) {
-  var allow = ['연수원메일', '연수원담당', '메일서명', '강사자료코드'];
+  var allow = ['연수원메일', '연수원담당', '메일서명', '강사자료코드', '출석테스트', '연수비', '발급처_상호', '발급처_사업자번호', '발급처_대표', '발급처_주소', '발급처_연락처', '공문_문서번호머리', '정산_협회비율', '정산_협회몫', '정산_운영비몫', '정산_PM강사몫'];
+  bust_();
   if (allow.indexOf(key) < 0) throw new Error('바꿀 수 없는 설정이에요.');
   var st = sheet_('설정'), v = st.getDataRange().getValues();
   for (var i = 1; i < v.length; i++) if (String(v[i][0]).trim() === key) { st.getRange(i + 1, 2).setValue(value); return { ok: true }; }
@@ -1219,7 +1313,8 @@ function materials_(d) {
   var ctx = attendCtx_(), me = ctx.people[key];
   if (!me) { ctx = attendCtx_(true); me = ctx.people[key]; }
   if (!me) return { ok: false, error: '신청자 명단에서 찾지 못했어요. 연수 신청할 때 쓴 이름과 휴대폰 번호인지 확인해 주세요.' };
-  if (me.state === '대기') return { ok: false, error: '아직 대기 상태예요. 수강이 확정되면 연수자료를 볼 수 있어요.' };
+  if (me.indexOf('|w') > 0) return { ok: false, error: '아직 대기 상태예요. 수강이 확정되면 연수자료를 볼 수 있어요.' };
+  me = { term: me.split('|')[0] };
   var cache = CacheService.getScriptCache(), all = null;
   try { var c = cache.get('materials'); if (c) all = JSON.parse(c); } catch (e) {}
   if (!all) {
@@ -1302,7 +1397,7 @@ var FAQ_2027 = [
 ];
 function upgrade2027() {
   var ss = SpreadsheetApp.getActive();
-  ['연수자료', '메일기록', '메일대기', '판정기록'].forEach(function (n) { sheet_(n); });
+  ['연수자료', '메일기록', '메일대기', '판정기록', '문서', '회의', '영수증기록', '현금영수증', '부하테스트', '문서양식'].forEach(function (n) { sheet_(n); });
   var bd = sheet_('게시판'), bh = bd.getRange(1, 1, 1, bd.getLastColumn()).getValues()[0].map(String);
   if (bh.indexOf('이메일') < 0) bd.getRange(1, SHEETS['게시판'].length).setValue('이메일').setFontWeight('bold').setBackground('#001871').setFontColor('#ffffff');
   var st = sheet_('설정'), have = st.getRange(2, 1, Math.max(st.getLastRow() - 1, 1), 1).getValues().map(function (r) { return String(r[0]).trim(); });
@@ -1323,7 +1418,7 @@ function upgrade2027() {
     else { var row = [f[0], f[1], f[2], 'Y']; while (row.length < kwCol - 1) row.push(''); row[kwCol - 1] = f[3]; add.push(row); }
   });
   if (add.length) fq.getRange(fq.getLastRow() + 1, 1, add.length, kwCol).setValues(add);
-  try { CacheService.getScriptCache().removeAll(['attendCtx', 'materials']); } catch (e) {}
+  bust_();
   Logger.log('업그레이드 완료: 설정 ' + miss.length + '개, FAQ 추가 ' + add.length + '개');
 }
 
@@ -1384,4 +1479,133 @@ function seedCurriculum2027() {
   if (b.length) tsched.getRange(2, 1, b.length, b[0].length).setValues(b);
   try { CacheService.getScriptCache().remove('attendCtx'); } catch (e) {}
   Logger.log('연수일정 ' + a.length + '줄, 강사일정 ' + b.length + '줄');
+}
+
+
+// ══════════ 문서(공문·계약서) · 영수증 · 정산 · 통계 ══════════
+function docList_() {
+  return rows_('문서').map(function (r) { return { id: String(r['ID']), kind: r['종류'], title: r['제목'], at: cellOut_(r['수정시각']) }; }).reverse();
+}
+function docRow_(id) {
+  var sh = sheet_('문서'), v = sh.getDataRange().getValues();
+  for (var i = 1; i < v.length; i++) if (String(v[i][0]) === String(id)) return { sh: sh, row: i + 1, v: v[i] };
+  return null;
+}
+function docGet_(id) {
+  var r = docRow_(id); if (!r) throw new Error('문서를 찾지 못했어요.');
+  var data = {}; try { data = JSON.parse(r.v[4] || '{}'); } catch (e) {}
+  return { id: String(r.v[0]), kind: r.v[1], title: r.v[2], data: data };
+}
+function docSave_(p) {
+  var json = JSON.stringify(p.data || {});
+  if (json.length > 45000) throw new Error('문서가 너무 길어요. 본문을 나눠 주세요.');
+  var title = clean_(p.title) || '제목 없는 문서', r = p.id ? docRow_(p.id) : null;
+  if (r) { r.sh.getRange(r.row, 2, 1, 4).setValues([[p.kind, title, new Date(), json]]); return { ok: true, id: String(p.id) }; }
+  var id = 'D' + Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyMMddHHmmss');
+  sheet_('문서').appendRow([id, p.kind, title, new Date(), json]);
+  return { ok: true, id: id };
+}
+function docDel_(id) { var r = docRow_(id); if (r) r.sh.deleteRow(r.row); return { ok: true }; }
+
+// 운영자 화면에서 만든 문서 HTML을 PDF 파일로 바꿔서 돌려줌
+function pdf_(html, name) {
+  var blob = Utilities.newBlob(String(html || ''), 'text/html', 'doc.html').getAs('application/pdf');
+  return { ok: true, name: (clean_(name) || '문서') + '.pdf', b64: Utilities.base64Encode(blob.getBytes()) };
+}
+
+// 영수증 대상: 취소가 아닌 신청자. 현금영수증 번호는 셀프신청에서 고친 번호가 있으면 그 번호, 없으면 휴대폰
+function receiptList_() {
+  var s = settings_(), fee = Number(s['연수비'] || 0);
+  var cashNo = {};
+  rows_('셀프신청').forEach(function (r) { if (r['유형'] === '현금영수증 수정' && r['처리상태'] !== '반려' && clean_(r['현금영수증번호'])) cashNo[personKey_(r['성명'], r['휴대폰'])] = clean_(r['현금영수증번호']); });
+  var cash = {};
+  rows_('현금영수증').forEach(function (r) { cash[clean_(r['기수']) + '|' + personKey_(r['성명'], r['휴대폰'])] = r; });
+  var rc = {};
+  rows_('영수증기록').forEach(function (r) { rc[clean_(r['기수']) + '|' + personKey_(r['성명'], r['휴대폰'])] = clean_(r['발급번호']); });
+  var people = rows_('신청자').filter(function (r) { return r['상태'] !== '취소' && clean_(r['성명']); }).map(function (r) {
+    var name = clean_(r['성명']).replace(/\s/g, ''), phone = normPhone_(r['연락처']), k = clean_(r['기수']) + '|' + name + '|' + phone, c = cash[k] || {};
+    return { term: clean_(r['기수']), name: name, phone: phone, school: clean_(r['소속학교']), state: r['상태'] || '신청',
+      paid: !!clean_(r['입금일']), paidAt: fmtDate_(r['입금일']), amount: Number(r['입금액'] || 0) || fee,
+      cashNo: clean_(c['발급수단번호']) || cashNo[name + '|' + phone] || phone, cashDone: yes_(c['발급(Y)']), cashAt: fmtDate_(c['발급일']), rcptNo: rc[k] || '' };
+  });
+  return { people: people, fee: fee, issuer: { name: s['발급처_상호'] || '', biz: s['발급처_사업자번호'] || '', ceo: s['발급처_대표'] || '', addr: s['발급처_주소'] || '', tel: s['발급처_연락처'] || '' },
+    course: s['연수명'], org: s['연수기관'], periods: termList_().reduce(function (o, t) { o[t] = s['연수기간_' + t] || ''; return o; }, {}) };
+}
+function receiptLog_(items, kind) {
+  var sh = sheet_('영수증기록'), n = Math.max(sh.getLastRow() - 1, 0), yy = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yy'), out = [], rows = [];
+  items.forEach(function (x) {
+    var no = 'R' + yy + '-' + ('000' + (++n)).slice(-4);
+    rows.push([no, new Date(), x.term, x.name, "'" + normPhone_(x.phone), Number(x.amount || 0), kind || '납입영수증']); out.push(no);
+  });
+  if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, 7).setValues(rows);
+  return { ok: true, numbers: out };
+}
+function cashMark_(items, done) {
+  var sh = sheet_('현금영수증'), v = sh.getDataRange().getValues(), at = {};
+  for (var i = 1; i < v.length; i++) at[clean_(v[i][0]) + '|' + personKey_(v[i][1], v[i][2])] = i + 1;
+  var add = [];
+  items.forEach(function (x) {
+    var k = clean_(x.term) + '|' + personKey_(x.name, x.phone), row = [x.term, x.name, "'" + normPhone_(x.phone), "'" + clean_(x.no), Number(x.amount || 0), done ? 'Y' : '', done ? new Date() : '', ''];
+    if (at[k]) sh.getRange(at[k], 1, 1, 7).setValues([row.slice(0, 7)]); else add.push(row);
+  });
+  if (add.length) sh.getRange(sh.getLastRow() + 1, 1, add.length, 8).setValues(add);
+  return { ok: true, count: items.length };
+}
+
+// 입금 대조 결과 반영: 신청자 시트의 입금액·입금일 (줄 번호 + 이름이 맞을 때만)
+function payApply_(items) {
+  var sh = sheet_('신청자'), h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  var ni = h.indexOf('성명') + 1, ai = h.indexOf('입금액') + 1, di = h.indexOf('입금일') + 1, n = 0;
+  items.forEach(function (x) {
+    var row = Number(x.row); if (!row || row < 2) return;
+    if (clean_(sh.getRange(row, ni).getValue()).replace(/\s/g, '') !== clean_(x.name).replace(/\s/g, '')) return;
+    sh.getRange(row, ai).setValue(Number(x.amount || 0)); sh.getRange(row, di).setValue(clean_(x.date)); n++;
+  });
+  bust_();
+  return { ok: true, count: n };
+}
+
+// Zoom 참가 기록으로 한꺼번에 출석 보정
+function attendAdjustBulk_(p) {
+  var date = fmtDate_(p.date), term = clean_(p.term), rows = [];
+  (p.items || []).forEach(function (x) {
+    var name = clean_(x.name).replace(/\s/g, ''), phone = normPhone_(x.phone);
+    if (!name || !phone || !date) return;
+    rows.push([new Date(), term, "'" + date, '조정', name, "'" + phone, Number(x.hours || 0), clean_(x.memo) || 'Zoom 기록으로 보정']);
+  });
+  if (rows.length) { var sh = sheet_('출석'); sh.getRange(sh.getLastRow() + 1, 1, rows.length, 8).setValues(rows); }
+  return { ok: true, count: rows.length };
+}
+
+// 결과보고서 통계 한 장: 신청·입금·환불·출석·이수·시도별
+function report_() {
+  var s = settings_(), fee = Number(s['연수비'] || 0), terms = termList_(), out = { terms: terms, fee: fee, by: {}, sido: {}, refunds: {}, split: {
+    assoc: Number(s['정산_협회비율'] || 40), a: Number(s['정산_협회몫'] || 10), b: Number(s['정산_운영비몫'] || 20), c: Number(s['정산_PM강사몫'] || 70) } };
+  terms.forEach(function (t) { out.by[t] = { 신청: 0, 대기: 0, 취소: 0, 입금: 0, 미입금: 0, 입금액: 0, 이수: 0, 미이수: 0, 미확정: 0, 이수정보: 0, days: [] }; });
+  var info = {};
+  rows_('이수정보').forEach(function (r) { info[personKey_(r['성명'], r['휴대폰'])] = 1; });
+  rows_('신청자').forEach(function (r) {
+    var t = out.by[clean_(r['기수'])]; if (!t) return;
+    var st = r['상태'] || '신청'; t[st] = (t[st] || 0) + 1;
+    if (st === '취소') return;
+    if (clean_(r['입금일'])) { t['입금']++; t['입금액'] += Number(r['입금액'] || 0) || fee; } else if (st === '신청') t['미입금']++;
+    if (st !== '신청') return;
+    var f = clean_(r['이수(Y/N)']).toUpperCase(); t[f === 'Y' ? '이수' : f === 'N' ? '미이수' : '미확정']++;
+    if (info[personKey_(r['성명'], r['연락처'])]) t['이수정보']++;
+    var sd = normSido_(r['소속청']) || '미상'; (out.sido[sd] = out.sido[sd] || {})[clean_(r['기수'])] = ((out.sido[sd] || {})[clean_(r['기수'])] || 0) + 1;
+  });
+  rows_('게시판').filter(function (r) { return r['게시판'] === '환불요청'; }).forEach(function (r) { var k = r['처리상태'] || '접수'; out.refunds[k] = (out.refunds[k] || 0) + 1; });
+  terms.forEach(function (t) { var rep = attendanceReport_(t); out.by[t].days = rep.days.map(function (d) { var c = rep.counts[d.date] || {}; return { date: d.date, dow: d.dow, in: c.in || 0, out: c.out || 0 }; }); });
+  return out;
+}
+
+// 부하 테스트 결과 보기 / 지우기
+function loadtest_(clear) {
+  var sh = sheet_('부하테스트'), n = Math.max(sh.getLastRow() - 1, 0);
+  if (clear && n) sh.deleteRows(2, n);
+  return { ok: true, rows: clear ? 0 : n };
+}
+
+function docTpls_() {
+  return rows_('문서양식').map(function (r) { var d = {}; try { d = JSON.parse(r['내용'] || '{}'); } catch (e) {} return { kind: r['종류'], t: r['이름'], d: r['설명'], data: d }; });
 }

@@ -101,6 +101,42 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .mail-sum h4 { margin: 10px 0 4px; font-size: 13px; color: var(--navy); } .mail-sum h4:first-child { margin-top: 0; }
 .mail-sum ul { margin: 0; padding-left: 18px; }
 @media (max-width: 900px) { .mail-grid { grid-template-columns: 1fr; } .mail-ed .row2 { grid-template-columns: 1fr; } }
+/* 메뉴: 묶음 6개 + 하위 탭 */
+.gnav { background: #fff; border-bottom: 1px solid var(--line); display: flex; gap: 4px; padding: 0 24px; position: sticky; top: 56px; z-index: 29; overflow-x: auto; }
+.gnav button { border: 0; background: none; height: 58px; padding: 0 22px; font-size: 17px; font-weight: 800; color: var(--gray-1); cursor: pointer; border-bottom: 4px solid transparent; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+.gnav button:hover { color: var(--ink); }
+.gnav button.on { color: var(--navy); border-bottom-color: var(--navy); }
+.gnav .cnt, .snav .cnt { background: var(--danger); color: #fff; border-radius: 20px; font-size: 11px; padding: 0 7px; line-height: 18px; font-weight: 700; }
+.snav { display: flex; gap: 8px; padding: 14px 32px 0; flex-wrap: wrap; max-width: 1280px; margin: 0 auto; }
+.snav button { border: 1px solid #d5d8e3; background: #fff; height: 38px; padding: 0 16px; border-radius: 30px; font-weight: 700; font-size: 14px; color: var(--ink-2); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.snav button.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+main { max-width: 1280px; margin: 0 auto; }
+.btn.big { height: 48px; padding: 0 24px; font-size: 16px; }
+.h3 { font-size: 16px; font-weight: 800; margin: 26px 0 10px; }
+.today-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 18px; }
+.today-head .sub { margin: 0; }
+.ddays { display: flex; gap: 8px; } .dday { background: #fff; border: 1px solid var(--line); padding: 8px 16px; font-size: 20px; font-weight: 800; color: var(--navy); } .dday b { font-size: 13px; color: var(--gray-1); margin-right: 6px; }
+.todo { display: grid; gap: 10px; }
+.todo-row { display: grid; grid-template-columns: 72px 1fr auto; gap: 18px; align-items: center; background: #fff; border: 1px solid var(--line); border-left: 5px solid var(--navy); padding: 18px 22px; }
+.todo-row.warn { border-left-color: var(--danger); }
+.todo-n { font-size: 34px; font-weight: 800; color: var(--navy); text-align: center; line-height: 1; } .todo-row.warn .todo-n { color: var(--danger); }
+.todo-t b { display: block; font-size: 18px; } .todo-t span { color: var(--gray-1); font-size: 14px; }
+.todo-empty { background: #fff; border: 1px solid var(--line); padding: 46px 20px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; } .todo-empty b { font-size: 20px; } .todo-empty span { color: var(--gray-1); }
+.today-foot { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 18px; color: var(--gray-1); font-size: 14px; } .today-foot b { color: var(--ink); margin-right: 4px; }
+.pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.pick { text-align: left; background: #fff; border: 1px solid var(--line); padding: 16px 18px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.pick:hover { border-color: var(--navy); box-shadow: inset 0 0 0 1px var(--navy); } .pick b { font-size: 16px; } .pick small { color: var(--gray-1); font-size: 13px; }
+.doc-grid { display: grid; grid-template-columns: minmax(340px, 440px) 1fr; gap: 18px; align-items: start; }
+.doc-form { background: #fff; border: 1px solid var(--line); padding: 14px 18px 18px; max-height: calc(100vh - 230px); overflow: auto; }
+.doc-form label { display: block; font-size: 12px; font-weight: 800; color: var(--gray-1); margin: 10px 0 4px; }
+.doc-form input, .doc-form textarea, .doc-form select { width: 100%; } .doc-form textarea { font-size: 14px; line-height: 1.6; }
+.doc-form.two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; border: 0; padding: 0; max-height: none; overflow: visible; }
+.doc-grp { border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 4px; } .doc-grp > b { display: block; margin-top: 10px; color: var(--navy); font-size: 14px; }
+.doc-raw { margin-top: 14px; } .doc-raw summary { cursor: pointer; font-weight: 800; font-size: 13px; color: var(--gray-1); }
+.doc-prev { background: #e9ebf1; padding: 22px; max-height: calc(100vh - 230px); overflow: auto; }
+.a4 { background: #fff; width: 100%; max-width: 760px; margin: 0 auto; padding: 56px 54px; box-shadow: 0 2px 14px rgba(0,0,0,.12); min-height: 900px; }
+.a4 .pg + .pg { margin-top: 60px; border-top: 1px dashed #bbb; padding-top: 60px; }
+@media (max-width: 1000px) { .doc-grid { grid-template-columns: 1fr; } .doc-form, .doc-prev { max-height: none; } .todo-row { grid-template-columns: 48px 1fr; } .todo-row .btn { grid-column: 1 / -1; justify-content: center; } .today-head { flex-direction: column; align-items: flex-start; } .gnav { padding: 0 8px; } .gnav button { padding: 0 14px; font-size: 15px; } .snav { padding: 12px 16px 0; } }
 /* 모달 */
 .modal { position: fixed; inset: 0; background: rgba(14,21,45,.55); display: none; align-items: flex-start; justify-content: center; z-index: 50; padding: 40px 16px; overflow: auto; }
 .modal.open { display: flex; }
@@ -203,35 +239,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
   <a class="pill" id="ssLink" href="#" target="_blank">원본 시트</a>
   <a class="pill" id="siteLink" href="#" target="_blank">연수생 사이트</a>
 </div>
-<div class="layout">
-  <nav class="side" id="side">
-    <div class="grp">운영</div>
-    <button data-tab="dash">대시보드</button>
-    <button data-tab="ops">운영 업무표 · D-day <span class="cnt" id="cntOps" hidden></span></button>
-    <button data-tab="mail">연수원 메일 봇</button>
-    <button data-tab="outbox">메일 발송 대기함 <span class="cnt" id="cntOut" hidden></span></button>
-    <button data-tab="apps">신청자 명단</button>
-    <button data-tab="reqs">셀프신청 처리 <span class="cnt" id="cntReq" hidden></span></button>
-    <button data-tab="check">이수정보 점검 <span class="cnt" id="cntChk" hidden></span></button>
-    <button data-tab="attend">출결 · 이수 판정</button>
-    <button data-tab="board">게시판 (Q&amp;A·환불) <span class="cnt" id="cntBoard" hidden></span></button>
-    <button data-tab="sms">문자 발송</button>
-    <button data-tab="roster">이수생관리부</button>
-    <div class="grp">안내</div>
-    <button data-tab="notice">공지사항</button>
-    <button data-tab="faq">FAQ</button>
-    <button data-tab="sched">연수 일정</button>
-    <button data-tab="mats">연수자료 <span class="cnt" id="cntMats" hidden></span></button>
-    <div class="grp">강사</div>
-    <button data-tab="tsched">강사 일정</button>
-    <button data-tab="tinfo">강사 정보 (비공개)</button>
-    <button data-tab="tdoc">위촉공문 자료</button>
-    <div class="grp">기타</div>
-    <button data-tab="settings">설정</button>
-    <button data-tab="logs">문자 기록</button>
-  </nav>
-  <main id="main"><div class="loading">불러오는 중…</div></main>
-</div>
+<nav class="gnav" id="gnav"></nav>
+<div class="snav" id="snav"></div>
+<main id="main"><div class="loading">불러오는 중…</div></main>
 <div class="modal" id="modal"><div class="box"><header><b id="mTitle"></b><button onclick="closeModal()" aria-label="닫기">×</button></header><div class="body" id="mBody"></div><footer id="mFoot"></footer></div></div>
 <div class="toast" id="toast"></div>
 
@@ -343,6 +353,7 @@ function tsv(rows) { return rows.map(function (r) { return r.map(function (v) { 
 // ───── 탭 ─────
 var TABS = {
   dash: renderDash, apps: function () { renderTable('신청자', '신청자 명단', '연수원 명단을 붙여넣어 가져오고, 한 줄씩 고칠 수 있어요.', ['기수', '성명', '연락처', '소속학교', '소속청', 'NEIS 번호', '생년월일', '입금일', '상태', '이수(Y/N)'], importBox); },
+  docs: renderDocs, receipt: renderReceipt, pay: renderPay, settle: renderSettle, report: renderReport, zoom: renderZoom, meet: renderMeet,
   reqs: renderReqs, check: renderCheck, sms: renderSms, roster: renderRoster, attend: renderAttend, board: renderBoard, ops: renderOps, mail: renderMail, outbox: renderOutbox, mats: renderMats,
   notice: function () { renderTable('공지', '공지사항', '여기서 쓰면 연수생 사이트에 바로 보여요.', ['게시일', '제목', '상단고정(Y)', '공개(Y)']); },
   faq: function () { renderTable('FAQ', 'FAQ', '같은 문의가 두 번 오면 여기에 한 줄 추가하세요.', ['분류', '질문', '공개(Y)']); },
@@ -353,59 +364,51 @@ var TABS = {
   settings: function () { renderTable('설정', '설정', '마감일, 링크, 이수대장 코드 같은 운영 값이에요.', ['항목', '값', '설명']); },
   logs: function () { renderTable('문자기록', '문자 기록', '문자 발송 화면에서 "보냄 기록"을 누르면 여기에 남아요.', ['보낸시각', '문자종류', '대상', '인원']); }
 };
+var GROUPS = [
+  { id: 'today', t: '오늘', tabs: [['dash', '지금 할 일'], ['ops', '업무표 · D-day'], ['meet', '회의']] },
+  { id: 'people', t: '수강생', tabs: [['apps', '신청자 명단'], ['pay', '입금 대조'], ['reqs', '셀프신청'], ['check', '이수정보 점검']] },
+  { id: 'attend', t: '출결 · 이수', tabs: [['attend', '출결 · 이수 판정'], ['zoom', 'Zoom 기록 대조'], ['roster', '이수생관리부'], ['report', '결과 통계']] },
+  { id: 'talk', t: '소통', tabs: [['board', '게시판'], ['sms', '문자'], ['outbox', '보낼 메일'], ['mail', '연수원 메일'], ['notice', '공지'], ['faq', 'FAQ'], ['mats', '연수자료']] },
+  { id: 'docs', t: '문서', tabs: [['docs', '공문 · 계약서'], ['receipt', '영수증'], ['settle', '정산'], ['tdoc', '강사 자료']] },
+  { id: 'set', t: '설정', tabs: [['settings', '설정'], ['sched', '연수 일정'], ['tsched', '강사 일정'], ['tinfo', '강사 정보'], ['logs', '문자 기록']] }
+];
+var CNT = {};
+function drawNav() {
+  var cur = GROUPS.filter(function (g) { return g.tabs.some(function (t) { return t[0] === TAB; }); })[0] || GROUPS[0];
+  var badge = function (n) { return n ? '<span class="cnt">' + n + '</span>' : ''; };
+  $('#gnav').innerHTML = GROUPS.map(function (g) {
+    var n = 0; if (g.id !== 'today') g.tabs.forEach(function (t) { n += CNT[t[0]] || 0; });
+    return '<button data-g="' + g.id + '"' + (g === cur ? ' class="on"' : '') + '>' + g.t + badge(n) + '</button>';
+  }).join('');
+  $('#snav').innerHTML = cur.tabs.map(function (t) { return '<button data-tab="' + t[0] + '"' + (t[0] === TAB ? ' class="on"' : '') + '>' + t[1] + badge(CNT[t[0]]) + '</button>'; }).join('');
+  $$('#gnav button').forEach(function (b) { b.onclick = function () { go(GROUPS.filter(function (g) { return g.id === b.dataset.g; })[0].tabs[0][0]); }; });
+  $$('#snav button').forEach(function (b) { b.onclick = function () { go(b.dataset.tab); }; });
+}
 function go(tab) {
+  if (tab !== 'docs' || TAB === 'docs') DOC_ED = null;
   TAB = tab;
-  $$('#side button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === tab); });
+  drawNav();
   $('#main').innerHTML = '<div class="loading">불러오는 중…</div>';
   TABS[tab]();
   window.scrollTo(0, 0);
 }
-$$('#side button').forEach(function (b) { b.onclick = function () { go(b.dataset.tab); }; });
 
 function refreshBoot() {
   return run('boot').then(function (b) {
     BOOT = b;
     $('#who').textContent = b.email;
     $('#ssLink').href = b.ssUrl; $('#siteLink').href = b.site || '#';
-    var r = $('#cntReq'); r.hidden = !b.pending; r.textContent = b.pending;
-    var c = $('#cntChk'); c.hidden = !b.issues; c.textContent = b.issues;
     DUPS = b.dups || {};
-    var co = $('#cntOut'); co.hidden = !b.outbox; co.textContent = b.outbox || '';
-    var cm = $('#cntMats'); cm.hidden = !b.materialsPending; cm.textContent = b.materialsPending || '';
-    var bp = (b.board || {}), bn = (bp.qna || 0) + (bp.refund || 0); var cb = $('#cntBoard'); cb.hidden = !bn; cb.textContent = bn;
+    var bp = (b.board || {});
+    CNT.reqs = b.pending; CNT.check = b.issues; CNT.outbox = b.outbox || 0; CNT.mats = b.materialsPending || 0; CNT.board = (bp.qna || 0) + (bp.refund || 0);
+    drawNav();
     return b;
-  });
-}
-
-// ───── 대시보드 ─────
-function renderDash() {
-  refreshBoot().then(function (b) {
-    var apps = 0, wait = 0, cancel = 0;
-    var termRows = b.terms.map(function (t) { var x = b.byTerm[t] || {}; apps += x['신청'] || 0; wait += x['대기'] || 0; cancel += x['취소'] || 0;
-      return '<tr><td><b>' + esc(t) + '</b></td><td>' + (x['신청'] || 0) + '</td><td>' + (x['대기'] || 0) + '</td><td>' + (x['취소'] || 0) + '</td></tr>'; }).join('');
-    $('#main').innerHTML = '<h2>오늘의 운영</h2><p class="sub">빨간 숫자만 줄이면 오늘 일은 끝이에요.</p>' +
-      '<div class="stats">' +
-      '<div class="stat" data-go="apps"><small>신청자 (취소 제외)</small><b>' + (apps + wait) + '<span>명</span></b></div>' +
-      '<div class="stat ' + (b.pending ? 'warn' : '') + '" data-go="reqs"><small>처리 안 된 셀프신청</small><b>' + b.pending + '<span>건</span></b></div>' +
-      '<div class="stat ' + (b.issues ? 'warn' : '') + '" data-go="check"><small>이수정보 확인 필요</small><b>' + b.issues + '<span>/ ' + b.total + '명</span></b></div>' +
-      '<div class="stat ' + ((b.board || {}).refund ? 'warn' : '') + '" data-go="board"><small>처리 중 환불 요청 · 미답변 Q&A</small><b>' + ((b.board || {}).refund || 0) + '<span>건 · ' + ((b.board || {}).qna || 0) + '건</span></b></div>' +
-      '</div><div class="grid2"><div class="card"><b>기수별 현황</b><table class="tbl" style="margin-top:10px"><thead><tr><th>기수</th><th>신청</th><th>대기</th><th>취소</th></tr></thead><tbody>' + termRows + '</tbody></table></div>' +
-      '<div class="card"><b>PM 루틴</b><ol style="margin:10px 0 0;padding-left:20px;line-height:2">' +
-      '<li>연수원 신청자 목록 받으면 → <a href="#" data-go="apps">신청자 명단</a>에 붙여넣기</li>' +
-      '<li><a href="#" data-go="reqs">셀프신청</a> 완료/반려 처리 (취소는 명단에 자동 반영, 기수 변경은 받지 않음)</li>' +
-      '<li><a href="#" data-go="check">이수정보 점검</a> → <a href="#" data-go="sms">문자 발송</a>으로 보완 요청</li>' +
-      '<li><a href="#" data-go="board">게시판</a> 답변 · 환불 단계 바꾸고 안내 문자</li>' +
-      '<li><a href="#" data-go="ops">운영 업무표</a>에서 이번 주 할 일 확인 · 끝나면 완료 체크</li>' +
-      '<li>연수 날 <a href="#" data-go="attend">출결</a>에서 미입실·미퇴실 확인 → 문자, 끝나면 이수 판정 반영</li>' +
-      (Object.keys(DUPS).length ? '<li style="color:#b45309">동명이인 ' + Object.keys(DUPS).length + '쌍 있음. 이름 옆 <span class="dup">동명이인</span> 표시를 보고 휴대폰으로 구분하세요.</li>' : '') +
-      '<li>연수 후 <a href="#" data-go="roster">이수생관리부</a> 복사 → 연수원 표준양식에 붙여넣기</li></ol></div></div>';
-    $$('[data-go]').forEach(function (el) { el.onclick = function (e) { e.preventDefault(); go(el.dataset.go); }; });
   });
 }
 
 // ───── 공통 표 편집 ─────
 var SECRET = ['주민등록번호', '계좌번호'];
-var LONG = ['내용', '답변', '메모', '처리메모', '비고', '설명', '값'];
+var LONG = ['내용', '답변', '메모', '처리메모', '비고', '설명', '값', '안건', '회의록', '결정사항', '할 일'];
 function renderTable(sheet, title, sub, cols, extra) {
   run('table', { sheet: sheet }).then(function (t) {
     CACHE[sheet] = t;
@@ -450,12 +453,13 @@ function editRow(sheet, t, row) {
     var v = r[h] || '';
     if (sheet === '설정' && h === '항목' && row) return '<div class="f"><label>' + esc(h) + '</label><div><b>' + esc(v) + '</b></div></div>';
     var input;
-    if (h === '상태') input = sel(h, v, ['신청', '대기', '취소']);
+    if (h === '상태' && sheet === '회의') input = sel(h, v || '예정', ['예정', '진행 중', '완료']);
+    else if (h === '상태') input = sel(h, v, ['신청', '대기', '취소']);
     else if (h === '처리상태') input = sel(h, v, ['접수', '처리중', '완료', '반려']);
     else if (h === '이수(Y/N)') input = sel(h, v || 'Y', ['Y', 'N']);
     else if (h === '기수' && BOOT) input = sel(h, v, [''].concat(BOOT.terms));
     else if (h === '소속청' || h === '시도교육청') input = '<input type="text" name="' + esc(h) + '" value="' + esc(v) + '" placeholder="예: 경기도교육청">';
-    else if (LONG.indexOf(h) >= 0) input = '<textarea name="' + esc(h) + '" rows="' + (h === '내용' || h === '답변' ? 6 : 2) + '">' + esc(v) + '</textarea>';
+    else if (LONG.indexOf(h) >= 0) input = '<textarea name="' + esc(h) + '" rows="' + (h === '내용' || h === '답변' || h === '회의록' ? 6 : h === '안건' || h === '결정사항' || h === '할 일' ? 4 : 2) + '">' + esc(v) + '</textarea>';
     else if (h === '요일') input = '<div class="muted">날짜를 넣으면 자동</div>';
     else input = '<input type="text" name="' + esc(h) + '" value="' + esc(v) + '"' + (/날짜|게시일|입금일/.test(h) ? ' placeholder="2027-02-01"' : '') + '>';
     return '<div class="f"><label>' + esc(h) + '</label><div>' + input + '</div></div>';
@@ -537,8 +541,12 @@ var SMS_KINDS = [
     m: '[연구하는 교사되기 2027]\n이수증 발급에 필요한 정보 중 빠지거나 확인이 필요한 곳이 있어요.\n\n{사이트} > 이수정보 입력에서 {마감}까지 보완해 주세요.\n(NEIS 개인번호, 생년월일 8자리, 정식 학교명)\n\n같은 이름·번호로 다시 제출하면 최신 내용으로 바뀌어요.' },
   { grp: '연수 전', id: 'wait', q: 'sleep', t: '대기자 안내', d: '대기 상태인 분', who: 'wait',
     m: '[연구하는 교사되기 2027]\n현재 {기수} 대기로 접수되어 있어요. 자리가 나면 순서대로 바로 연락드릴게요.\n(기수 변경은 받지 않아요. 대기를 원하지 않으시면 {사이트} > 셀프 신청 > 수강취소로 접수해 주세요.)' },
+  { grp: '연수 전', id: 'noinfo', q: 'people', t: '이수정보 미입력 안내', d: '이수정보를 아직 안 낸 분', who: 'noinfo',
+    m: '[연구하는 교사되기 2027]\n이수증 발급에 필요한 이수정보가 아직 입력되지 않았어요.\n\n{사이트} > 이수정보 입력에서 {마감}까지 입력해 주세요. (2분이면 끝나요)\n· NEIS 개인번호, 생년월일, 학교명, 이메일' },
+  { grp: '연수 전', id: 'd1', q: 'cheer', t: '연수 하루 전 안내', d: '해당 기수 신청자', who: 'apply',
+    m: '[연구하는 교사되기 2027]\n내일부터 {기수} 연수가 시작돼요! ({기간}, 매일 13:00~18:00)\n\n· 시작 30분 전부터 {사이트} > 출석체크에서 출석하면 강의실(Zoom) 버튼이 나와요.\n· Zoom 이름: \"{기수}_성명_휴대폰 뒷 4자리\" (예: {기수}_홍길동_1234)\n· 연수자료도 사이트 > 연수자료에서 볼 수 있어요.\n\n내일 만나요 : )' },
   { grp: '연수 중', id: 'day', q: 'facil', t: '당일 입실 안내', d: '해당 기수 신청자', who: 'apply',
-    m: '[연구하는 교사되기 2027]\n오늘 {기수} 연수가 시작돼요!\n\n① {사이트} > 출석체크에서 출석\n② 나오는 버튼으로 강의실(Zoom) 입장\n③ 끝날 때 퇴실체크\n\n출석·퇴실이 둘 다 있어야 그날 출석이 인정돼요. Zoom 이름은 \"{기수}_성명\"으로 바꿔 주세요.' },
+    m: '[연구하는 교사되기 2027]\n오늘 {기수} 연수가 시작돼요!\n\n① {사이트} > 출석체크에서 출석\n② 나오는 버튼으로 강의실(Zoom) 입장\n③ 끝날 때 퇴실체크\n\n출석·퇴실이 둘 다 있어야 그날 출석이 인정돼요. Zoom 이름은 \"{기수}_성명_휴대폰 뒷 4자리\"로 바꿔 주세요.' },
   { grp: '연수 중', id: 'noin', q: 'sleep', t: '미입실 안내', d: '그날 출석체크 안 한 분', who: 'noin',
     m: '[연구하는 교사되기 2027]\n{기수} 연수가 시작됐는데 아직 출석체크가 확인되지 않았어요.\n\n{사이트} > 출석체크에서 출석하면 강의실 링크가 바로 나와요.\n(출석·퇴실이 둘 다 있어야 그날 출석이 인정돼요)' },
   { grp: '연수 중', id: 'noout', q: 'people', t: '퇴실체크 요청', d: '그날 퇴실체크 안 한 분', who: 'noout',
@@ -547,6 +555,8 @@ var SMS_KINDS = [
     m: '[연구하는 교사되기 2027]\n출결 기록상 인정 시간이 이수 기준(15시간 중 12시간)에 미치지 못해요.\n기록이 잘못됐다고 생각되시면 {사이트} > Q&A 게시판에 남겨 주세요. 확인해 드릴게요.' },
   { grp: '연수 후', id: 'end', q: 'crowd', t: '이수 처리 안내', d: '이수 대상자', who: 'done',
     m: '[연구하는 교사되기 2027]\n{기수} 연수를 함께해 주셔서 감사합니다.\n이수 정보는 교육연수원에 전달했고, 이수증 발급과 나이스 등재는 연수원에서 진행돼요.\n\n결국 사람이 남는 연수였기를 바라며, 다음에 또 만나요 : )' },
+  { grp: '연수 후', id: 'close', q: 'crowd', t: '연수 종료 · 이수정보 확인', d: '해당 기수 신청자', who: 'apply',
+    m: '[연구하는 교사되기 2027]\n{기수} 연수가 모두 끝났어요. 3일 동안 정말 수고 많으셨습니다 : )\n\n· 출석 시간과 이수 예상은 {사이트} > 내 현황 조회에서 볼 수 있어요.\n· 이수정보를 아직 안 내셨다면 {마감}까지 꼭 입력해 주세요.\n· 이수증은 교육연수원 홈페이지에서 발급돼요. (발급 시작되면 다시 안내드릴게요)' },
   { grp: '기타', id: 'free', q: 'cheer', t: '자유 문구', d: '직접 쓰기', who: 'apply', m: '[연구하는 교사되기 2027]\n' }
 ];
 var PEOPLE = null;
@@ -566,7 +576,7 @@ function renderSms() {
       '<div class="phone"><div class="phone-h"><b id="pTitle"></b><span id="pBytes"></span></div><div class="bubble"><span class="tag" id="pTag"></span><textarea id="pText"></textarea></div><div class="phone-f">{기수} {사이트} {마감} {기간} {줌} 은 자동으로 채워져요. 고쳐 써도 돼요.</div></div>' +
       '<div class="sms-col"><div class="sms-col-h">받는 분<span id="rcCnt"></span></div><div class="rcpt">' +
       '<div class="ctl"><select id="rTerm"><option value="">전체 기수</option>' + BOOT.terms.map(function (t) { return '<option' + (t === SMS_STATE.term ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' +
-      '<select id="rWho"><option value="apply">신청 (대기·취소 제외)</option><option value="all">전체 (취소 제외)</option><option value="issue">이수정보 보완 필요</option><option value="unpaid">입금 미확인</option><option value="wait">대기</option><option value="done">이수 대상(Y)</option><option value="noin">미입실 (날짜)</option><option value="noout">미퇴실 (날짜)</option><option value="short">이수 미달 (N)</option><option value="refund">환불 요청 진행 중</option></select>' +
+      '<select id="rWho"><option value="apply">신청 (대기·취소 제외)</option><option value="all">전체 (취소 제외)</option><option value="issue">이수정보 보완 필요</option><option value="noinfo">이수정보 미입력</option><option value="unpaid">입금 미확인</option><option value="wait">대기</option><option value="done">이수 대상(Y)</option><option value="noin">미입실 (날짜)</option><option value="noout">미퇴실 (날짜)</option><option value="short">이수 미달 (N)</option><option value="refund">환불 요청 진행 중</option></select>' +
       '<select id="rDate" hidden></select></div>' +
       '<div class="chips" id="chips"></div>' +
       '<button class="sms-btn" id="go1">① 문구 복사하고 문자나라 열기</button>' +
@@ -607,6 +617,7 @@ function renderSms() {
         if (term && x.term !== term) return false;
         if (who === 'apply' && x.state !== '신청') return false;
         if (who === 'issue' && !x.issue) return false;
+        if (who === 'noinfo' && (x.info || x.state !== '신청')) return false;
         if (who === 'unpaid' && (x.paid || x.state === '대기')) return false;
         if (who === 'wait' && x.state !== '대기') return false;
         if (who === 'done' && (!x.done || x.state !== '신청')) return false;
@@ -642,15 +653,24 @@ function renderSms() {
 // ───── 이수생관리부 ─────
 function renderRoster() {
   $('#main').innerHTML = '<h2>이수생관리부</h2><p class="sub">연수원 표준양식(서식변경금지)과 똑같은 열 순서로 만들어요. 복사해서 양식 파일의 같은 시트 첫 데이터 칸에 <b>값만 붙여넣기(Ctrl+Shift+V)</b> 하면 끝이에요.</p>' +
-    '<div class="toolbar"><select id="rt">' + BOOT.terms.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select><button class="btn navy" id="rgo">만들기</button><span class="muted">신청자 명단 원본 + 사이트 보완 입력을 합치고, 최종 판정 이수(Y)만 들어가요.</span></div><div id="rout"></div>';
+    '<div class="toolbar"><select id="rt">' + BOOT.terms.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select><button class="btn navy" id="rgo">만들기</button><input type="text" id="rAfter" placeholder="1차 제출일 (예: 2027-01-20)" style="width:230px" title="이 날짜 뒤에 이수 확정된 분은 연번이 흔들리지 않게 맨 끝에 붙여요"><button class="btn line" id="rConf">연수원 확정명단 복사</button><span class="muted">신청자 명단 원본 + 사이트 보완 입력을 합치고, 최종 판정 이수(Y)만 들어가요.</span></div><div id="rout"></div>';
   $('#rgo').onclick = function () {
     var term = $('#rt').value;
-    run('roster', { term: term }).then(function (r) {
+    run('roster', { term: term, after: $('#rAfter').value.trim() }).then(function (r) {
       if (!r.count) { $('#rout').innerHTML = '<div class="card empty">' + esc(term) + ' 이수자가 없어요.</div>'; return; }
-      $('#rout').innerHTML = (r.period ? '' : '<p class="badge b-red">설정에 연수기간_' + esc(term) + '이 없어 시작·종료일자가 비어 있어요.</p>') +
+      $('#rout').innerHTML = ((r.dups || []).length ? '<p class="mail-att"><b>같은 사람이 두 번 들어간 것 같아요:</b> ' + esc(r.dups.join(', ')) + ' (성명+생년월일 또는 NEIS 번호가 같음). 신청자 명단에서 확인해 주세요.</p>' : '') + (r.added ? '<p class="muted">1차 제출 뒤 추가된 ' + r.added + '명은 맨 끝에 붙였어요.</p>' : '') + (r.period ? '' : '<p class="badge b-red">설정에 연수기간_' + esc(term) + '이 없어 시작·종료일자가 비어 있어요.</p>') +
         block('이수정보확인서', r.a, 'cpA') + block('이수대장 (나이스 업로드용)', r.b, 'cpB');
       $('#cpA').onclick = function () { copy(tsv(r.a.slice(1))).then(function () { toast('이수정보확인서 ' + r.count + '명을 복사했어요. (제목줄 제외)'); }); };
       $('#cpB').onclick = function () { copy(tsv(r.b.slice(1))).then(function () { toast('이수대장 ' + r.count + '명을 복사했어요. (제목줄 제외)'); }); };
+    });
+  };
+  $('#rConf').onclick = function () {
+    var term = $('#rt').value;
+    run('table', { sheet: '신청자' }).then(function (t) {
+      var l = t.rows.filter(function (r) { return r['기수'] === term && (r['상태'] || '신청') === '신청' && r['입금일']; });
+      if (!l.length) return toast(term + ' 입금 확정자가 없어요.');
+      var H = ['신청일', '성명', '생년월일', '전공', '소속학교', '소속청', '연락처', '연수지명번호'];
+      copy(tsv([H].concat(l.map(function (r) { return H.map(function (h) { return r[h]; }); })))).then(function () { toast(term + ' 확정명단 ' + l.length + '명을 복사했어요. (연수원 신청완료자목록 열 순서)', 5000); });
     });
   };
   function block(title, rows, id) {
@@ -663,11 +683,15 @@ function renderRoster() {
 // ───── 위촉공문 자료 ─────
 function renderDoc() {
   run('doc').then(function (r) {
-    $('#main').innerHTML = '<h2>위촉공문 자료</h2><p class="sub">강사 일정(단일 원본)과 강사 정보를 이름으로 합쳐요. 요일은 날짜에서 자동 계산이라 날짜-요일이 어긋날 일이 없어요.</p>' +
+    $('#main').innerHTML = '<h2>강사 자료</h2><p class="sub">강사 일정(단일 원본)과 강사 정보를 이름으로 합쳐요. 요일은 날짜에서 자동 계산이라 날짜-요일이 어긋날 일이 없어요.</p>' +
       '<div class="toolbar"><button class="btn navy" id="cpD">표 복사</button><span class="muted">주민번호·계좌는 넣지 않았어요. 필요하면 강사 정보 탭에서 확인하세요.</span></div>' +
       '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + r.rows[0].map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
       (r.rows.length > 1 ? r.rows.slice(1).map(function (row) { return '<tr>' + row.map(function (v) { return '<td style="white-space:normal">' + esc(v) + '</td>'; }).join('') + '</tr>'; }).join('') : '<tr><td colspan="10" class="empty">강사 일정을 먼저 입력해 주세요.</td></tr>') + '</tbody></table></div>';
     $('#cpD').onclick = function () { copy(tsv(r.rows)).then(function () { toast('복사했어요. 한글/엑셀에 붙여넣으세요.'); }); };
+    var pk = r.parking || [], gd = r.guides || [];
+    $('#main').insertAdjacentHTML('beforeend', '<h3 class="h3">일자별 주차권</h3>' + (pk.length ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>날짜</th><th>매수</th><th>강사</th></tr></thead><tbody>' + pk.map(function (x) { return '<tr><td>' + esc(x[0]) + '</td><td><b>' + x[1] + '</b>매</td><td style="white-space:normal">' + esc(x[2]) + '</td></tr>'; }).join('') + '</tbody></table></div><p class="muted">강사 일정 비고에 "원격"이라고 적은 강의는 빼고 셌어요.</p>' : '<div class="card empty">강사 일정이 없어요.</div>') +
+      '<h3 class="h3">강사별 안내문</h3><div class="pick-grid">' + gd.map(function (g, i) { return '<button class="pick" data-gd="' + i + '"><b>' + esc(g.name) + '</b><small>누르면 안내문을 복사해요</small></button>'; }).join('') + '</div>');
+    $$('[data-gd]').forEach(function (b) { b.onclick = function () { copy(gd[+b.dataset.gd].text).then(function () { toast(gd[+b.dataset.gd].name + ' 선생님 안내문을 복사했어요.'); }); }; });
   });
 }
 
@@ -1018,7 +1042,7 @@ function renderOps() {
     var sched = o.sched.filter(function (r) { return r['날짜'] && r['날짜'] <= week && !/폐지/.test(r['분류']); });
     var late = sched.filter(function (r) { return r['날짜'] < today && !isDone(r['ID']); });
     var now = sched.filter(function (r) { return r['날짜'] >= today; });
-    var c = $('#cntOps'); c.hidden = !late.length; c.textContent = late.length;
+    CNT.ops = late.length; drawNav();
     var dd = function (t) { var st = String(s['연수기간_' + t] || '').split('~')[0].trim(); if (!st) return '—'; var n = dayDiff(today, st); return n > 0 ? 'D-' + n : n === 0 ? 'D-DAY' : 'D+' + (-n); };
     var dayRow = function (r, lateRow) {
       var done = isDone(r['ID']), t = byId[r['ID']];
@@ -1111,6 +1135,412 @@ function renderBoard() {
   });
 }
 
+// ══════════ 오늘: 지금 할 일 ══════════
+function renderDash() {
+  Promise.all([refreshBoot(), run('ops').catch(function () { return { empty: true }; })]).then(function (res) {
+    var b = res[0], o = res[1], today = kstToday(), todo = [];
+    var bd = b.board || {};
+    function add(n, title, sub, tab, btn, warn) { if (n) todo.push({ n: n, title: title, sub: sub, tab: tab, btn: btn, warn: warn }); }
+    add(bd.refund, '환불 요청 ' + bd.refund + '건', '단계를 바꾸면 안내 메일이 대기함에 쌓여요', 'board', '환불 처리하기', true);
+    add(bd.qna, '답변 안 한 Q&A ' + bd.qna + '건', '답변을 쓰면 연수생에게 메일이 준비돼요', 'board', '답변하기', true);
+    add(b.pending, '셀프신청 ' + b.pending + '건', '수강취소 · 현금영수증 번호 수정', 'reqs', '처리하기', true);
+    add(b.outbox, '보낼 메일 ' + b.outbox + '통', '내용 확인하고 보내기만 누르면 돼요', 'outbox', '확인하고 보내기', true);
+    add(b.materialsPending, '강사님이 올린 자료 ' + b.materialsPending + '건', '확인하고 공개로 바꿔 주세요', 'mats', '자료 확인하기');
+    if (!o.empty) {
+      var done = {}; o.tasks.rows.forEach(function (t) { done[t['ID']] = /^y/i.test(t['완료']); });
+      var due = o.sched.filter(function (r) { return r['날짜'] && r['날짜'] <= today && !done[r['ID']] && /두목쿼카|AI/.test(r['분류']) && !/폐지/.test(r['분류']); });
+      var late = due.filter(function (r) { return r['날짜'] < today; }).length;
+      add(due.length, '업무표 할 일 ' + due.length + '건' + (late ? ' (밀린 일 ' + late + ')' : ''), due.slice(0, 2).map(function (r) { return r['업무']; }).join(' · '), 'ops', '업무표 보기', late > 0);
+    }
+    add(b.issues, '이수정보 확인 필요 ' + b.issues + '명', '보완 요청 문자를 보내면 돼요', 'check', '명단 보기');
+    var apps = 0, wait = 0;
+    var termLine = b.terms.map(function (t) { var x = b.byTerm[t] || {}; apps += x['신청'] || 0; wait += x['대기'] || 0;
+      return '<span><b>' + esc(t) + '</b> 신청 ' + (x['신청'] || 0) + ' · 대기 ' + (x['대기'] || 0) + ' · 취소 ' + (x['취소'] || 0) + '</span>'; }).join('');
+    var dd = b.terms.map(function (t) { var st = String((b.settings || {})['연수기간_' + t] || '').split('~')[0].trim(); if (!st) return ''; var n = dayDiff(today, st);
+      return '<span class="dday"><b>' + esc(t) + '</b> ' + (n > 0 ? 'D-' + n : n === 0 ? 'D-DAY' : 'D+' + (-n)) + '</span>'; }).join('');
+    $('#main').innerHTML = '<div class="today-head"><div><h2>지금 할 일</h2><p class="sub">' + (todo.length ? '위에서부터 하나씩 누르면 돼요.' : '') + '</p></div><div class="ddays">' + dd + '</div></div>' +
+      (todo.length ? '<div class="todo">' + todo.map(function (t) {
+        return '<div class="todo-row' + (t.warn ? ' warn' : '') + '"><div class="todo-n">' + t.n + '</div><div class="todo-t"><b>' + esc(t.title) + '</b><span>' + esc(t.sub) + '</span></div><button class="btn navy big" data-go="' + t.tab + '">' + esc(t.btn) + ' →</button></div>';
+      }).join('') + '</div>' : '<div class="todo-empty"><span style="width:96px">' + qk('cheer') + '</span><b>오늘 할 일은 끝났어요 : )</b><span>새 요청이 들어오면 여기에 바로 떠요.</span></div>') +
+      '<div class="today-foot">' + termLine + '</div>';
+    $$('[data-go]').forEach(function (el) { el.onclick = function (e) { e.preventDefault(); go(el.dataset.go); }; });
+  });
+}
+
+// ══════════ 문서 공통: A4 미리보기 · PDF · 인쇄 ══════════
+var DOC_CSS = '@page{size:A4;margin:22mm 20mm}body{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo","NanumGothic",sans-serif;color:#111;font-size:11pt;line-height:1.75}' +
+  '.pg{page-break-after:always}.pg:last-child{page-break-after:auto}h1{font-size:20pt;text-align:center;margin:0 0 4pt;letter-spacing:.06em}.addr{text-align:center;font-size:9.5pt;color:#444;margin:0 0 16pt}' +
+  '.meta{width:100%;border-collapse:collapse;margin:0 0 6pt}.meta td{padding:2.5pt 0;vertical-align:top}.meta td:first-child{width:62pt;font-weight:bold;letter-spacing:.3em;white-space:nowrap}' +
+  'hr{border:0;border-top:1.6pt solid #111;margin:8pt 0 14pt}.body p{margin:0 0 3pt;white-space:pre-wrap}.body table,.kv{border-collapse:collapse;width:100%;margin:6pt 0 10pt}' +
+  '.body td,.kv td,.kv th{border:.6pt solid #333;padding:4pt 6pt;font-size:10pt;text-align:center}.kv th{background:#f0f0f0;width:22%}.kv td{text-align:left}' +
+  '.sign{text-align:center;margin-top:34pt;font-size:15pt;font-weight:bold;letter-spacing:.12em}.sign small{display:block;font-size:12pt;margin-top:6pt;letter-spacing:.3em}' +
+  '.ct h1{font-size:18pt;margin-bottom:18pt}.ct .date{text-align:center;margin:26pt 0 20pt}.party{white-space:pre-wrap;line-height:2;margin:0 0 16pt 60pt}.body p.jo{font-weight:bold;margin-top:4pt}' +
+  '.rc{border:1.6pt solid #111;padding:22pt 26pt}.rc h1{font-size:22pt;letter-spacing:.5em;margin-bottom:16pt}.rc .amt{font-size:15pt;font-weight:bold;text-align:center;margin:12pt 0}.rc .no{text-align:right;font-size:9.5pt;color:#444}.rc .say{text-align:center;margin:18pt 0}.rc .iss{margin-top:8pt}';
+function docBody(text) {
+  var out = '', tbl = [];
+  function flush() { if (!tbl.length) return; out += '<table>' + tbl.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + esc(c.trim()) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>'; tbl = []; }
+  String(text || '').split('\n').forEach(function (line) {
+    if (/^\s*\|/.test(line)) { tbl.push(line.trim().replace(/^\||\|$/g, '').split('|')); return; }
+    flush(); out += '<p' + (/^제\s*\d+\s*조/.test(line) ? ' class="jo"' : '') + '>' + (esc(line) || '&nbsp;') + '</p>';
+  });
+  flush(); return out;
+}
+function docSub(d) {
+  var m = {}; (d.vars || []).forEach(function (v) { m[v.k] = v.v; });
+  var o = {}; Object.keys(d).forEach(function (k) { o[k] = typeof d[k] === 'string' ? d[k].replace(/\{\{([^}]+)\}\}/g, function (_, k2) { var v = m[k2]; return v == null || v === '' ? '　　　　　' : v; }) : d[k]; });
+  return o;
+}
+// 금액 자동 계산: 예시·정산 금액은 비율과 인원에서 나온다
+function docCalc(vars) {
+  var m = {}; vars.forEach(function (v) { m[v.k] = v; });
+  var n = function (k) { return m[k] ? Number(String(m[k].v).replace(/[^\d.]/g, '')) || 0 : 0; }, set = function (k, val) { if (m[k]) m[k].v = Math.round(val).toLocaleString('ko-KR'); };
+  if (m['예시_전체금액']) { var e = n('예시_전체금액') * n('배분율') / 100; set('예시_지급액', e); set('예시_협회', e * n('협회율') / 100); set('예시_연구회', e * n('연구회율') / 100); set('예시_인건비', e * n('인건비율') / 100); }
+  if (m['정산_납입인원']) { var t = n('정산_납입인원') * n('수강료') - n('정산_환불액'); set('정산_전체금액', t); var g = t * n('배분율') / 100; set('정산_지급액', g); set('정산_협회', g * n('협회율') / 100); set('정산_연구회', g * n('연구회율') / 100); set('정산_인건비', g * n('인건비율') / 100); }
+  return m['협회율'] && m['연구회율'] && m['인건비율'] ? n('협회율') + n('연구회율') + n('인건비율') : 100;
+}
+var DOC_AUTO = ['예시_지급액', '예시_협회', '예시_연구회', '예시_인건비', '정산_전체금액', '정산_지급액', '정산_협회', '정산_연구회', '정산_인건비'];
+function docPage(kind, d) {
+  d = docSub(d);
+  if (kind === '계약서') {
+    return '<div class="pg ct"><h1>' + esc(d.title) + '</h1><div class="body">' + docBody(d.intro) + '<p>&nbsp;</p>' + docBody(d.body) + '</div><p class="date">' + esc(d.date) + '</p>' +
+      '<div class="party">' + esc(d.partyA) + '</div><div class="party">' + esc(d.partyB) + '</div></div>';
+  }
+  return '<div class="pg"><h1>' + esc(d.org) + '</h1><p class="addr">' + esc(d.addr) + '</p><table class="meta">' +
+    [['문서번호', d.no], ['시행일자', d.date], ['수신', d.to], ['참조', d.ref], ['발신', d.from], ['제목', d.subject]].filter(function (x) { return x[1]; }).map(function (x) { return '<tr><td>' + x[0] + '</td><td>: ' + esc(x[1]) + '</td></tr>'; }).join('') +
+    '</table><hr><div class="body">' + docBody(d.body) + (d.contact ? '<p>&nbsp;</p><p>문의: ' + esc(d.contact) + '</p>' : '') + (d.attach ? '<p>&nbsp;</p>' + docBody('붙임  ' + d.attach + '  끝.') : '<p>&nbsp;</p><p>끝.</p>') + '</div>' +
+    '<div class="sign">' + esc(d.sign1) + '<small>' + esc(d.sign2) + '</small></div></div>';
+}
+function fullHtml(pages, title) { return '<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>' + esc(title || '문서') + '</title><style>' + DOC_CSS + '</style></head><body>' + pages + '</body></html>'; }
+function printDoc(pages, title) {
+  var w = window.open('', '_blank'); if (!w) return toast('팝업이 막혀 있어요. 주소창 오른쪽에서 팝업을 허용해 주세요.', 5000);
+  w.document.write(fullHtml(pages, title)); w.document.close(); setTimeout(function () { w.focus(); w.print(); }, 400);
+}
+function pdfDoc(pages, title, btn) {
+  if (typeof google === 'undefined' || !google.script) return printDoc(pages, title);
+  var label = btn.textContent; btn.disabled = true; btn.textContent = 'PDF 만드는 중…';
+  run('pdf', { html: fullHtml(pages, title), name: title }).then(function (r) {
+    var a = document.createElement('a'); a.href = 'data:application/pdf;base64,' + r.b64; a.download = r.name; document.body.appendChild(a); a.click(); a.remove();
+    toast('PDF를 내려받았어요.');
+  }).catch(function () {}).then(function () { btn.disabled = false; btn.textContent = label; });
+}
+
+// ══════════ 공문 · 계약서 편집기 ══════════
+var DOC_FIELDS = {
+  '공문': [['org', '기관명 (머리)'], ['addr', '주소'], ['no', '문서번호'], ['date', '시행일자'], ['to', '수신'], ['ref', '참조'], ['from', '발신'], ['subject', '제목'], ['body', '본문', 14], ['contact', '문의'], ['attach', '붙임', 2], ['sign1', '발신 명의'], ['sign2', '직위 · 성명']],
+  '계약서': [['title', '계약서 제목'], ['intro', '전문', 4], ['body', '조항', 22], ['date', '계약일'], ['partyA', '갑', 6], ['partyB', '을', 6]]
+};
+function docTemplates() {
+  var s = BOOT.settings || {}, org = s['발급처_상호'] || '㈜키인컨설팅', ceo = s['발급처_대표'] || '', today = kstToday();
+  var no = (s['공문_문서번호머리'] || 'KIENALP') + '-' + today.slice(2).replace(/-/g, '') + '-1', dt = today.replace(/-/g, '. ') + '.';
+  var p1 = String(s['연수기간_1기'] || '').replace('~', ' ~ '), p2 = String(s['연수기간_2기'] || '').replace('~', ' ~ ');
+  var base = { org: org, addr: s['발급처_주소'] || '', no: no, date: dt, from: org, contact: s['발급처_연락처'] || '', sign1: org, sign2: '대표이사 ' + ceo, ref: '', attach: '' };
+  function g(o) { var r = {}; Object.keys(base).forEach(function (k) { r[k] = base[k]; }); Object.keys(o).forEach(function (k) { r[k] = o[k]; }); return r; }
+  return [
+    { kind: '공문', t: '직무연수 개설 협조 요청', d: '수신: 교육연수원장 · 2026 공문 형식', data: g({ to: '서울대학교 사범대학 교육연수원장', subject: '서울대 사범대학 교육연수원 2027년 ' + org + ' 직무연수 개설 협조요청 의뢰',
+      body: '1. "' + (s['연수명'] || '연구하는 교사되기 2027') + '"를 주제로 한 직무연수 개설을 아래와 같이 추진하고자 하오니 협조하여 주시기 바랍니다.\n\n  가. 연수 분류: 교사 직무연수\n  나. 연수 개설 플랫폼: 서울대 사범대학 교육연수원\n  다. 협조 요청 내용: 연수 홍보, 직무 연수 3일(15시간) 인정 및 이수증 발급\n  라. 연수 개요\n| 구분 | 연수 기간 | 장소 | 연수 시간 | 연수 대상 | 연수 유형 | 참가 인원 |\n| 1기 | ' + p1 + ' | 온라인(Zoom) | 15 | 유·초·중·고 교원 | 이론, 실습 | 400명 |\n| 2기 | ' + p2 + ' | 온라인(Zoom) | 15 | 유·초·중·고 교원 | 이론, 실습 | 400명 |',
+      attach: '1. 「' + (s['연수명'] || '연구하는 교사되기 2027') + '」 직무연수 운영계획서(1기, 2기) 각 1부.' }) },
+    { kind: '공문', t: '강사 위촉 협조 요청', d: '수신: 교육연수원장 · 위촉 명단 첨부', data: g({ to: '서울대학교 사범대학 교육연수원장', subject: '2027년 「연구하는 교사되기」 직무연수 강사 위촉 협조 요청',
+      body: '1. 귀 원의 무궁한 발전을 기원합니다.\n\n2. 「' + (s['연수명'] || '연구하는 교사되기 2027') + '」 직무연수 운영과 관련하여 아래와 같이 강사 위촉을 요청드리오니 협조하여 주시기 바랍니다.\n\n  가. 연수 기간: 1기 ' + p1 + ' / 2기 ' + p2 + '\n  나. 위촉 대상: 붙임 명단 참조\n  다. 요청 사항: 강사 위촉 공문 발송',
+      attach: '1. 강사 위촉 대상자 명단 및 강의 일정 1부.' }) },
+    { kind: '공문', t: '빈 공문', d: '머리·발신 명의만 채워진 양식', data: g({ to: '', subject: '', body: '1. \n\n2. ' }) },
+    { kind: '계약서', t: '빈 계약서', d: '제목과 서명란만 있는 양식', data: { title: '계약서', intro: '', body: '제1조 (목적)\n', date: today.slice(0, 4) + '년    월    일', partyA: '(갑)\n상호: ' + org + '\n대표이사: ' + ceo + '  (인)', partyB: '(을)\n' } }
+  ];
+}
+var DOC_ED = null;
+function renderDocs() {
+  if (DOC_ED) return drawDocEditor();
+  Promise.all([run('docs'), run('docTpls').catch(function () { return []; })]).then(function (res) {
+    var list = res[0], tpl = (res[1] || []).concat(docTemplates());
+    $('#main').innerHTML = '<h2>공문 · 계약서</h2><p class="sub">양식을 고르면 연수 정보가 채워진 초안이 열려요. 여기서 고치고 PDF로 받으세요.</p>' +
+      '<div class="pick-grid">' + tpl.map(function (t, i) { return '<button class="pick" data-tpl="' + i + '"><span class="badge ' + (t.kind === '공문' ? 'b-navy' : 'b-ok') + '">' + t.kind + '</span><b>' + esc(t.t) + '</b><small>' + esc(t.d) + '</small></button>'; }).join('') + '</div>' +
+      '<h3 class="h3">저장한 문서</h3>' + (list.length ? '<div class="tbl-wrap"><table class="tbl"><tbody>' + list.map(function (d) {
+        return '<tr class="click" data-doc="' + esc(d.id) + '"><td style="width:80px"><span class="badge ' + (d.kind === '공문' ? 'b-navy' : 'b-ok') + '">' + esc(d.kind) + '</span></td><td><b>' + esc(d.title) + '</b></td><td class="muted" style="width:160px">' + esc(d.at) + '</td></tr>'; }).join('') + '</tbody></table></div>'
+        : '<div class="card empty">아직 저장한 문서가 없어요.</div>');
+    $$('[data-tpl]').forEach(function (b) { b.onclick = function () { var t = tpl[+b.dataset.tpl]; DOC_ED = { id: '', kind: t.kind, data: JSON.parse(JSON.stringify(t.data)) }; drawDocEditor(); }; });
+    $$('[data-doc]').forEach(function (tr) { tr.onclick = function () { run('docGet', { id: tr.dataset.doc }).then(function (d) { DOC_ED = d; drawDocEditor(); }); }; });
+  });
+}
+function drawDocEditor() {
+  var e = DOC_ED, fields = DOC_FIELDS[e.kind], vars = e.data.vars || [];
+  $('#main').innerHTML = '<div class="toolbar"><button class="btn line" id="dBack">← 목록</button><b class="grow" style="font-size:18px">' + esc(e.kind) + ' 편집</b>' +
+    (e.id ? '<button class="btn red sm" id="dDel">삭제</button><button class="btn line sm" id="dDup">복제</button>' : '') +
+    '<button class="btn line" id="dPrint">인쇄</button><button class="btn line" id="dPdf">PDF 받기</button><button class="btn navy" id="dSave">저장</button></div>' +
+    '<div class="doc-grid"><div class="doc-form">' + varsHtml() + (vars.length ? '<details class="doc-raw"><summary>본문 직접 고치기 ({{이름}}은 위 입력 항목이 들어가는 자리예요)</summary>' : '') + fields.map(function (f) {
+      var v = e.data[f[0]] || '';
+      return '<label>' + esc(f[1]) + '</label>' + (f[2] ? '<textarea data-f="' + f[0] + '" rows="' + f[2] + '">' + esc(v) + '</textarea>' : '<input type="text" data-f="' + f[0] + '" value="' + esc(v) + '">');
+    }).join('') + '<p class="muted" style="margin-top:10px">표는 줄 맨 앞에 | 를 쓰고 칸마다 | 로 나누면 돼요. 예: | 구분 | 기간 | 인원 |</p>' + (vars.length ? '</details>' : '') + '</div>' +
+    '<div class="doc-prev"><div class="a4" id="dPrev"></div></div></div>';
+  function varsHtml() {
+    var g = null, out = '';
+    vars.forEach(function (v, i) {
+      if (v.g !== g) { out += (g !== null ? '</div>' : '') + '<div class="doc-grp"><b>' + esc(v.g || '입력 항목') + '</b>'; g = v.g; }
+      var auto = DOC_AUTO.indexOf(v.k) >= 0;
+      out += '<label>' + esc(v.label) + (auto ? ' <span class="muted">자동 계산</span>' : '') + (!v.v && !auto ? ' <span class="badge b-red">빈칸</span>' : '') + '</label>' +
+        (v.choices ? '<select data-v="' + i + '">' + v.choices.map(function (c) { return '<option value="' + esc(c[1]) + '"' + (c[1] === v.v ? ' selected' : '') + '>' + esc(c[0]) + '</option>'; }).join('') + '</select>'
+          : '<input type="text" data-v="' + i + '" value="' + esc(v.v) + '">');
+    });
+    return out ? out + '</div><p class="muted" id="dSum"></p>' : '';
+  }
+  function sync() {
+    $$('[data-f]').forEach(function (el) { e.data[el.dataset.f] = el.value; });
+    $('#dPrev').innerHTML = '<style>' + DOC_CSS.replace(/body\{/g, '#dPrev{').replace(/@page\{[^}]*\}/, '') + '</style>' + docPage(e.kind, e.data);
+  }
+  $$('[data-v]').forEach(function (el) { el.oninput = el.onchange = function () {
+    vars[+el.dataset.v].v = el.value;
+    var sum = docCalc(vars);
+    $$('[data-v]').forEach(function (x) { var v = vars[+x.dataset.v]; if (x !== el && DOC_AUTO.indexOf(v.k) >= 0) x.value = v.v; });
+    if ($('#dSum')) $('#dSum').innerHTML = sum === 100 ? '' : '<span class="badge b-red">세부 비율 합계가 ' + sum + '%예요. 100%가 되어야 해요.</span>';
+    sync();
+  }; });
+  $$('[data-f]').forEach(function (el) { el.oninput = sync; });
+  sync();
+  var title = function () { var d = docSub(e.data); return e.kind === '계약서' ? d.title : (d.subject || '제목 없는 공문'); };
+  $('#dBack').onclick = function () { DOC_ED = null; renderDocs(); };
+  $('#dSave').onclick = function () { var b = this; b.disabled = true; run('docSave', { id: e.id, kind: e.kind, title: title(), data: e.data }).then(function (r) { e.id = r.id || e.id || 'new'; toast('저장했어요.'); drawDocEditor(); }).catch(function () { b.disabled = false; }); };
+  $('#dPrint').onclick = function () { printDoc(docPage(e.kind, e.data), title()); };
+  $('#dPdf').onclick = function () { pdfDoc(docPage(e.kind, e.data), title(), this); };
+  if ($('#dDup')) $('#dDup').onclick = function () { e.id = ''; toast('복제본이에요. 저장하면 새 문서로 남아요.'); drawDocEditor(); };
+  if ($('#dDel')) $('#dDel').onclick = function () { if (!confirm('이 문서를 지울까요?')) return; run('docDel', { id: e.id }).then(function () { DOC_ED = null; toast('지웠어요.'); renderDocs(); }); };
+}
+
+// ══════════ 영수증: 납입영수증 · 현금영수증 ══════════
+var RC_UI = { mode: 'pay', term: '', q: '', sel: {} };
+function hangulWon(n) {
+  n = Math.floor(Number(n) || 0); if (!n) return '영';
+  var d = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'], u = ['', '십', '백', '천'], big = ['', '만', '억'], out = '', g = 0;
+  while (n > 0) { var part = n % 10000, s = ''; for (var i = 0; i < 4; i++) { var k = Math.floor(part / Math.pow(10, i)) % 10; if (k) s = d[k] + u[i] + s; } if (s) out = s + big[g] + out; n = Math.floor(n / 10000); g++; }
+  return out;
+}
+function receiptPage(x, R) {
+  var is = R.issuer, per = String(R.periods[x.term] || '').replace('~', ' ~ ');
+  return '<div class="pg"><div class="rc"><p class="no">No. ' + esc(x.rcptNo || '') + '</p><h1>영수증</h1><table class="kv">' +
+    '<tr><th>성명</th><td>' + esc(x.name) + '</td><th>소속</th><td>' + esc(x.school) + '</td></tr>' +
+    '<tr><th>연수명</th><td colspan="3">' + esc(R.course) + ' ' + esc(x.term) + ' (' + esc(R.org) + ' 직무연수)</td></tr>' +
+    '<tr><th>연수 기간</th><td>' + esc(per) + '</td><th>입금일</th><td>' + esc(x.paidAt) + '</td></tr></table>' +
+    '<p class="amt">금 ' + hangulWon(x.amount) + '원정 (₩' + Number(x.amount).toLocaleString('ko-KR') + ')</p><p class="say">위 금액을 연수비로 정히 영수합니다.</p><p class="say">' + kstToday().replace(/-/g, '. ') + '.</p>' +
+    '<table class="kv iss"><tr><th>상호</th><td>' + esc(is.name) + '</td><th>사업자번호</th><td>' + esc(is.biz) + '</td></tr><tr><th>대표</th><td>' + esc(is.ceo) + ' (인)</td><th>연락처</th><td>' + esc(is.tel) + '</td></tr><tr><th>주소</th><td colspan="3">' + esc(is.addr) + '</td></tr></table></div></div>';
+}
+function renderReceipt() {
+  run('receipts').then(function (R) {
+    var u = RC_UI, cashMode = u.mode === 'cash';
+    var noIssuer = !R.issuer.name || !R.issuer.biz;
+    $('#main').innerHTML = '<h2>영수증</h2><p class="sub">' + (cashMode ? '홈택스 일괄발급 양식 그대로 복사해요. 양식 파일 7행에 붙여넣고 업로드하면 끝이에요.' : '입금이 확인된 분의 납입영수증을 PDF로 만들어요. 여러 명을 고르면 한 파일로 나와요.') + '</p>' +
+      (noIssuer && !cashMode ? '<div class="mail-att">영수증에 찍힐 <b>발급처 정보</b>(상호·사업자번호·대표·주소)가 비어 있어요. <a href="#" id="toSet" style="text-decoration:underline">설정에서 채우기</a></div>' : '') +
+      '<div class="toolbar"><div class="seg" id="rcMode"><button data-m="pay"' + (cashMode ? '' : ' class="on"') + '>납입영수증</button><button data-m="cash"' + (cashMode ? ' class="on"' : '') + '>현금영수증</button></div>' +
+      '<select id="rcTerm"><option value="">전체 기수</option>' + BOOT.terms.map(function (t) { return '<option' + (t === u.term ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' +
+      '<input type="search" id="rcQ" placeholder="이름 · 학교 · 번호" value="' + esc(u.q) + '" style="width:200px"><span class="muted" id="rcCnt"></span><span class="grow"></span>' +
+      (cashMode ? '<button class="btn navy" id="rcCopy">미발급 홈택스 양식 복사</button><button class="btn line" id="rcDone">선택 발급 완료 표시</button>' : '<button class="btn line" id="rcPrint">선택 인쇄</button><button class="btn navy" id="rcPdf">선택 영수증 PDF</button>') + '</div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:36px"><input type="checkbox" id="rcAll"></th><th>기수</th><th>성명</th><th>소속</th><th>금액</th><th>입금일</th>' + (cashMode ? '<th>발급수단번호</th><th>발급</th>' : '<th>영수증 번호</th>') + '</tr></thead><tbody id="rcTb"></tbody></table></div>';
+    if ($('#toSet')) $('#toSet').onclick = function (e) { e.preventDefault(); go('settings'); };
+    $$('#rcMode button').forEach(function (b) { b.onclick = function () { u.mode = b.dataset.m; u.sel = {}; renderReceipt(); }; });
+    var key = function (x) { return x.term + '|' + x.name + '|' + x.phone; };
+    function list() { var q = u.q.toLowerCase(); return R.people.filter(function (x) { return x.paid && (!u.term || x.term === u.term) && (!q || (x.name + x.school + x.phone).toLowerCase().indexOf(q) >= 0); }); }
+    function picked() { return list().filter(function (x) { return u.sel[key(x)]; }); }
+    function draw() {
+      var l = list();
+      $('#rcCnt').textContent = '입금 확인 ' + l.length + '명 · 선택 ' + picked().length + '명' + (cashMode ? ' · 미발급 ' + l.filter(function (x) { return !x.cashDone; }).length + '명' : '');
+      $('#rcTb').innerHTML = l.length ? l.map(function (x) {
+        return '<tr><td><input type="checkbox" data-k="' + esc(key(x)) + '"' + (u.sel[key(x)] ? ' checked' : '') + '></td><td>' + esc(x.term) + '</td><td><b>' + esc(x.name) + '</b>' + dupTag(x.name) + '</td><td>' + esc(x.school) + '</td><td>' + Number(x.amount).toLocaleString('ko-KR') + '</td><td>' + esc(x.paidAt) + '</td>' +
+          (cashMode ? '<td>' + esc(x.cashNo) + (x.cashNo !== x.phone ? ' <span class="badge b-navy">수정</span>' : '') + '</td><td>' + (x.cashDone ? '<span class="badge b-ok">발급 ' + esc(x.cashAt) + '</span>' : '<span class="badge b-gray">미발급</span>') + '</td>' : '<td>' + esc(x.rcptNo || '—') + '</td>') + '</tr>';
+      }).join('') : '<tr><td colspan="8" class="empty">입금이 확인된 분이 없어요. 수강생 › 입금 대조에서 먼저 반영해 주세요.</td></tr>';
+      $$('#rcTb input').forEach(function (c) { c.onchange = function () { u.sel[c.dataset.k] = c.checked; draw(); }; });
+    }
+    $('#rcAll').onchange = function () { var on = this.checked; list().forEach(function (x) { u.sel[key(x)] = on; }); draw(); };
+    $('#rcTerm').onchange = function () { u.term = this.value; draw(); };
+    $('#rcQ').oninput = function () { u.q = this.value; draw(); };
+    function withNumbers(cb) {
+      var p = picked(); if (!p.length) return toast('먼저 왼쪽 체크박스로 사람을 골라 주세요.');
+      var need = p.filter(function (x) { return !x.rcptNo; });
+      (need.length ? run('receiptLog', { items: need, kind: '납입영수증' }) : Promise.resolve({ numbers: [] })).then(function (r) {
+        need.forEach(function (x, i) { x.rcptNo = (r.numbers || [])[i] || x.rcptNo || ''; }); draw();
+        cb(p.map(function (x) { return receiptPage(x, R); }).join(''), p.length === 1 ? '영수증_' + p[0].name : '영수증_' + p.length + '명');
+      });
+    }
+    if (!cashMode) {
+      $('#rcPdf').onclick = function () { var b = this; withNumbers(function (pages, name) { pdfDoc(pages, name, b); }); };
+      $('#rcPrint').onclick = function () { withNumbers(printDoc); };
+    } else {
+      var year = String((R.periods[BOOT.terms[0]] || kstToday())).slice(0, 4);
+      $('#rcCopy').onclick = function () {
+        var l = list().filter(function (x) { return !x.cashDone; }); if (!l.length) return toast('미발급인 분이 없어요.');
+        l.forEach(function (x) { u.sel[key(x)] = true; }); draw();
+        var rows = l.map(function (x) { var vat = Math.floor(x.amount / 11); return ['0', x.cashNo, x.amount, x.amount - vat, vat, year + '년 연구하는 교사되기(' + x.name + ')']; });
+        copy(tsv(rows)).then(function () { toast(l.length + '명을 복사했어요. 홈택스 양식 7행 A열에 붙여넣으세요. 발급 후 "선택 발급 완료 표시"를 눌러 주세요.', 7000); });
+      };
+      $('#rcDone').onclick = function () {
+        var p = picked(); if (!p.length) return toast('먼저 사람을 골라 주세요.');
+        if (!confirm(p.length + '명을 현금영수증 발급 완료로 표시할까요?')) return;
+        run('cashMark', { items: p.map(function (x) { return { term: x.term, name: x.name, phone: x.phone, no: x.cashNo, amount: x.amount }; }) }).then(function () { u.sel = {}; toast('발급 완료로 표시했어요.'); renderReceipt(); });
+      };
+    }
+    draw();
+  });
+}
+
+// ══════════ 입금 대조 ══════════
+function renderPay() {
+  run('table', { sheet: '신청자' }).then(function (t) {
+    var fee = Number((BOOT.settings || {})['연수비'] || 0);
+    var apps = t.rows.filter(function (r) { return r['상태'] !== '취소' && r['성명']; });
+    var unpaid0 = apps.filter(function (r) { return !r['입금일'] && (r['상태'] || '신청') === '신청'; });
+    $('#main').innerHTML = '<h2>입금 대조</h2><p class="sub">통장 거래내역 엑셀에서 제목줄까지 복사해 붙여넣으면, 이름과 금액으로 신청자와 맞춰 봐요. (연수비 ' + fee.toLocaleString('ko-KR') + '원)</p>' +
+      '<textarea id="payIn" rows="6" placeholder="No	거래일시	적요	입금액	출금액	내용 …"></textarea>' +
+      '<div class="toolbar" style="margin-top:10px"><button class="btn navy big" id="payGo">대조하기</button><span class="muted">지금 미입금 ' + unpaid0.length + '명 / 신청 ' + apps.length + '명</span></div><div id="payOut"></div>';
+    $('#payGo').onclick = function () {
+      var lines = $('#payIn').value.split('\n').map(function (l) { return l.split('\t'); }).filter(function (c) { return c.join('').trim(); });
+      if (!lines.length) return toast('붙여넣은 내용이 없어요.');
+      var hi = -1; lines.some(function (c, i) { if (c.join('|').indexOf('입금액') >= 0) { hi = i; return true; } });
+      var H = hi >= 0 ? lines[hi].map(function (x) { return x.trim(); }) : [];
+      var ix = function (n, d) { var i = H.indexOf(n); return i >= 0 ? i : d; };
+      var cDate = ix('거래일시', 2), cIn = ix('입금액', 4), cOut = ix('출금액', 5), cWho = ix('내용', 6);
+      var num = function (v) { return Number(String(v || '').replace(/[^\d]/g, '')) || 0; };
+      var byName = {}; apps.forEach(function (r) { var n = String(r['성명']).replace(/\s/g, ''); (byName[n] = byName[n] || []).push(r); });
+      var names = Object.keys(byName).sort(function (a, b) { return b.length - a.length; });
+      var used = {}, ok = [], chk = [], refund = { n: 0, sum: 0 }, sumIn = 0;
+      lines.slice(hi + 1).forEach(function (c) {
+        var inn = num(c[cIn]), out = num(c[cOut]), who = String(c[cWho] || '').replace(/\s/g, ''), date = String(c[cDate] || '').trim().slice(0, 10).replace(/\./g, '-');
+        if (out && !inn) { refund.n++; refund.sum += out; return; }
+        if (!inn) return;
+        sumIn += inn;
+        var nm = names.filter(function (n) { return who.indexOf(n) >= 0; })[0];
+        if (!nm) return chk.push({ why: '명단에 없는 이름', who: who, amount: inn, date: date });
+        var cand = byName[nm].filter(function (r) { return !used[r._row]; });
+        if (!cand.length) return chk.push({ why: '같은 이름 입금이 한 번 더 있음 (중복 입금?)', who: who, amount: inn, date: date });
+        if (byName[nm].length > 1) return chk.push({ why: '동명이인 ' + byName[nm].length + '명. 신청자 명단에서 직접 입금일을 넣어 주세요', who: who, amount: inn, date: date });
+        if (fee && inn !== fee) chk.push({ why: '금액이 연수비와 다름', who: who, amount: inn, date: date });
+        used[cand[0]._row] = 1; ok.push({ row: cand[0]._row, name: nm, term: cand[0]['기수'], amount: inn, date: date, already: !!cand[0]['입금일'] });
+      });
+      var fresh = ok.filter(function (x) { return !x.already; });
+      var still = apps.filter(function (r) { return !used[r._row] && !r['입금일'] && (r['상태'] || '신청') === '신청'; });
+      $('#payOut').innerHTML = '<div class="stats" style="margin-top:18px"><div class="stat"><small>이름이 맞은 입금</small><b>' + ok.length + '<span>건 (새로 ' + fresh.length + ')</span></b></div><div class="stat ' + (chk.length ? 'warn' : '') + '"><small>확인 필요</small><b>' + chk.length + '<span>건</span></b></div>' +
+        '<div class="stat ' + (still.length ? 'warn' : '') + '"><small>아직 미입금</small><b>' + still.length + '<span>명</span></b></div><div class="stat"><small>환불 출금</small><b>' + refund.n + '<span>건 · ' + refund.sum.toLocaleString('ko-KR') + '원</span></b></div></div>' +
+        '<div class="toolbar"><button class="btn navy big" id="payApply"' + (fresh.length ? '' : ' disabled') + '>새로 확인된 ' + fresh.length + '명 입금 반영</button><button class="btn line" id="payUn">미입금 ' + still.length + '명 번호 복사</button><span class="muted">입금 합계 ' + sumIn.toLocaleString('ko-KR') + '원 · 환불 ' + refund.sum.toLocaleString('ko-KR') + '원 · 순수입 ' + (sumIn - refund.sum).toLocaleString('ko-KR') + '원</span></div>' +
+        (chk.length ? '<h3 class="h3">확인 필요</h3><div class="tbl-wrap" style="max-height:300px"><table class="tbl"><thead><tr><th>입금자 표시</th><th>금액</th><th>날짜</th><th>이유</th></tr></thead><tbody>' + chk.map(function (x) { return '<tr><td><b>' + esc(x.who) + '</b></td><td>' + x.amount.toLocaleString('ko-KR') + '</td><td>' + esc(x.date) + '</td><td style="white-space:normal">' + esc(x.why) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '') +
+        (still.length ? '<h3 class="h3">아직 미입금</h3><div class="chips" style="max-height:160px">' + still.map(function (r) { return '<span class="chip">' + esc(r['성명']) + '<small>' + esc(r['기수']) + '</small></span>'; }).join('') + '</div>' : '');
+      PAY_LAST = { sumIn: sumIn, refund: refund.sum };
+      $('#payApply').onclick = function () { var b = this; b.disabled = true; run('payApply', { items: fresh }).then(function (r) { toast(r.count + '명 입금을 반영했어요.'); PEOPLE = null; }); };
+      $('#payUn').onclick = function () { copy(still.map(function (r) { return r['연락처']; }).join(',')).then(function () { toast('미입금 ' + still.length + '명 번호를 복사했어요. 문자 › 연수비 납부 안내에 쓰세요.', 5000); }); };
+    };
+  });
+}
+var PAY_LAST = null;
+
+// ══════════ 정산 · 통계 ══════════
+function renderSettle() {
+  run('report').then(function (r) {
+    var sum = 0, n = 0; r.terms.forEach(function (t) { sum += r.by[t]['입금액']; n += r.by[t]['입금']; });
+    var sp = r.split, refund0 = PAY_LAST ? PAY_LAST.refund : 0, total0 = PAY_LAST ? PAY_LAST.sumIn : sum;
+    $('#main').innerHTML = '<h2>정산</h2><p class="sub">계약 비율대로 나눠 봐요. 숫자를 고치면 바로 다시 계산돼요. 비율은 설정에서 바꿀 수 있어요.</p>' +
+      '<div class="card" style="max-width:760px"><div class="doc-form two"><div><label>총 입금액 (입금 ' + n + '명)</label><input type="text" id="stIn" value="' + total0 + '"></div><div><label>환불액</label><input type="text" id="stRf" value="' + refund0 + '"></div></div>' +
+      '<table class="tbl" style="margin-top:16px" id="stTb"></table><div class="toolbar" style="margin:14px 0 0"><button class="btn navy" id="stCopy">정산표 복사</button><span class="muted">' + (PAY_LAST ? '입금 대조 결과를 가져왔어요.' : '입금 대조를 먼저 하면 실제 통장 금액으로 채워져요.') + '</span></div></div>';
+    var rows = [];
+    function calc() {
+      var num = function (id) { return Number($(id).value.replace(/[^\d]/g, '')) || 0; };
+      var net = num('#stIn') - num('#stRf'), as = Math.round(net * sp.assoc / 100);
+      rows = [['구분', '기준', '금액(원)'], ['전체 연수금액 (입금 - 환불)', '', net], ['키인컨설팅', (100 - sp.assoc) + '%', net - as], ['교사크리에이터협회 지급', sp.assoc + '%', as],
+        ['　협회 몫', '지급액의 ' + sp.a + '%', Math.round(as * sp.a / 100)], ['　쿼카연구회 운영비 (간사 통장)', '지급액의 ' + sp.b + '%', Math.round(as * sp.b / 100)], ['　PM비 · 강사비', '지급액의 ' + sp.c + '%', Math.round(as * sp.c / 100)]];
+      $('#stTb').innerHTML = '<thead><tr>' + rows[0].map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.slice(1).map(function (x, i) { return '<tr><td>' + (i === 0 || i === 2 ? '<b>' + esc(x[0]) + '</b>' : esc(x[0])) + '</td><td>' + esc(x[1]) + '</td><td style="text-align:right"><b>' + Number(x[2]).toLocaleString('ko-KR') + '</b></td></tr>'; }).join('') + '</tbody>';
+    }
+    $('#stIn').oninput = calc; $('#stRf').oninput = calc; calc();
+    $('#stCopy').onclick = function () { copy(tsv(rows)).then(function () { toast('정산표를 복사했어요.'); }); };
+  });
+}
+function renderReport() {
+  run('report').then(function (r) {
+    var T = r.terms, cols = ['신청', '대기', '취소', '입금', '미입금', '이수정보', '이수', '미이수', '미확정'];
+    var a = [['구분'].concat(T).concat(['합계'])];
+    cols.forEach(function (c) { var s = 0, row = [c === '이수정보' ? '이수정보 제출' : c]; T.forEach(function (t) { row.push(r.by[t][c]); s += r.by[t][c]; }); row.push(s); a.push(row); });
+    T.forEach(function (t) { r.by[t].days.forEach(function (d, i) { a.push([t + ' ' + (i + 1) + '일차 출석/퇴실 (' + d.date.slice(5) + ')'].concat(T.map(function (x) { return x === t ? d.in + ' / ' + d.out : ''; })).concat([''])); }); });
+    var rf = Object.keys(r.refunds).map(function (k) { return k + ' ' + r.refunds[k]; }).join(' · ') || '없음';
+    var sd = [['시도'].concat(T).concat(['합계'])];
+    Object.keys(r.sido).sort(function (x, y) { var sx = 0, sy = 0; T.forEach(function (t) { sx += r.sido[x][t] || 0; sy += r.sido[y][t] || 0; }); return sy - sx; }).forEach(function (k) { var s = 0, row = [k]; T.forEach(function (t) { row.push(r.sido[k][t] || 0); s += r.sido[k][t] || 0; }); row.push(s); sd.push(row); });
+    var tb = function (rows) { return '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + rows[0].map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.slice(1).map(function (x) { return '<tr>' + x.map(function (v, i) { return '<td>' + (i ? esc(v) : '<b>' + esc(v) + '</b>') + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>'; };
+    $('#main').innerHTML = '<h2>결과 통계</h2><p class="sub">결과보고서에 들어가는 숫자 한 장이에요. 이수는 최종 판정 기준이에요.</p>' +
+      '<div class="toolbar"><button class="btn navy" id="rpCopy">전체 복사</button><span class="muted">환불 요청: ' + esc(rf) + '</span></div><div class="grid2"><div>' + tb(a) + '</div><div>' + tb(sd) + '</div></div>';
+    $('#rpCopy').onclick = function () { copy(tsv(a) + '\n\n' + tsv(sd)).then(function () { toast('통계표를 복사했어요.'); }); };
+  });
+}
+
+// ══════════ Zoom 참가 기록 대조 ══════════
+var ZM_UI = { term: '', date: '' };
+function parseCsv(text) {
+  var rows = [], row = [], cur = '', q = false;
+  for (var i = 0; i < text.length; i++) { var c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true; else if (c === ',') { row.push(cur); cur = ''; } else if (c === '\n') { row.push(cur); rows.push(row); row = []; cur = ''; } else if (c !== '\r') cur += c; }
+  if (cur || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+function renderZoom() {
+  var term = ZM_UI.term || BOOT.terms[0];
+  run('attendance', { term: term }).then(function (rep) {
+    var date = ZM_UI.date && rep.days.some(function (d) { return d.date === ZM_UI.date; }) ? ZM_UI.date : (rep.days.filter(function (d) { return d.date <= rep.today; }).pop() || rep.days[0] || {}).date;
+    $('#main').innerHTML = '<h2>Zoom 기록 대조</h2><p class="sub">출석체크를 깜빡한 분을 Zoom 참가자 보고서(CSV)로 한 번에 보정해요. 재접속은 시간을 합쳐요.</p>' +
+      '<div class="toolbar"><select id="zmTerm">' + BOOT.terms.map(function (t) { return '<option' + (t === term ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' +
+      '<select id="zmDate">' + rep.days.map(function (d) { return '<option value="' + d.date + '"' + (d.date === date ? ' selected' : '') + '>' + d.date + ' (' + d.dow + ')</option>'; }).join('') + '</select>' +
+      '<label class="btn navy big" style="cursor:pointer">Zoom CSV 파일 고르기<input type="file" id="zmFile" accept=".csv" hidden></label></div><div id="zmOut"><div class="card empty">Zoom › 보고서 › 사용 › 참가자에서 받은 CSV를 올려 주세요.</div></div>';
+    $('#zmTerm').onchange = function () { ZM_UI.term = this.value; renderZoom(); };
+    $('#zmDate').onchange = function () { ZM_UI.date = this.value; };
+    $('#zmFile').onchange = function () {
+      var f = this.files[0]; if (!f) return; var rd = new FileReader();
+      rd.onload = function () { match(String(rd.result).replace(/^﻿/, '')); }; rd.readAsText(f, 'utf-8');
+    };
+    function match(text) {
+      var rows = parseCsv(text), hi = -1;
+      rows.some(function (r, i) { if (r.some(function (c) { return /^이름|^Name/.test(c); }) && r.some(function (c) { return /기간|Duration/.test(c); })) { hi = i; return true; } });
+      if (hi < 0) return toast('Zoom 참가자 보고서 형식이 아니에요. (이름 · 기간(분) 열이 필요해요)', 5000);
+      var H = rows[hi], cN = 0, cD = -1; H.forEach(function (h, i) { if (/^이름|^Name/.test(h)) cN = i; if (/기간|Duration/.test(h) && cD < 0) cD = i; });
+      var d = $('#zmDate').value, day = rep.days.filter(function (x) { return x.date === d; })[0];
+      var byName = {}; rep.people.forEach(function (p) { (byName[p.name] = byName[p.name] || []).push(p); });
+      var names = Object.keys(byName).sort(function (a, b) { return b.length - a.length; });
+      var min = {}, miss = {};
+      rows.slice(hi + 1).forEach(function (r) {
+        var raw = String(r[cN] || ''), z = raw.replace(/\s/g, ''), m = Number(r[cD]) || 0; if (!z) return;
+        var nm = names.filter(function (n) { return z.indexOf(n) >= 0; })[0];
+        if (!nm) { miss[raw] = (miss[raw] || 0) + m; return; }
+        var cand = byName[nm], who = cand[0];
+        if (cand.length > 1) { who = cand.filter(function (p) { return z.indexOf(String(p.phone).slice(-4)) >= 0; })[0]; if (!who) { miss[raw + ' (동명이인, 뒷4자리 없음)'] = (miss[raw] || 0) + m; return; } }
+        var k = who.name + '|' + who.phone; min[k] = (min[k] || 0) + m;
+      });
+      var list = rep.people.map(function (p) {
+        var m = min[p.name + '|' + p.phone] || 0, st = (p.days[d] || {}), h = Math.min(day.hours, Math.floor((Math.min(m, day.hours * 60) + rep.grace) / 60));
+        return { p: p, min: m, st: st, hours: h, need: m > 0 && st.status !== '정상' && st.status !== '조정' && h > (st.hours || 0) };
+      });
+      var need = list.filter(function (x) { return x.need; }), none = list.filter(function (x) { return !x.min; }), mk = Object.keys(miss);
+      $('#zmOut').innerHTML = '<div class="stats"><div class="stat"><small>Zoom에서 찾은 분</small><b>' + (list.length - none.length) + '<span>/ ' + list.length + '명</span></b></div><div class="stat ' + (need.length ? 'warn' : '') + '"><small>출석체크가 빠졌는데 Zoom엔 있음</small><b>' + need.length + '<span>명</span></b></div>' +
+        '<div class="stat"><small>Zoom 기록 없음</small><b>' + none.length + '<span>명</span></b></div><div class="stat ' + (mk.length ? 'warn' : '') + '"><small>명단과 못 맞춘 Zoom 이름</small><b>' + mk.length + '<span>개</span></b></div></div>' +
+        '<div class="toolbar"><button class="btn navy big" id="zmApply"' + (need.length ? '' : ' disabled') + '>체크한 분 Zoom 기록으로 인정</button><span class="muted">인정 시간 = Zoom 접속 시간을 1시간 단위로 (지각 허용 ' + rep.grace + '분 반영)</span></div>' +
+        (need.length ? '<div class="tbl-wrap" style="max-height:46vh"><table class="tbl"><thead><tr><th style="width:36px"></th><th>성명</th><th>출석체크 상태</th><th>Zoom 접속</th><th>인정 시간</th></tr></thead><tbody>' + need.map(function (x, i) {
+          return '<tr><td><input type="checkbox" data-i="' + i + '" checked></td><td><b>' + esc(x.p.name) + '</b>' + dupTag(x.p.name) + '</td><td>' + esc(x.st.status || '') + '</td><td>' + x.min + '분</td><td><b>' + x.hours + '</b> / ' + day.hours + '시간</td></tr>'; }).join('') + '</tbody></table></div>' : '<div class="card empty">보정할 분이 없어요 : )</div>') +
+        (mk.length ? '<h3 class="h3">명단과 못 맞춘 Zoom 이름</h3><div class="chips" style="max-height:160px">' + mk.map(function (k) { return '<span class="chip">' + esc(k) + '<small>' + miss[k] + '분</small></span>'; }).join('') + '</div><p class="muted">이름이 달라 못 찾은 분은 출결 화면에서 한 명씩 조정하면 돼요.</p>' : '');
+      if ($('#zmApply')) $('#zmApply').onclick = function () {
+        var items = $$('#zmOut input:checked').map(function (c) { var x = need[+c.dataset.i]; return { name: x.p.name, phone: x.p.phone, hours: x.hours, memo: 'Zoom 접속 ' + x.min + '분으로 보정' }; });
+        if (!items.length) return toast('체크한 분이 없어요.'); var b = this; b.disabled = true;
+        run('attendAdjustBulk', { term: term, date: d, items: items }).then(function (r) { toast(r.count + '명을 보정했어요. 출결 화면에서 확인하세요.', 4000); PEOPLE = null; });
+      };
+    }
+  });
+}
+
+// ══════════ 회의 ══════════
+function renderMeet() {
+  run('table', { sheet: '회의' }).then(function (t) {
+    CACHE['회의'] = t;
+    var rows = t.rows.slice().sort(function (a, b) { return String(b['날짜']).localeCompare(String(a['날짜'])); });
+    $('#main').innerHTML = '<div class="toolbar"><div class="grow"><h2>회의</h2><p class="sub" style="margin:0">안건을 먼저 적어 두고, 회의하면서 회의록과 할 일을 채워요.</p></div><button class="btn navy big" id="mtAdd">+ 새 회의</button></div>' +
+      (rows.length ? rows.map(function (r) {
+        var done = /완료|끝/.test(r['상태']);
+        return '<div class="post"><div class="h"><span class="badge ' + (done ? 'b-gray' : 'b-navy') + '">' + esc(r['상태'] || '예정') + '</span><b style="font-size:17px">' + esc(r['제목']) + '</b><span class="muted">' + esc(r['날짜']) + (r['참석자'] ? ' · ' + esc(r['참석자']) : '') + '</span><span style="flex:1"></span>' +
+          '<button class="btn line sm" data-cp="' + r._row + '">회의록 복사</button><button class="btn navy sm" data-ed="' + r._row + '">열기</button></div>' +
+          [['안건', r['안건']], ['결정사항', r['결정사항']], ['할 일', r['할 일']]].filter(function (x) { return x[1]; }).map(function (x) { return '<div class="c"><b style="color:var(--navy)">' + x[0] + '</b>\n' + esc(x[1]) + '</div>'; }).join('') + '</div>';
+      }).join('') : '<div class="card empty">아직 회의가 없어요. "새 회의"로 안건부터 적어 보세요.</div>');
+    $('#mtAdd').onclick = function () { editRow('회의', t, null); setTimeout(function () { var d = $('#mBody [name="날짜"]'); if (d && !d.value) d.value = kstToday(); var st = $('#mBody [name="상태"]'); if (st && !st.value) st.value = '예정'; }, 0); };
+    $$('[data-ed]').forEach(function (b) { b.onclick = function () { editRow('회의', t, +b.dataset.ed); }; });
+    $$('[data-cp]').forEach(function (b) { b.onclick = function () { var r = t.rows.filter(function (x) { return x._row === +b.dataset.cp; })[0];
+      copy('■ ' + r['제목'] + ' (' + r['날짜'] + ')\n참석: ' + (r['참석자'] || '') + '\n\n[안건]\n' + (r['안건'] || '') + '\n\n[회의록]\n' + (r['회의록'] || '') + '\n\n[결정사항]\n' + (r['결정사항'] || '') + '\n\n[할 일]\n' + (r['할 일'] || '')).then(function () { toast('회의록을 복사했어요.'); }); }; });
+  });
+}
+
 // ───── 미리보기용 예시 데이터 (구글 밖에서 열 때만) ─────
 function MOCK(a, p) {
   var names = ['김하늘', '이도윤', '박서연', '최지우', '정민준', '강예린', '조현우', '윤서아', '장도현', '임채원', '한지민', '오세훈'];
@@ -1127,6 +1557,23 @@ function MOCK(a, p) {
     ops: { T01: [{ date: '2026-11-23' }], T04: [{ date: '2026-11-27' }], T05: [{ date: '2026-12-01' }], T09: [{ date: '2026-12-11' }], T21: [{ date: '2026-12-14' }], T22: [{ date: '2026-12-21' }], T27: [{ date: '2026-12-28' }], T29: [{ date: '2026-12-28' }], T41: [{ date: '2027-02-12' }], T43: [{ date: '2027-02-26' }] },
     log: [{ at: '2026-11-19 10:00', dir: '보냄', kind: '개설 협조 · 역할 분담 확인', subject: '[연구하는 교사되기 2027] 직무연수 개설 협조 요청 및 운영 사항 확인' }] };
   if (a === 'mailLog' || a === 'setSetting' || a === 'save') return { ok: true };
+  if (a === 'docs') return [{ id: 'D1', kind: '공문', title: '2027년 연구하는 교사되기 직무연수 운영 협력 계약 체결 요청의 건', at: '2026-11-19 16:10' }];
+  if (a === 'docTpls') return [{ kind: '계약서', t: '연수 운영 협력 계약서', d: '키인컨설팅 – 교사크리에이터협회 · 15개 조항', data: { title: '연수 운영 협력 계약서', intro: '{{갑_상호}}(이하 “갑”)과 {{을_상호}}(이하 “을”)는 「{{연수명}}」의 운영에 관하여 다음과 같이 계약을 체결한다.',
+    body: '제1조 (목적)\n본 계약은 본 연수의 원활한 운영을 위하여 갑과 을의 역할, 대금의 산정과 지급을 정하는 것을 목적으로 한다.\n\n제6조 (계약 금액)\n   1. 갑은 본 연수의 전체 연수 금액의 {{배분율}}%에 해당하는 금액을 을에게 지급한다.\n   2. {{전체금액_정의}}\n   3. (산정 예시) 전체 연수 금액이 {{예시_전체금액}}원인 경우 을에게 지급하는 금액은 {{예시_지급액}}원이다.\n\n제7조 (대금의 집행)\n   1. 지급액의 {{협회율}}%: 을의 운영 경비 (예시 {{예시_협회}}원)\n   2. 지급액의 {{연구회율}}%: 쿼카연구회 운영비 (예시 {{예시_연구회}}원)\n   3. 지급액의 {{인건비율}}%: PM비와 강사비 (예시 {{예시_인건비}}원)',
+    date: '{{계약일}}', partyA: '(갑)\n상호: {{갑_상호}}\n대표이사: {{갑_대표}}  (인)', partyB: '(을)\n단체명: {{을_상호}}\n대표자: {{을_대표}}  (인)',
+    vars: [{ k: '연수명', label: '연수명', g: '연수', v: '2027 연구하는 교사되기 직무연수' }, { k: '갑_상호', label: '갑 상호', g: '당사자', v: '주식회사 예시컨설팅' }, { k: '갑_대표', label: '갑 대표자', g: '당사자', v: '홍길동' }, { k: '을_상호', label: '을 단체명', g: '당사자', v: '교사크리에이터협회' }, { k: '을_대표', label: '을 대표자', g: '당사자', v: '' },
+      { k: '배분율', label: '을에게 지급하는 비율(%)', g: '금액·비율', v: '40' }, { k: '전체금액_정의', label: '40%를 계산하는 기준 금액', g: '금액·비율', v: 'A', choices: [['납입 총액 - 환불', 'A'], ['납입 총액 - 환불 - 연수원 경비', 'B'], ['환불 전 납입 총액', 'C']] },
+      { k: '협회율', label: '을 귀속 비율(%)', g: '금액·비율', v: '10' }, { k: '연구회율', label: '쿼카연구회 운영비 비율(%)', g: '금액·비율', v: '20' }, { k: '인건비율', label: 'PM비·강사비 비율(%)', g: '금액·비율', v: '70' },
+      { k: '예시_전체금액', label: '예시: 전체 연수 금액(원)', g: '금액·비율', v: '80,000,000' }, { k: '예시_지급액', label: '예시: 을 지급액(원)', g: '금액·비율', v: '32,000,000' }, { k: '예시_협회', label: '예시: 을 귀속분(원)', g: '금액·비율', v: '3,200,000' }, { k: '예시_연구회', label: '예시: 쿼카연구회 운영비(원)', g: '금액·비율', v: '6,400,000' }, { k: '예시_인건비', label: '예시: PM비·강사비(원)', g: '금액·비율', v: '22,400,000' },
+      { k: '계약일', label: '계약 체결일', g: '기간', v: '2026년    월    일' }] } }];
+  if (a === 'docGet') return { id: 'D1', kind: '공문', title: '', data: docTemplates()[0].data };
+  if (a === 'docSave') return { ok: true, id: 'D1' };
+  if (a === 'receipts') return { fee: 100000, course: '연구하는 교사되기 2027', org: '서울대학교 사범대학 교육연수원', periods: { '1기': '2027-01-11~2027-01-13', '2기': '2027-02-01~2027-02-03' }, issuer: { name: '㈜예시컨설팅', biz: '000-00-00000', ceo: '홍길동', addr: '서울시 예시구 예시로 1', tel: '02-000-0000' },
+    people: people.map(function (x, i) { return { term: x.term, name: x.name, phone: x.phone, school: '예시초등학교', state: x.state, paid: x.paid, paidAt: x.paid ? '2026-12-2' + (i % 9) : '', amount: 100000, cashNo: i === 1 ? '010-9999-0000' : x.phone, cashDone: i % 5 === 3, cashAt: '2027-02-12', rcptNo: i === 2 ? 'R27-0001' : '' }; }) };
+  if (a === 'report') return { terms: ['1기', '2기'], fee: 100000, split: { assoc: 40, a: 10, b: 20, c: 70 }, refunds: { '환불 완료': 9, '검토 중': 2 }, sido: { 경기: { '1기': 142, '2기': 120 }, 서울: { '1기': 88, '2기': 71 }, 인천: { '1기': 31, '2기': 25 }, 충남: { '1기': 18, '2기': 22 } },
+    by: { '1기': { 신청: 398, 대기: 12, 취소: 9, 입금: 391, 미입금: 7, 입금액: 39100000, 이수: 372, 미이수: 11, 미확정: 15, 이수정보: 380, days: [{ date: '2027-01-11', dow: '월', in: 389, out: 381 }, { date: '2027-01-12', dow: '화', in: 384, out: 380 }, { date: '2027-01-13', dow: '수', in: 380, out: 377 }] },
+      '2기': { 신청: 352, 대기: 0, 취소: 4, 입금: 340, 미입금: 12, 입금액: 34000000, 이수: 0, 미이수: 0, 미확정: 352, 이수정보: 201, days: [] } } };
+  if (a === 'doc') return { rows: [['연번', '성명', '소속', '직위', '역할', '전화', '이메일', '생년월일', '강의 일시(요일 자동)', '총 시간(h)'], [1, '이대형', '예시초', '교사', '강사', '', '', '', '2027-01-11(월) 15:00~18:00 디지털연구대회의 실제', 3]], parking: [['2027-01-11(월)', 2, '박성춘, 이대형']], guides: [{ name: '이대형', text: '[연구하는 교사되기 2027] 이대형 선생님, 강의 안내드립니다.' }] };
   if (a === 'outboxSend') return { ok: true, sent: (p.rows || []).length, fail: [] };
   if (a === 'outbox') return { quota: 98, rows: [
     { _row: 3, 생성시각: '2027-01-20 10:02', 상태: '대기', 종류: '환불 완료', 받는사람: 'teacher@example.com', 성명: '정민준', 휴대폰: '010-1234-1004', 제목: '[연구하는 교사되기 2027] 환불이 완료되었습니다 (F0002)', 본문: '정민준 선생님, 안녕하세요.\n「연구하는 교사되기 2027」 운영팀입니다.\n\n요청하신 연수비 환불이 완료되었습니다.\n\n· 글번호: F0002\n\n입금 계좌에서 확인해 주시기 바랍니다.', 관련: 'F0002', 발송시각: '', 메모: '' },
@@ -1145,6 +1592,8 @@ function MOCK(a, p) {
   if (a === 'people') return people;
   if (a === 'check') return { total: 348, issues: people.filter(function (x) { return x.issue; }).map(function (x) { return { term: x.term, name: x.name, phone: x.phone, problem: x.issue, fixed: false }; }), phones: '' };
   if (a === 'table') {
+    if (p.sheet === '회의') return { headers: ['날짜', '제목', '참석자', '안건', '회의록', '결정사항', '할 일', '상태'], rows: [
+      { _row: 2, 날짜: '2026-11-24', 제목: '2027 운영 킥오프', 참석자: '두목쿼카, 박성춘 교수님, 간사', 안건: '1. 일정 확정 (1기 1/11~13, 2기 2/1~3)\n2. 강사 섭외 현황\n3. 교크협 계약', 회의록: '', 결정사항: '신청 기간은 12/7~12/24', '할 일': '· 계약서 초안 검토 (교수님)\n· 홍보 카드뉴스 (간사)', 상태: '예정' }] };
     if (p.sheet === '문자기록') return { headers: ['보낸시각', '문자종류', '대상', '인원', '내용'], rows: [{ _row: 2, 보낸시각: '2027-01-20 10:12', 문자종류: '신청 확정·환영', 대상: '1기 신청', 인원: '205' }] };
     if (p.sheet === '셀프신청') return { headers: ['접수시각', '접수번호', '유형', '성명', '휴대폰', '현재기수', '희망기수', '현금영수증번호', '내용', '처리상태', '처리메모', '처리일'], rows: [
       { _row: 2, 접수시각: '2027-01-12 09:20', 유형: '수강취소', 성명: '김하늘', 휴대폰: '010-1234-1000', 현재기수: '1기', 처리상태: '접수' },
