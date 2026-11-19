@@ -679,3 +679,37 @@ h3.sec::before { height: 20px; border-radius: 3px; background: var(--blue); }
   .qk span, .qk img, .orb, .spk, .loading::before { animation: none !important; }
   .qk, .ft-peek img, .tile, .nlist li, .hh-say { transition: none; }
 }
+
+/* ───── v6: 새 캐릭터(얼굴 따로) + 포인트 컬러 핑크 ───── */
+:root { --pink: #e2578c; --pink-deep: #b83868; --pink-soft: #fdeef4; --pink-line: #f7c6d8; }
+::selection { background: #fbd3e2; }
+.brand img { object-fit: contain; object-position: 50% 50%; background: var(--pink-soft); padding: 3px; }
+.qbot-face.img { overflow: hidden; background: #fff; padding: 4px; }
+.qbot-face.img img { width: 100%; height: 100%; object-fit: contain; object-position: 50% 50%; display: block; }
+.qbot-face.sm.img { background: var(--pink-soft); }
+.hero.sub .qk.solo { margin-bottom: 10px; }
+.hero.sub .wrap::after { content: ""; position: absolute; right: 8px; bottom: 6px; width: 120px; height: 16px; border-radius: 50%; background: radial-gradient(closest-side, rgba(27,42,92,.16), transparent); pointer-events: none; }
+.hero.sub .qk.solo { z-index: 1; }
+.home-hero, .hero.sub { background: linear-gradient(105deg, #e6f1fd 0%, #eef0fd 55%, #fdeaf2 100%); }
+.orb.o2 { background: rgba(226,87,140,.08); }
+.chip { background: var(--pink); }
+.chip.sm { background: var(--pink-soft); color: var(--pink-deep); }
+.hh-text h1 em, .brand b em { color: var(--pink); }
+.tag.soft { background: var(--pink-soft); border-color: var(--pink-line); color: var(--pink-deep); }
+.hh-btns .btn.line:hover { border-color: var(--pink); color: var(--pink-deep); background: #fff; }
+.gnb a.on::after { background: var(--pink); }
+h3.sec::before { background: var(--pink); }
+.next strong em { background: #fff; color: var(--pink-deep); }
+.tile:hover .ic { background: var(--pink); }
+.tile:hover { background: var(--pink-soft); }
+.nlist li:hover { border-color: var(--pink-line); }
+.nlist li:hover > i { color: var(--pink); }
+.glance dd a, .more:hover { color: var(--pink-deep); }
+.tt-day header i { background: var(--pink); }
+.tt-who.tbd { background: var(--pink-soft); color: var(--pink-deep); }
+.spk.s1 { background: #f7a1c0; } .spk.s3 { background: #ffc94d; }
+.to-top { color: var(--pink); }
+.faq-cats button.on { background: var(--pink); border-color: var(--pink); }
+.subtabs a:hover { color: var(--pink-deep); background: var(--pink-soft); }
+.subtabs a.on:hover { color: #fff; background: var(--blue); }
+@media (max-width: 760px) { .hero.sub .qk.solo { margin-bottom: 8px; } .hero.sub .wrap::after { width: 90px; right: 14px; } }

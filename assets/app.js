@@ -846,9 +846,9 @@
     document.body.appendChild(top);
     window.addEventListener('scroll', function () { top.classList.toggle('on', window.scrollY > 500); }, { passive: true });
     var btn = document.createElement('button'); btn.id = 'qbotBtn'; btn.className = 'qbot-btn'; btn.setAttribute('aria-label', '쿼카에게 물어보기');
-    btn.innerHTML = '<span class="qbot-face img"><img src="assets/img/quoka-researcher.webp" alt=""></span><span class="qbot-label">쿼카에게 물어보기</span>';
+    btn.innerHTML = '<span class="qbot-face img"><img src="assets/img/quoka-face.webp" alt=""></span><span class="qbot-label">쿼카에게 물어보기</span>';
     var panel = document.createElement('section'); panel.id = 'qbot'; panel.className = 'qbot'; panel.hidden = true;
-    panel.innerHTML = '<header><span class="qbot-face sm img"><img src="assets/img/quoka-researcher.webp" alt=""></span><div><b>쿼카 도우미</b><small>자주 묻는 질문에 바로 답해요</small></div><button id="qbotX" aria-label="닫기">×</button></header>' +
+    panel.innerHTML = '<header><span class="qbot-face sm img"><img src="assets/img/quoka-face.webp" alt=""></span><div><b>쿼카 도우미</b><small>자주 묻는 질문에 바로 답해요</small></div><button id="qbotX" aria-label="닫기">×</button></header>' +
       '<div class="qbot-log" id="qbotLog"></div><div class="qbot-chips" id="qbotChips"></div>' +
       '<form id="qbotForm"><input id="qbotIn" autocomplete="off" placeholder="궁금한 걸 적어 주세요" maxlength="120"><button aria-label="보내기"><i class="xi-arrow-up"></i></button></form>';
     document.body.appendChild(btn); document.body.appendChild(panel);
