@@ -259,7 +259,7 @@
       field('휴대폰', true, '<input type="tel" name="phone" inputmode="numeric" autocomplete="tel" placeholder="010-0000-0000">', 'phone') +
       field('시도교육청', true, '<select name="sido"><option value="">선택</option>' + SIDO.map(function (s) { return '<option>' + s + '</option>'; }).join('') + '</select>', 'sido', '근무하는 학교가 속한 교육청을 골라 주세요.') +
       field('학교명', true, '<input type="text" name="school" placeholder="OO초등학교">', 'school', '"OO초", "OO중"처럼 줄이지 말고 정식 명칭으로 적어 주세요.') +
-      field('나이스 개인번호', true, '<input type="text" name="neis" autocapitalize="characters" placeholder="나이스 개인번호">', 'neis', '나이스 > 나의 메뉴 > 인사기록에서 확인할 수 있어요.') +
+      field('나이스 개인번호', true, '<input type="text" name="neis" autocapitalize="characters" placeholder="J123456789" maxlength="10">', 'neis', '영문 1자 + 숫자 9자. 나이스 > 나의 메뉴 > 인사기록에서 확인할 수 있어요.') +
       field('이메일', false, '<input type="email" name="email" autocomplete="email" placeholder="선택 입력">', 'email') +
       '</form>' + agreeBox() +
       '<div class="btns"><button class="btn navy" id="infoSubmit"><i class="xi-check"></i>이수정보 제출</button></div></div>';
@@ -283,7 +283,7 @@
       if (!d.phone) bad = setErr(f, 'phone', '010-0000-0000 형식으로 입력해 주세요.') || true;
       if (!d.sido) bad = setErr(f, 'sido', '시도교육청을 골라 주세요.') || true;
       if (!/(학교|유치원|교육청|교육지원청|연구원|센터)$/.test(d.school)) bad = setErr(f, 'school', '정식 학교명으로 입력해 주세요. (예: OO초등학교)') || true;
-      if (!/^[A-Za-z0-9]{5,15}$/.test(d.neis)) bad = setErr(f, 'neis', '나이스 개인번호를 확인해 주세요.') || true;
+      if (!/^[A-Z][0-9]{9}$/.test(d.neis)) bad = setErr(f, 'neis', '나이스 개인번호는 영문 1자 + 숫자 9자예요. (예: J123456789)') || true;
       if (d.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) bad = setErr(f, 'email', '이메일 형식을 확인해 주세요.') || true;
       if (!$('#agree').checked) { alertBox('개인정보 수집·이용에 동의해 주세요.'); bad = true; }
       if (bad) return focusErr(f);
@@ -478,6 +478,8 @@
 
   // ───────── 시작 ─────────
   if (DEMO) $('#demo').hidden = false;
+  var ADMIN = (window.SITE_CONFIG && window.SITE_CONFIG.ADMIN_URL || '').trim();
+  if (ADMIN) { var al = $('#adminLink'); al.href = ADMIN; al.hidden = false; }
   $('#menuBtn').onclick = function () { $('#gnb').classList.toggle('open'); };
   window.addEventListener('hashchange', route);
   route();
