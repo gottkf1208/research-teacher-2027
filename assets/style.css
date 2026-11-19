@@ -376,3 +376,91 @@ h3.sec::before { content: ""; width: 6px; height: 22px; background: var(--navy);
   .hero-qk img:nth-child(2) { height: 106px; }
   .hero.home h1, .hero.home p { transform: translateY(-44px); }
 }
+
+/* ───── v3: 머리·서브 화면·시간표 다듬기 ───── */
+.brand { flex-direction: row; align-items: center; gap: 12px; }
+.brand img { width: 44px; height: 44px; border-radius: 50%; background: #eef1fb; object-fit: cover; object-position: 50% 8%; flex-shrink: 0; }
+.brand span { display: flex; flex-direction: column; line-height: 1.3; }
+.brand small { font-size: 12px; letter-spacing: 0; color: var(--gray-1); }
+.gnb a { padding: 0 18px; }
+.gnb a.on::after { left: 18px; right: 18px; }
+
+.hero::before { display: none; }
+.hero { background: linear-gradient(105deg, #0b1c5e 0%, #001871 55%, #1a2f8a 100%); }
+.hero.home .eyebrow { margin: 0 0 14px; font-size: 14px; letter-spacing: .02em; font-weight: 700; opacity: .8; }
+.hero.home .lead { font-size: 18px; opacity: .92; }
+.hero.sub { height: 168px; text-align: left; display: block; overflow: hidden; }
+.hero.sub .wrap { height: 100%; max-width: 1132px; display: flex; align-items: center; justify-content: space-between; gap: 24px; position: relative; }
+.hero.sub h1 { font-size: 32px; }
+.hero.sub p { margin: 8px 0 0; font-size: 15px; letter-spacing: 0; opacity: .85; }
+.hero.sub img { height: 150px; width: auto; align-self: flex-end; margin-bottom: -14px; filter: drop-shadow(0 6px 10px rgba(0,0,0,.25)); flex-shrink: 0; }
+.subtabs { margin-top: 0; background: var(--bg-soft); border-bottom: 1px solid var(--line); }
+.subtabs ul { border-radius: 0; background: none; gap: 4px; }
+.subtabs li { flex: 0 0 auto; }
+.subtabs li + li::before { display: none; }
+.subtabs a { height: 56px; padding: 0 22px; color: var(--gray-1); flex-direction: row; position: relative; }
+.subtabs a small { display: none; }
+.subtabs a:hover { background: none; color: var(--ink); }
+.subtabs a.on { background: none; color: var(--navy); }
+.subtabs a.on::after { content: ""; position: absolute; left: 22px; right: 22px; bottom: -1px; height: 3px; background: var(--navy); }
+.ptitle { text-align: left; padding: 36px 0 0; border: 0; }
+.ptitle .wrap { max-width: 1132px; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.ptitle h2 { font-size: 26px; }
+.crumb { margin: 0; }
+.ptitle + main { padding-top: 28px; }
+main > .wrap { max-width: 1132px; }
+.att-steps { border-radius: 10px; overflow: hidden; }
+.btn { border-radius: 6px; }
+.box { border-radius: 10px; }
+
+/* 시간표 */
+.tt-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+.tt-tabs button { display: flex; align-items: baseline; justify-content: center; gap: 10px; height: 60px; background: #fff; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; color: var(--gray-1); }
+.tt-tabs button b { font-size: 19px; font-weight: 800; }
+.tt-tabs button span { font-size: 14px; }
+.tt-tabs button.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+.tt-sum { margin: 0 0 18px; font-size: 15px; color: var(--gray-1); }
+.tt-sum b { color: var(--ink); }
+.tt-grid { display: grid; gap: 16px; align-items: start; }
+.tt-grid.n2 { grid-template-columns: repeat(2, 1fr); }
+.tt-grid.n3 { grid-template-columns: repeat(3, 1fr); }
+.tt-day { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
+.tt-day header { display: flex; align-items: baseline; gap: 8px; padding: 16px 18px; background: #f3f5fb; border-bottom: 1px solid var(--line); }
+.tt-day header b { font-size: 18px; font-weight: 800; color: var(--navy); }
+.tt-day header span { font-weight: 700; }
+.tt-day header em { font-style: normal; margin-left: auto; font-size: 13px; color: var(--gray-1); }
+.tt-day header i { font-style: normal; font-size: 12px; font-weight: 700; color: #fff; background: var(--danger); padding: 1px 8px; border-radius: 20px; }
+.tt-day.today { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy); }
+.tt-day ol { list-style: none; margin: 0; padding: 0; }
+.tt-day li { display: flex; gap: 14px; padding: 16px 18px; }
+.tt-day li + li { border-top: 1px solid #eee; }
+.tt-time { flex: 0 0 52px; display: flex; flex-direction: column; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.tt-time b { font-size: 16px; font-weight: 800; }
+.tt-time span { font-size: 13px; color: var(--gray-2); }
+.tt-body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.tt-body small { font-size: 12px; font-weight: 700; color: var(--navy); }
+.tt-body strong { font-size: 16px; font-weight: 700; line-height: 1.45; }
+.tt-who { font-size: 14px; color: var(--gray-1); display: inline-flex; align-items: center; gap: 4px; }
+.tt-who.tbd { align-self: flex-start; font-size: 12px; font-weight: 700; color: var(--gray-2); background: var(--bg-soft); padding: 2px 8px; border-radius: 20px; }
+
+@media (max-width: 1024px) {
+  .tt-grid.n2, .tt-grid.n3 { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .brand img { width: 36px; height: 36px; }
+  .brand small { display: none; }
+  .hero.sub { height: 128px; }
+  .hero.sub h1 { font-size: 24px; }
+  .hero.sub p { font-size: 13px; }
+  .hero.sub img { height: 104px; margin-bottom: -10px; }
+  .subtabs ul { overflow-x: auto; }
+  .subtabs li { min-width: 0; }
+  .subtabs a { height: 48px; padding: 0 14px; white-space: nowrap; }
+  .subtabs a.on::after { left: 14px; right: 14px; }
+  .ptitle { padding-top: 24px; }
+  .ptitle h2 { font-size: 22px; }
+  .crumb { display: none; }
+  .tt-tabs button { flex-direction: column; align-items: center; gap: 0; height: 64px; justify-content: center; }
+  .tt-tabs button span { font-size: 12px; }
+  .tt-day li { padding: 14px; gap: 12px; }
+}

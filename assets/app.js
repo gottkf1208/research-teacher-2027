@@ -11,12 +11,12 @@
 
   // ───────── 페이지 정의 ─────────
   var GROUPS = {
-    guide: { name: '연수 안내', en: 'Course Guide', tabs: [['guide', '연수 개요'], ['schedule', '일정·시간표'], ['access', '접속 안내']] },
-    attend: { name: '출석체크', en: 'Attendance', tabs: [] },
-    materials: { name: '연수자료', en: 'Course Materials', tabs: [] },
-    talk: { name: '공지·FAQ', en: 'Notice & FAQ', tabs: [['notice', '공지사항'], ['faq', '자주 묻는 질문']] },
-    board: { name: '게시판', en: 'Q&A · Refund', tabs: [['qna', 'Q&A'], ['refund', '환불 요청']] },
-    self: { name: '셀프 서비스', en: 'Self Service', tabs: [['request', '셀프 신청'], ['info', '이수정보 입력'], ['status', '내 현황 조회']] }
+    guide: { name: '연수 안내', en: '일정과 시간표, 접속 방법을 한 곳에서 확인하세요.', qk: 'snu', tabs: [['guide', '연수 개요'], ['schedule', '일정·시간표'], ['access', '접속 안내']] },
+    attend: { name: '출석체크', en: '연수 당일, 출석하고 강의실에 들어가 퇴실까지 눌러 주세요.', qk: 'teacher', tabs: [] },
+    materials: { name: '연수자료', en: '강의 자료를 내려받고 바로 볼 수 있어요.', qk: 'researcher', tabs: [] },
+    talk: { name: '공지·FAQ', en: '새 소식과 자주 묻는 질문을 먼저 확인해 보세요.', qk: 'researcher', tabs: [['notice', '공지사항'], ['faq', '자주 묻는 질문']] },
+    board: { name: '게시판', en: '궁금한 점과 환불 요청을 남기면 운영팀이 답해 드려요.', qk: 'teacher', tabs: [['qna', 'Q&A'], ['refund', '환불 요청']] },
+    self: { name: '셀프 서비스', en: '취소, 현금영수증, 이수정보를 메일 없이 바로 처리하세요.', qk: 'snu', tabs: [['request', '셀프 신청'], ['info', '이수정보 입력'], ['status', '내 현황 조회']] }
   };
   var PAGES = {
     guide: { g: 'guide', t: '연수 개요', r: renderGuide },
@@ -41,23 +41,49 @@
   function linkify(s) { return esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent-blue);text-decoration:underline">$1</a>'); }
   function won(n) { return Number(n || 0).toLocaleString('ko-KR') + '원'; }
 
-  function api(action, data) {
-    if (DEMO) return demoApi(action, data);
-    if (action === 'content') {
-      return fetch(API + '?action=content').then(function (r) { return r.json(); });
-    }
-    return fetch(API, {
+  // 몰릴 때를 대비: 시간 제한을 두고, 다시 보내도 안전한 요청만 간격을 벌려 자동으로 다시 보낸다
+  var RETRY = { content: 3, attend: 5, status: 3, boardList: 3, boardView: 3, materials: 3 };
+  function once(action, data, ms) {
+    var ctl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, ms);
+    var opt = action === 'content' ? {} : {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 프리플라이트 없이 앱스 스크립트로 전송
       body: JSON.stringify({ action: action, data: data })
-    }).then(function (r) { return r.json(); });
+    };
+    if (ctl) opt.signal = ctl.signal;
+    return fetch(action === 'content' ? API + '?action=content' : API, opt).then(function (r) { return r.text(); }).then(function (t) {
+      clearTimeout(timer);
+      try { return JSON.parse(t); } catch (e) { throw new Error('busy'); } // 접속이 몰리면 JSON 대신 안내 페이지가 온다
+    }, function (e) { clearTimeout(timer); throw e; });
+  }
+  function api(action, data, onRetry) {
+    if (DEMO) return demoApi(action, data);
+    var max = RETRY[action] || 1, n = 0;
+    function attempt() {
+      n++;
+      return once(action, data, 25000).catch(function (e) {
+        if (n >= max) throw e;
+        var waitMs = Math.min(1200 * Math.pow(1.8, n - 1), 9000) * (0.6 + Math.random() * 0.8);
+        if (onRetry) onRetry(n, max);
+        return new Promise(function (ok) { setTimeout(ok, waitMs); }).then(attempt);
+      });
+    }
+    return attempt();
   }
 
+  var C_KEY = 'snu27_content';
   function loadContent() {
     if (C) return Promise.resolve(C);
     return api('content').then(function (res) {
       if (!res.ok) throw new Error(res.error || '불러오기 실패');
-      C = res; fillFooter(); return C;
+      C = res; try { localStorage.setItem(C_KEY, JSON.stringify(res)); } catch (e) {}
+      fillFooter(); return C;
+    }).catch(function (e) {
+      // 서버가 잠깐 답하지 못해도, 마지막으로 받아 둔 안내로 화면(특히 출석체크)을 띄운다
+      var old = null; try { old = JSON.parse(localStorage.getItem(C_KEY) || 'null'); } catch (x) {}
+      if (!old || !old.ok) throw e;
+      C = old; fillFooter(); setTimeout(function () { C = null; }, 60000); return old;
     });
   }
 
@@ -82,13 +108,13 @@
   }
 
   function renderChrome(key, p) {
-    var g = p.g ? GROUPS[p.g] : { name: p.t, en: 'Information', tabs: [] };
-    $('#hero').innerHTML = '<section class="hero"><h1>' + esc(g.name) + '</h1><p>' + esc(g.en) + '</p></section>';
+    var g = p.g ? GROUPS[p.g] : { name: p.t, en: '', tabs: [] };
+    $('#hero').innerHTML = '<section class="hero sub"><div class="wrap"><div><h1>' + esc(g.name) + '</h1><p>' + esc(g.en) + '</p></div>' + (g.qk ? '<img src="assets/img/quoka-' + g.qk + '.webp" alt="">' : '') + '</div></section>';
     $('#subtabs').innerHTML = g.tabs.length ? '<div class="subtabs"><div class="wrap"><ul>' + g.tabs.map(function (t) {
       var on = t[0] === key;
       return '<li class="' + (on ? 'on' : '') + '"><a class="' + (on ? 'on' : '') + '" href="#/' + t[0] + '">' + (on ? '<small>' + esc(g.name) + '</small>' : '') + esc(t[1]) + '</a></li>';
     }).join('') + '</ul></div></div>' : '';
-    $('#ptitle').innerHTML = '<div class="ptitle"><div class="wrap"><h2>' + esc(p.t) + '</h2><div class="crumb"><a class="home" href="#/" aria-label="홈"><i class="xi-home"></i></a><span>' + esc(g.name) + '</span><span>' + esc(p.t) + '</span></div></div></div>';
+    $('#ptitle').innerHTML = !g.tabs.length ? '' : '<div class="ptitle"><div class="wrap"><h2>' + esc(p.t) + '</h2><div class="crumb"><a class="home" href="#/" aria-label="홈"><i class="xi-home"></i></a><span>' + esc(g.name) + '</span><span>' + esc(p.t) + '</span></div></div></div>';
     $$('#gnb a').forEach(function (a) {
       var on = a.dataset.page ? a.dataset.page === key : a.dataset.group === p.g;
       a.classList.toggle('on', on);
@@ -101,7 +127,7 @@
 
   // ───────── 홈 ─────────
   function renderHome() {
-    $('#hero').innerHTML = '<section class="hero home"><p style="margin:0 0 12px">CENTER FOR RESEARCHING TEACHERS</p><h1>연구하는 교사되기 2027</h1><p class="lead">필요한 건 여기서 바로. 신청 변경부터 이수정보, 납입 확인까지 한 곳에서 해결하세요.</p><div class="hero-qk" aria-hidden="true"><img src="assets/img/quoka-snu.webp" alt=""><img src="assets/img/quoka-researcher.webp" alt=""><img src="assets/img/quoka-teacher.webp" alt=""></div></section>';
+    $('#hero').innerHTML = '<section class="hero home"><p class="eyebrow">서울대학교 사범대학 교육연수원 직무연수</p><h1>연구하는 교사되기 2027</h1><p class="lead">교사를 위한 현장 교육 연구 실천의 방법과 실제</p><div class="hero-qk" aria-hidden="true"><img src="assets/img/quoka-snu.webp" alt=""><img src="assets/img/quoka-researcher.webp" alt=""><img src="assets/img/quoka-teacher.webp" alt=""></div></section>';
     $('#subtabs').innerHTML = '';
     $('#ptitle').innerHTML = '';
     $$('#gnb a').forEach(function (a) { a.classList.remove('on'); });
@@ -151,16 +177,37 @@
   function row(k, val) { return '<tr><th>' + esc(k) + '</th><td>' + esc(val) + '</td></tr>'; }
 
   var curTerm = null;
+  function hm(t) { var m = String(t || '').match(/(\d+):(\d+)/); return m ? +m[1] * 60 + +m[2] : 0; }
+  function md(d) { var m = String(d).match(/\d+-(\d+)-(\d+)/); return m ? +m[1] + '.' + +m[2] : d; }
   function renderSchedule(v) {
-    curTerm = curTerm || C.terms[0];
-    var list = C.schedule.filter(function (s) { return s.term === curTerm; });
-    v.innerHTML = '<div class="term-tabs">' + C.terms.map(function (t) { return '<button class="' + (t === curTerm ? 'on' : '') + '" data-t="' + esc(t) + '">' + esc(t) + '</button>'; }).join('') + '</div>' +
-      (list.length ? '<table class="board"><thead><tr><th>날짜</th><th>시간</th><th>내용</th><th class="hide-m">강사</th></tr></thead><tbody>' +
-        list.map(function (s) {
-          return '<tr><td class="c">' + esc(s.date) + ' (' + esc(s.dow) + ')</td><td class="c">' + esc(s.start) + '~' + esc(s.end) + '</td><td>' + esc(s.title) + '</td><td class="c hide-m">' + esc(s.who) + '</td></tr>';
-        }).join('') + '</tbody></table>' : '<div class="empty">' + esc(curTerm) + ' 시간표는 곧 안내할게요.</div>') +
-      '<p class="note" style="margin-top:16px">요일은 날짜에서 자동으로 계산돼요. 일정이 바뀌면 이 표가 가장 최신이에요.</p>';
-    $$('.term-tabs button', v).forEach(function (b) { b.onclick = function () { curTerm = b.dataset.t; renderSchedule(v); }; });
+    var today = new Date(), ts = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2);
+    if (!curTerm) {
+      // 오늘이 속한 기수, 없으면 다가오는 기수부터 보여준다
+      var next = C.schedule.filter(function (x) { return x.date >= ts; })[0];
+      curTerm = next ? next.term : C.terms[0];
+    }
+    var list = C.schedule.filter(function (x) { return x.term === curTerm; });
+    var days = [], byDate = {};
+    list.forEach(function (x) { if (!byDate[x.date]) { byDate[x.date] = { date: x.date, dow: x.dow, rows: [] }; days.push(byDate[x.date]); } byDate[x.date].rows.push(x); });
+    var n = 0, total = 0;
+    var cards = days.map(function (d, i) {
+      d.rows.sort(function (x, y) { return hm(x.start) - hm(y.start); });
+      var first = d.rows[0], last = d.rows[d.rows.length - 1];
+      return '<section class="tt-day' + (d.date === ts ? ' today' : '') + '"><header><b>' + (i + 1) + '일차</b><span>' + esc(md(d.date)) + ' (' + esc(d.dow) + ')</span><em>' + esc(first.start) + '~' + esc(last.end) + '</em>' + (d.date === ts ? '<i>오늘</i>' : '') + '</header><ol>' +
+        d.rows.map(function (x) {
+          var h = Math.max(1, Math.round((hm(x.end) - hm(x.start)) / 60)) || 1, from = n + 1; n += h; total += h;
+          var who = String(x.who || '').trim(), tbd = !who || /미정|섭외/.test(who);
+          return '<li><div class="tt-time"><b>' + esc(x.start) + '</b><span>~' + esc(x.end) + '</span></div><div class="tt-body"><small>' + (h > 1 ? from + '~' + n : n) + '차시</small><strong>' + esc(x.title) + '</strong>' +
+            (tbd ? '<span class="tt-who tbd">강사 섭외 중</span>' : '<span class="tt-who"><i class="xi-user-o"></i>' + esc(who) + '</span>') + '</div></li>';
+        }).join('') + '</ol></section>';
+    }).join('');
+    v.innerHTML = '<div class="tt-tabs">' + C.terms.map(function (t) {
+      var ds = C.schedule.filter(function (x) { return x.term === t; }).map(function (x) { return x.date; }).sort();
+      return '<button class="' + (t === curTerm ? 'on' : '') + '" data-t="' + esc(t) + '"><b>' + esc(t) + '</b><span>' + (ds.length ? esc(md(ds[0])) + ' ~ ' + esc(md(ds[ds.length - 1])) : '일정 안내 예정') + '</span></button>';
+    }).join('') + '</div>' +
+      (days.length ? '<p class="tt-sum">매일 <b>' + esc(days[0].rows[0].start) + '~' + esc(days[0].rows[days[0].rows.length - 1].end) + '</b> · 실시간 원격(Zoom) · 총 <b>' + total + '시간</b> · ' + esc(C.site.criteria) + '</p><div class="tt-grid n' + Math.min(days.length, 3) + '">' + cards + '</div>' : '<div class="empty">' + esc(curTerm) + ' 시간표는 곧 안내할게요.</div>') +
+      '<p class="note" style="margin-top:20px">강사와 강의 순서는 사정에 따라 바뀔 수 있어요. 바뀌면 이 화면에 가장 먼저 반영돼요.</p>';
+    $$('.tt-tabs button', v).forEach(function (b) { b.onclick = function () { curTerm = b.dataset.t; renderSchedule(v); }; });
   }
 
   function renderAccess(v) {
@@ -175,7 +222,7 @@
       ('<tr><th>연수자료</th><td><a class="btn line" style="height:40px;padding:0 18px" href="#/materials">연수자료 보기</a></td></tr>' + '') +
       '</table><h3 class="sec">출석이 인정되려면</h3><div class="box"><ul style="margin:0;padding-left:20px">' +
       '<li>연수 당일 <a href="#/attend" style="text-decoration:underline"><b>출석체크</b></a>에서 출석하고 강의실에 들어가, 끝날 때 <b>퇴실체크</b>까지 눌러 주세요. 둘 다 있어야 그날 출석이 인정돼요.</li>' +
-      '<li>Zoom 이름은 <b>기수_성명</b>(예: 1기_홍길동)으로 바꿔 주세요.</li>' +
+      '<li>Zoom 이름은 <b>기수_성명_휴대폰 뒷 4자리</b>(예: 1기_홍길동_1234)로 바꿔 주세요.</li>' +
       '<li>카메라를 켜고 참여해 주세요. 장시간 자리 비움은 출석으로 인정되지 않을 수 있어요.</li>' +
       '<li>' + esc(C.site.criteria) + '이어야 이수돼요.</li></ul></div></div>';
   }
@@ -323,7 +370,7 @@
       '<li>출석체크는 연수 시작 <b>' + a.before + '분 전</b>부터, 퇴실체크는 끝나기 <b>' + a.outBefore + '분 전</b>부터 할 수 있어요.</li>' +
       '<li>출석과 퇴실이 <b>둘 다</b> 있어야 그날 출석으로 인정돼요. Zoom이 끊겨서 다시 들어올 때도 출석체크를 다시 누르면 강의실 링크가 나와요.</li>' +
       '<li>' + esc(C.site.criteria) + '이어야 이수돼요. (인정 ' + a.need + '시간 이상)</li>' +
-      '<li>Zoom 이름은 <b>기수_성명</b>(예: 1기_홍길동)으로 바꿔 주세요.</li>' +
+      '<li>Zoom 이름은 <b>기수_성명_휴대폰 뒷 4자리</b>(예: 1기_홍길동_1234)로 바꿔 주세요.</li>' +
       '<li>깜빡했거나 오류가 났다면 <a href="#/qna" style="text-decoration:underline">Q&A 게시판</a>에 남겨 주세요. 운영팀이 확인해요.</li></ul></div></div>';
     var f = $('#atForm');
     autoPhone(f.phone);
@@ -579,12 +626,14 @@
     btn.disabled = true;
     var label = btn.innerHTML;
     btn.innerHTML = '보내는 중…';
-    api(action, data).then(function (res) {
+    api(action, data, function (n, max) { btn.innerHTML = '접속이 몰려 다시 보내는 중… (' + (n + 1) + '/' + max + ')'; }).then(function (res) {
       if (res.ok) ok(res);
       else if (fail) fail(res.error);
       else window.alert(res.error || '처리하지 못했어요.');
     }).catch(function () {
-      window.alert('연결이 불안정해요. 잠시 후 다시 시도해 주세요.');
+      var at = action === 'attend';
+      var msg = at ? '지금 접속이 몰려 기록하지 못했어요.\n30초쯤 뒤에 버튼을 한 번 더 눌러 주세요.\n계속 안 되면 이 화면을 캡처해 오픈채팅방이나 Q&A 게시판에 남겨 주세요. Zoom 접속 기록으로 출석을 확인해 드리니 걱정하지 않으셔도 돼요.' : '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
+      if (at && fail) fail(msg); else window.alert(msg);
     }).then(function () { btn.disabled = false; btn.innerHTML = label; });
   }
 
@@ -791,7 +840,7 @@
           { cat: '신청·변경', q: '수강을 취소하고 환불받고 싶어요.', a: '셀프 신청 > 수강취소로 접수해 주세요. 환불 기준은 교육연수원 규정을 따라요.' },
           { cat: '영수증·증빙', q: '현금영수증 번호를 잘못 넣었어요.', a: '셀프 신청 > 현금영수증 수정으로 올바른 번호를 접수해 주세요.' },
           { cat: '영수증·증빙', q: '연수비 납입증명서가 필요해요.', a: '내 현황 조회에서 입금이 확인된 분은 납입확인서를 바로 인쇄하거나 PDF로 저장할 수 있어요.' },
-          { cat: '이수', q: '이수 기준이 어떻게 되나요?', a: '총 15시간 중 12시간(80%) 이상 출석하면 이수돼요. Zoom 이름을 기수_성명으로 바꿔 주세요.' },
+          { cat: '이수', q: '이수 기준이 어떻게 되나요?', a: '총 15시간 중 12시간(80%) 이상 출석하면 이수돼요. Zoom 이름은 기수_성명_휴대폰 뒷 4자리(예: 1기_홍길동_1234)로 바꿔 주세요.' },
           { cat: '이수', q: '이수정보를 잘못 입력했어요.', a: '같은 이름과 휴대폰 번호로 이수정보를 다시 제출하면 최신 내용으로 바뀌어요. 메일을 따로 보내지 않으셔도 돼요.' },
           { cat: '이수', q: '이수증은 언제 나오나요?', a: '연수가 끝나고 교육연수원에서 이수 처리를 마치면 발급돼요. 나이스 등재도 연수원에서 진행해요.' }
         ],
