@@ -296,8 +296,13 @@ function lookupStatus_(d) {
     }),
     attendance: a ? (attendanceOf_(name, phone) || null) : null
   };
-  if (a && a['입금일'] && yes_(s['납입확인서_사용']) && a['상태'] !== '취소') {
-    out.certificate = { name: name, term: a['기수'], amount: Number(a['입금액'] || s['연수비'] || 0), paidAt: fmtDate_(a['입금일']), course: s['연수명'], org: s['연수기관'], operator: s['운영'], issuedAt: fmtDate_(new Date()) };
+  if (a && a['입금일'] && (yes_(s['납입확인서_사용']) || isTest_(a)) && a['상태'] !== '취소') {
+    var idx = 0; rows_('신청자').some(function (r, i) { if (clean_(r['성명']).replace(/\s/g, '') === name && normPhone_(r['연락처']) === phone) { idx = i + 1; return true; } });
+    var per = String(s['연수기간_' + clean_(a['기수'])] || ''), hours = 0;
+    termDays_(clean_(a['기수'])).forEach(function (d) { hours += d.hours; });
+    out.certificate = { no: String(per.slice(0, 4) || new Date().getFullYear()) + '-' + ('000' + idx).slice(-4), name: name, birth: normBirth_(a['생년월일']), school: clean_(a['소속학교']),
+      term: a['기수'], period: per, hours: hours, amount: Number(a['입금액'] || s['연수비'] || 0), paidAt: fmtDate_(a['입금일']), course: s['연수명'], org: s['연수기관'], operator: s['운영'], issuedAt: fmtDate_(new Date()),
+      issuer: { name: s['발급처_상호'] || '', biz: s['발급처_사업자번호'] || '', ceo: s['발급처_대표'] || '', addr: s['발급처_주소'] || '', tel: s['발급처_연락처'] || '' } };
   }
   return out;
 }
@@ -442,7 +447,7 @@ function importRows_(src, term) {
 function mergedRoster_() {
   var fix = {};
   rows_('이수정보').forEach(function (r) { fix[clean_(r['성명']) + '|' + normPhone_(r['휴대폰'])] = r; });
-  return rows_('신청자').filter(function (r) { return r['상태'] !== '취소'; }).map(function (r) {
+  return apps_().filter(function (r) { return r['상태'] !== '취소'; }).map(function (r) {
     var name = clean_(r['성명']).replace(/\s/g, '');
     var phone = normPhone_(r['연락처']);
     var f = fix[name + '|' + phone];
@@ -555,7 +560,7 @@ function menuRecalcDow() {
 
 // 위촉공문 자료: 강사별로 날짜(요일)·시간·주제를 한 줄로 정리
 function menuInstructorDoc() {
-  var list = rows_('강사일정').filter(function (r) { return r['강사명'] && r['날짜']; });
+  var list = rows_('강사일정').filter(function (r) { return r['강사명'] && r['날짜'] && !/보조/.test(clean_(r['역할'])); });
   var by = {};
   list.forEach(function (r) {
     var k = r['강사명'];
@@ -608,6 +613,9 @@ function freshSheet_(name) {
   ss.setActiveSheet(sh);
   return sh;
 }
+// 테스트 계정: 신청자 '메모'에 '테스트계정'이 있는 줄. 연수생 화면에서는 진짜처럼 쓰이고, 통계·정산·문자·메일·영수증 대상에서는 빠진다
+function isTest_(r) { return /테스트계정/.test(clean_(r['메모'])); }
+function apps_() { return rows_('신청자').filter(function (r) { return !isTest_(r); }); }
 function findApplicant_(name, phone) {
   name = clean_(name).replace(/\s/g, '');
   return rows_('신청자').filter(function (r) { return clean_(r['성명']).replace(/\s/g, '') === name && normPhone_(r['연락처']) === phone; })[0] || null;
@@ -716,6 +724,8 @@ function adminApi(action, p) {
       case 'receiptLog': return receiptLog_(p.items || [], p.kind);
       case 'cashMark': return cashMark_(p.items || [], p.done !== false);
       case 'payApply': return payApply_(p.items || []);
+      case 'assignGet': return assignGet_();
+      case 'assignSave': return assignSave_(p);
       case 'report': return report_();
       case 'attendAdjustBulk': return attendAdjustBulk_(p);
       case 'loadtestClear': return loadtest_(true);
@@ -728,7 +738,7 @@ function adminApi(action, p) {
 function adminBoot_() {
   var s = settings_();
   var terms = String(s['기수목록'] || '1기,2기').split(',').map(function (t) { return t.trim(); }).filter(String);
-  var apps = rows_('신청자');
+  var apps = apps_();
   var byTerm = {};
   terms.forEach(function (t) { byTerm[t] = { 신청: 0, 대기: 0, 취소: 0 }; });
   apps.forEach(function (r) { var t = byTerm[r['기수']] || (byTerm[r['기수']] = { 신청: 0, 대기: 0, 취소: 0 }); var st = r['상태'] || '신청'; t[st] = (t[st] || 0) + 1; });
@@ -855,7 +865,7 @@ function peopleList_() {
   rows_('게시판').filter(function (r) { return r['게시판'] === '환불요청'; }).forEach(function (r) {
     refund[clean_(r['성명']).replace(/\s/g, '') + '|' + normPhone_(r['휴대폰'])] = r['처리상태'] || '접수';
   });
-  return rows_('신청자').map(function (r) {
+  return apps_().map(function (r) {
     var name = clean_(r['성명']).replace(/\s/g, ''), phone = normPhone_(r['연락처']);
     var key = name + '|' + phone, at = att[key] || {};
     return { name: name, phone: phone, term: r['기수'], state: r['상태'] || '신청', paid: !!clean_(r['입금일']), issue: bad[key] || '', done: clean_(r['이수(Y/N)']).toUpperCase() !== 'N',
@@ -868,7 +878,7 @@ function instructorDoc_() {
   var info = {};
   adminTable_('강사정보').rows.forEach(function (r) { info[clean_(r['성명'])] = r; });
   var by = {};
-  rows_('강사일정').filter(function (r) { return r['강사명'] && r['날짜']; }).forEach(function (r) {
+  rows_('강사일정').filter(function (r) { return r['강사명'] && r['날짜'] && !/보조/.test(clean_(r['역할'])); }).forEach(function (r) {
     var k = clean_(r['강사명']);
     var d = toDate_(r['날짜']);
     (by[k] = by[k] || { items: [], hours: 0, 소속: r['소속'], 역할: r['역할'] });
@@ -914,7 +924,7 @@ function personKey_(name, phone) { return clean_(name).replace(/\s/g, '') + '|' 
 // 이름이 같은데 휴대폰이 다른 사람 = 동명이인. 이름만으로는 절대 매칭하지 않는다.
 function dupNames_() {
   var by = {};
-  rows_('신청자').filter(function (r) { return r['상태'] !== '취소'; }).forEach(function (r) {
+  apps_().filter(function (r) { return r['상태'] !== '취소'; }).forEach(function (r) {
     var n = clean_(r['성명']).replace(/\s/g, ''), ph = normPhone_(r['연락처']);
     if (!n) return;
     by[n] = by[n] || {};
@@ -958,7 +968,7 @@ function attendCtx_(fresh) {
   var people = {};
   rows_('신청자').forEach(function (r) {
     if (r['상태'] === '취소') return;
-    people[personKey_(r['성명'], r['연락처'])] = clean_(r['기수']) + ((r['상태'] || '신청') === '대기' ? '|w' : '');
+    people[personKey_(r['성명'], r['연락처'])] = clean_(r['기수']) + ((r['상태'] || '신청') === '대기' ? '|w' : '') + (isTest_(r) ? '|t' : '');
   });
   var days = {}, zoom = {};
   termList_().forEach(function (t) { days[t] = termDays_(t); zoom[t] = s['줌링크_' + t] || ''; });
@@ -1019,10 +1029,11 @@ function attend_(d) {
   if (!me) return { ok: false, error: '신청자 명단에서 찾지 못했어요. 연수 신청할 때 쓴 휴대폰 번호인지 확인해 주세요.\n(같은 이름이 여러 분 계셔서 휴대폰 번호로 본인을 확인해요.)' };
   var term = me.split('|')[0];
   if (me.indexOf('|w') > 0) return { ok: false, error: '아직 대기 상태예요. 확정 문자를 받은 뒤에 출석할 수 있어요.' };
+  if (me.indexOf('|t') > 0) return testAttend_(name, phone, term, kind, ctx);
   var now = nowKst_();
   var days = ctx.days[term] || [];
   var day = days.filter(function (x) { return x.date === now.date; })[0];
-  if (!day && ctx.test && days.length) day = { date: now.date, start: days[0].start, end: days[0].end, hours: days[0].hours, test: true };
+  if (!day && (ctx.test || me.indexOf('|t') > 0) && days.length) day = { date: now.date, start: days[0].start, end: days[0].end, hours: days[0].hours, test: true };
   if (!day) {
     var next = days.filter(function (x) { return x.date > now.date; })[0];
     return { ok: false, error: '오늘은 ' + term + ' 연수일이 아니에요.' + (next ? '\n다음 연수일: ' + next.date + '(' + next.dow + ') ' + next.startHm : '') };
@@ -1049,7 +1060,32 @@ function attend_(d) {
 }
 
 // 출결 집계: 사람 × 날짜. 이름+휴대폰으로만 묶는다(동명이인 안전).
-function attendanceReport_(term) {
+// 테스트 계정의 출석: 연수일이 아니어도 1일차부터 차례로 체험한다. 시각은 그날 일정에 맞춰 적는다(입실 = 시작 5분 전, 퇴실 = 종료 시각)
+function testAttend_(name, phone, term, kind, ctx) {
+  var days = ctx.days[term] || [];
+  if (!days.length) return { ok: false, error: term + ' 연수 일정이 아직 등록되지 않았어요.' };
+  flushAttend_(true);
+  var sh = sheet_('출석'), v = sh.getDataRange().getValues(), mine = {}, at = [];
+  for (var i = 1; i < v.length; i++) {
+    if (personKey_(v[i][4], v[i][5]) !== name + '|' + phone || clean_(v[i][7]) !== '테스트계정') continue;
+    at.push(i + 1); var d = fmtDate_(v[i][2]); (mine[d] = mine[d] || {})[clean_(v[i][3])] = 1;
+  }
+  var day;
+  if (kind === 'in') {
+    day = days.filter(function (x) { return !(mine[x.date] && mine[x.date]['퇴실']); })[0];
+    if (!day) { at.reverse().forEach(function (r) { sh.deleteRow(r); }); mine = {}; day = days[0]; }   // 세 날을 다 체험했으면 처음부터 다시
+  } else {
+    day = days.filter(function (x) { return mine[x.date] && mine[x.date]['입실'] && !mine[x.date]['퇴실']; })[0];
+    if (!day) return { ok: false, error: '먼저 출석체크를 눌러 주세요.\n(테스트 계정은 1일차부터 차례로 체험해요.)' };
+  }
+  var hm = hmStr_(kind === 'in' ? day.start - 5 : day.end);
+  if (!(kind === 'in' && mine[day.date] && mine[day.date]['입실'])) sh.appendRow([new Date(nowKst_().date + 'T' + hm + ':00+09:00'), term, "'" + day.date, kind === 'in' ? '입실' : '퇴실', name, "'" + phone, '', '테스트계정']);
+  var out = { ok: true, kind: kind, time: hm, term: term, date: day.date, start: hmStr_(day.start), end: hmStr_(day.end), test: true, again: false };
+  if (kind === 'in') { out.zoom = ctx.zoom[term] || ''; out.late = 0; }
+  return out;
+}
+
+function attendanceReport_(term, only) {
   var s = settings_();
   var need = Number(s['이수인정시간'] || 12), grace = Number(s['지각허용(분)'] || 10), outGrace = Math.max(grace, Number(s['퇴실가능(분)'] || 20));
   var days = termDays_(term);
@@ -1069,13 +1105,14 @@ function attendanceReport_(term) {
   days.forEach(function (d) { counts[d.date] = { in: 0, out: 0, noIn: 0, noOut: 0 }; });
   var flog = {};
   rows_('판정기록').forEach(function (r) { if (clean_(r['기수']) === term) flog[personKey_(r['성명'], r['휴대폰'])] = { memo: clean_(r['사유']), at: cellOut_(r['기록시각']) }; });
-  var people = rows_('신청자').filter(function (r) { return clean_(r['기수']) === term && (r['상태'] || '신청') === '신청'; }).map(function (r) {
-    var name = clean_(r['성명']).replace(/\s/g, ''), phone = normPhone_(r['연락처']);
+  var people = (only ? [only] : apps_()).filter(function (r) { return clean_(r['기수']) === term && (r['상태'] || '신청') === '신청'; }).map(function (r) {
+    var name = clean_(r['성명']).replace(/\s/g, ''), phone = normPhone_(r['연락처']), tst = !!only && isTest_(r);
     var total = 0, pending = 0, checks = 0, out = {};
     days.forEach(function (d) {
       var x = rec[name + '|' + phone + '|' + d.date] || {};
       var finished = d.date < now.date || (d.date === now.date && now.min > d.end + 120);
       var started = d.date < now.date || (d.date === now.date && now.min >= d.start - 30);
+      if (tst && (x.in != null || x.out != null)) { started = true; finished = x.out != null; }   // 테스트 계정은 누른 날을 진행된 날로 본다
       var o = { in: x.in != null ? hmStr_(x.in) : '', out: x.out != null ? hmStr_(x.out) : '', hours: 0, status: '', memo: x.memo || '' };
       if (x.in != null) counts[d.date].in++; else if (started) counts[d.date].noIn++;
       if (x.out != null) counts[d.date].out++; else if (x.in != null && finished) counts[d.date].noOut++;
@@ -1105,7 +1142,7 @@ function attendanceReport_(term) {
 function attendanceOf_(name, phone) {
   var a = findApplicant_(name, phone);
   if (!a) return null;
-  var rep = attendanceReport_(clean_(a['기수']));
+  var rep = attendanceReport_(clean_(a['기수']), isTest_(a) ? a : null);
   var me = rep.people.filter(function (x) { return x.name === name && x.phone === phone; })[0];
   if (!me) return null;
   return { term: rep.term, need: rep.need, total: me.total, judge: me.judge, days: rep.days.map(function (d) { var x = me.days[d.date]; return { date: d.date, dow: d.dow, hours: d.hours, in: x.in, out: x.out, got: x.hours, status: x.status }; }) };
@@ -1388,7 +1425,7 @@ function materialsPending_() {
 function mailCtx_() {
   var s = settings_(), terms = termList_(), by = {};
   terms.forEach(function (t) { by[t] = { 신청: 0, 대기: 0, 취소: 0, Y: 0, N: 0 }; });
-  rows_('신청자').forEach(function (r) {
+  apps_().forEach(function (r) {
     var t = by[clean_(r['기수'])]; if (!t) return;
     var st = clean_(r['상태']) || '신청'; t[st] = (t[st] || 0) + 1;
     var j = clean_(r['이수(Y/N)']).toUpperCase();
@@ -1424,17 +1461,17 @@ var FAQ_2027 = [
   ["입금", "연수비는 얼마이고 어디로 입금하나요?", "연수비는 100,000원이에요. 확정 문자를 받은 뒤 12월 18일까지 {입금계좌}으로 입금해 주세요. 입금자명은 \"이름+휴대폰 뒷 4자리\"(예: 홍길동1234)로 적어 주세요. 계좌는 확정 문자와 내 현황 조회에서도 다시 볼 수 있어요.", "연수비 얼마 금액 계좌 입금처 어디 납부 수강료", "Y"],
   ["입금", "입금했는데 입금 안내 문자가 또 왔어요.", "내 현황 조회에서 \"입금 확인\"으로 보이면 정상 처리된 거예요. 입금 확인은 반영까지 하루 이틀 걸릴 수 있어요. 이틀이 지나도 \"미입금\"이면 Q&A 게시판에 입금일과 입금자명을 남겨 주세요.", "입금 확인 문자 또 누락 납부 했는데 미입금", "Y"],
   ["입금", "입금자 이름을 다르게 보냈어요.", "Q&A 게시판에 비공개 글로 입금일, 입금자명, 금액을 남겨 주세요. 확인되면 내 현황 조회에 \"입금 확인\"으로 바뀌어요. 입금할 때는 신청자 본인 이름 뒤에 휴대폰 뒷 4자리를 붙여 주세요(예: 홍길동1234).", "입금자명 다른 이름 가족 학교 이름 배우자 명의", "Y"],
-  ["입금", "학교 카드나 학교 회계로 결제할 수 있나요?", "개인 계좌이체만 받아요. 카드 결제와 학교 회계에서 직접 보내는 이체는 받지 않아요. 학교에서 연수비를 지원받는 경우에는 먼저 본인이 입금한 뒤 납입확인서를 학교에 내는 방식으로 진행해 주세요.", "카드 학교 회계 법인카드 결제 지원 품의", "Y"],
+  ["입금", "학교 카드나 학교 회계로 결제할 수 있나요?", "개인 계좌이체만 받아요. 카드 결제와 학교 회계에서 직접 보내는 이체는 받지 않아요. 학교에서 연수비를 지원받는 경우에는 먼저 본인이 입금한 뒤 납입증명서를 학교에 내는 방식으로 진행해 주세요.", "카드 학교 회계 법인카드 결제 지원 품의", "Y"],
   ["입금", "기한 안에 입금을 못 했어요.", "입금 마감일은 12월 18일이에요. 마감일까지 입금하지 않으면 신청이 자동으로 취소되고, 자리는 연수원 홈페이지 대기자에게 넘어가요. 마감 뒤에 들어온 입금은 확인 후 돌려 드려요.", "입금 마감 기한 늦게 못 했 지났", "Y"],
   ["입금", "실수로 두 번 입금했어요.", "Q&A·환불 > 환불 요청에 \"중복 입금\"이라고 적어 남겨 주세요. 한 번 분은 돌려 드려요.", "두 번 중복 입금 이중", "Y"],
   ["서류", "납입증명서, 현금영수증, 이수증은 각각 어디서 받나요?", "세 가지는 받는 곳이 달라요. 납입증명서는 이 사이트 내 현황 조회에서 바로 출력해요. 현금영수증은 국세청 홈택스에서 조회해요. 이수증은 연수가 끝난 뒤 서울대 사범대 교육연수원 홈페이지에서 출력해요.", "영수증 이수증 납입증명서 서류 발급 어디 증빙", "Y"],
-  ["서류", "연수비 납입증명서가 필요해요.", "내 현황 조회에서 이름과 휴대폰 뒷 4자리로 확인한 뒤 [납입확인서]를 눌러 바로 인쇄하거나 PDF로 저장해 주세요. 입금이 확인된 분은 언제든 뽑을 수 있어서 따로 요청하지 않으셔도 돼요.", "납입증명서 납입확인서 영수증 증빙 출력 학교 제출 서류 메일", "Y"],
-  ["서류", "학교 연수비 지원 서류 마감이 급해요.", "입금이 확인되면 그날 바로 내 현황 조회에서 납입확인서를 뽑을 수 있어요. 아직 \"미입금\"으로 보이면 Q&A 게시판에 입금일을 남겨 주세요.", "급해요 마감 지원 서류 빨리 오늘", "Y"],
+  ["서류", "연수비 납입증명서가 필요해요.", "내 현황 조회에서 이름과 휴대폰 뒷 4자리로 확인한 뒤 [증명서 보기·인쇄]를 눌러 바로 인쇄하거나 PDF로 저장해 주세요. 입금이 확인된 분은 언제든 뽑을 수 있어서 따로 요청하지 않으셔도 돼요.", "납입증명서 납입증명서 영수증 증빙 출력 학교 제출 서류 메일", "Y"],
+  ["서류", "학교 연수비 지원 서류 마감이 급해요.", "입금이 확인되면 그날 바로 내 현황 조회에서 납입증명서를 뽑을 수 있어요. 아직 \"미입금\"으로 보이면 Q&A 게시판에 입금일을 남겨 주세요.", "급해요 마감 지원 서류 빨리 오늘", "Y"],
   ["서류", "현금영수증은 어떻게 받나요?", "따로 신청하지 않으셔도 돼요. 신청할 때 쓴 휴대폰 번호로 기수가 끝난 다음 주에 일괄 발급돼요. 발급 뒤 홈택스에서 [조회/발급] > [현금영수증 조회] > [사용내역(소득공제) 조회]로 확인할 수 있어요.", "현금영수증 소득공제 홈택스 국세청 언제 발급", "Y"],
   ["서류", "현금영수증을 다른 번호로 받고 싶어요.", "셀프 신청 > 현금영수증 수정에서 받을 휴대폰 번호를 접수해 주세요. 연수 마지막 날까지 접수한 번호로 발급돼요. 사업자번호로 받는 지출증빙용은 발급하지 않아요.", "현금영수증 번호 수정 변경 다른 번호 사업자 지출증빙", "Y"],
   ["서류", "이수증은 어디서, 언제 받나요?", "연수가 끝난 뒤 서울대 사범대 교육연수원 홈페이지(cite.snu.ac.kr)에 로그인해서 [증명서 발급]에서 직접 출력해 주세요. 이수정보 입력과 연수원 홈페이지 설문을 마쳐야 출력 버튼이 열려요. 이수증은 운영팀이 메일로 보내 드리지 않아요.", "이수증 수료증 발급 언제 출력 어디 메일로", "Y"],
   ["서류", "이수증 출력을 누르면 설문을 완료하라고 나와요.", "연수원 홈페이지 안에 있는 설문(만족도 조사)을 먼저 끝내 주세요. 이 사이트의 이수정보 입력과는 다른 설문이에요. 설문을 마쳤는데도 안 되면 Q&A 게시판에 남겨 주세요.", "이수증 안 나와 출력 안 돼 설문 완료 오류", "Y"],
-  ["서류", "연수가 시작되기 전에 이수증을 받을 수 있나요?", "이수증은 연수를 마친 뒤에만 나와요. 연수 전에 증빙이 필요하면 내 현황 조회의 납입확인서를 써 주세요.", "이수증 미리 사전 시작 전 1월까지", "Y"],
+  ["서류", "연수가 시작되기 전에 이수증을 받을 수 있나요?", "이수증은 연수를 마친 뒤에만 나와요. 연수 전에 증빙이 필요하면 내 현황 조회의 납입증명서를 써 주세요.", "이수증 미리 사전 시작 전 1월까지", "Y"],
   ["출석·Zoom", "출석은 어떻게 하나요?", "연수 당일 이 사이트의 출석체크에서 ① 출석체크를 누르고 ② 나오는 링크로 Zoom에 들어간 뒤 ③ 끝날 때 퇴실체크를 눌러 주세요. 출석체크와 퇴실체크가 둘 다 있어야 그날 시간이 인정돼요.", "출석 체크 입실 방법 출석체크 어떻게 순서", "Y"],
   ["출석·Zoom", "Zoom 주소는 어디서 받나요?", "출석체크를 누르면 그날 Zoom 링크가 바로 나와요. 기수별 오픈채팅방(1월방·2월방)에도 연수 시작 30분 전에 올려 드려요.", "줌 zoom 주소 링크 회의 ID 비밀번호 어디", "Y"],
   ["출석·Zoom", "퇴실체크를 깜빡했어요.", "Q&A 게시판에 날짜와 함께 남겨 주세요. Zoom 접속 기록으로 확인해서 반영해요. 기록이 확인되면 불이익은 없어요.", "퇴실 퇴장 깜빡 못 눌 빠뜨 놓쳤 잊", "Y"],
@@ -1458,13 +1495,13 @@ var FAQ_2027 = [
   ["취소·환불", "환불 금액은 얼마인가요? 연수가 시작된 뒤에도 되나요?", "연수 시작 전날까지 요청하면 전액(100,000원) 환불돼요. 1기는 1월 10일, 2기는 1월 31일까지예요. 연수가 시작된 뒤에는 환불되지 않아요. 부득이한 사유가 있을 때만 사유를 확인해서 예외로 검토해요.", "환불 금액 얼마 전액 일부 규정 수수료 시작 후", "Y"],
   ["취소·환불", "환불받을 계좌는 어떻게 알려 드리나요?", "환불 요청 글에 은행, 계좌번호, 예금주를 적어 주세요. 환불 요청 글은 본인과 운영자만 볼 수 있어요. 메일이나 Q&A 공개 글, 오픈채팅방에는 계좌번호를 적지 말아 주세요.", "환불 계좌 계좌번호 은행 예금주 어디로", "Y"],
   ["취소·환불", "환불 요청이 어떻게 되고 있는지 알고 싶어요.", "내 현황 조회에서 이름과 휴대폰 뒷 4자리로 확인하면 환불 단계가 보여요. 환불이 끝나면 이메일로도 알려 드려요.", "환불 진행 상황 단계 아직 확인 처리 됐나", "Y"],
-  ["취소·환불", "취소하면 납입증명서와 현금영수증은 어떻게 되나요?", "환불이 끝나면 납입확인서는 더 이상 출력되지 않고, 현금영수증도 발급되지 않아요.", "취소 후 영수증 납입증명서 현금영수증", "Y"],
+  ["취소·환불", "취소하면 납입증명서와 현금영수증은 어떻게 되나요?", "환불이 끝나면 납입증명서는 더 이상 출력되지 않고, 현금영수증도 발급되지 않아요.", "취소 후 영수증 납입증명서 현금영수증", "Y"],
   ["자료·소통", "강의 자료는 어디서 보나요?", "이 사이트의 연수자료에서 이름과 휴대폰 뒷 4자리로 확인하면 차시별 자료를 볼 수 있어요. 강사님이 공개를 허락한 자료만 올라와요.", "자료 강의안 ppt 슬라이드 다운로드 패들렛 pdf 교안", "Y"],
   ["자료·소통", "강의 녹화본을 볼 수 있나요?", "녹화본은 제공하지 않아요. 실시간 연수라 다시 보기가 없어요. 놓친 부분은 연수자료의 강의 자료를 참고해 주세요.", "녹화 다시보기 영상 재수강 놓친 복습 유튜브", "Y"],
   ["자료·소통", "오픈채팅방은 어떻게 들어가나요?", "확정 문자와 연수 안내 > 접속 안내에 있는 링크로 들어와 주세요. 1기는 1월방, 2기는 2월방이에요. 입장 코드도 같은 곳에 적혀 있어요.", "오픈채팅 카톡 단톡 카카오 채팅방 입장코드 코드", "Y"],
   ["자료·소통", "문의는 어디로 하면 되나요?", "이 사이트의 Q&A 게시판에 남겨 주세요. 개인정보가 들어가는 내용은 비공개 글로 쓰면 돼요. 답변은 내 현황 조회에서도 볼 수 있어요. 문자나 오픈채팅방 개인 메시지보다 게시판이 가장 빨라요.", "문의 연락처 전화 메일 어디 질문 담당자", "Y"],
   ["자료·소통", "강의 내용에 대한 질문은 어디에 하나요?", "3일차 마지막 시간인 종합 질의응답에서 강사님들께 직접 물어보실 수 있어요. 미리 남기고 싶으면 Q&A 게시판에 \"연수 내용\" 질문으로 올려 주세요.", "강의 내용 질문 연구대회 강사 질의응답", "Y"],
-  ["자료·소통", "소속 학교에 낼 공문이 필요해요.", "소속 학교에 보내는 수강 협조 공문은 발급하지 않아요. 개인이 신청해서 듣는 연수라 협조 공문 없이 수강할 수 있어요. 학교에 증빙이 필요하면 내 현황 조회의 납입확인서와 연수 뒤 이수증을 내 주세요.", "공문 소속 학교 출장 복무 협조 연수 승인", "Y"],
+  ["자료·소통", "소속 학교에 낼 공문이 필요해요.", "소속 학교에 보내는 수강 협조 공문은 발급하지 않아요. 개인이 신청해서 듣는 연수라 협조 공문 없이 수강할 수 있어요. 학교에 증빙이 필요하면 내 현황 조회의 납입증명서와 연수 뒤 이수증을 내 주세요.", "공문 소속 학교 출장 복무 협조 연수 승인", "Y"],
   ["사이트 이용", "이 사이트에 회원가입을 해야 하나요?", "회원가입은 없어요. 출석체크, 내 현황 조회, 연수자료 모두 이름과 휴대폰 뒷 4자리만 넣으면 돼요. 연수를 신청할 때 쓴 번호로 넣어 주세요.", "로그인 회원가입 비밀번호 코드 접속 방법", "Y"],
   ["사이트 이용", "같은 이름인 사람이 있으면 어떻게 구분하나요?", "이름과 휴대폰 뒷 4자리로 구분하니 걱정하지 않으셔도 돼요. 글을 쓰거나 입금할 때도 이름 뒤에 휴대폰 뒷 4자리를 붙여 주세요.", "동명이인 같은 이름 구분", "Y"],
   ["사이트 이용", "휴대폰 번호가 바뀌었어요.", "Q&A 게시판에 비공개 글로 예전 번호 뒷 4자리와 새 번호를 남겨 주세요. 바꿔 드린 뒤에는 새 번호로 이용하면 돼요.", "휴대폰 번호 바뀜 변경 전화번호", "Y"],
@@ -1614,20 +1651,21 @@ function receiptList_() {
   rows_('현금영수증').forEach(function (r) { cash[clean_(r['기수']) + '|' + personKey_(r['성명'], r['휴대폰'])] = r; });
   var rc = {};
   rows_('영수증기록').forEach(function (r) { rc[clean_(r['기수']) + '|' + personKey_(r['성명'], r['휴대폰'])] = clean_(r['발급번호']); });
-  var people = rows_('신청자').filter(function (r) { return r['상태'] !== '취소' && clean_(r['성명']); }).map(function (r) {
+  var people = apps_().filter(function (r) { return r['상태'] !== '취소' && clean_(r['성명']); }).map(function (r) {
     var name = clean_(r['성명']).replace(/\s/g, ''), phone = normPhone_(r['연락처']), k = clean_(r['기수']) + '|' + name + '|' + phone, c = cash[k] || {};
-    return { term: clean_(r['기수']), name: name, phone: phone, school: clean_(r['소속학교']), state: r['상태'] || '신청',
+    return { term: clean_(r['기수']), name: name, phone: phone, school: clean_(r['소속학교']), birth: normBirth_(r['생년월일']), state: r['상태'] || '신청',
       paid: !!clean_(r['입금일']), paidAt: fmtDate_(r['입금일']), amount: Number(r['입금액'] || 0) || fee,
       cashNo: clean_(c['발급수단번호']) || cashNo[name + '|' + phone] || phone, cashDone: yes_(c['발급(Y)']), cashAt: fmtDate_(c['발급일']), rcptNo: rc[k] || '' };
   });
   return { people: people, fee: fee, issuer: { name: s['발급처_상호'] || '', biz: s['발급처_사업자번호'] || '', ceo: s['발급처_대표'] || '', addr: s['발급처_주소'] || '', tel: s['발급처_연락처'] || '' },
-    course: s['연수명'], org: s['연수기관'], periods: termList_().reduce(function (o, t) { o[t] = s['연수기간_' + t] || ''; return o; }, {}) };
+    course: s['연수명'], org: s['연수기관'], periods: termList_().reduce(function (o, t) { o[t] = s['연수기간_' + t] || ''; return o; }, {}),
+    hours: termList_().reduce(function (o, t) { var h = 0; termDays_(t).forEach(function (d) { h += d.hours; }); o[t] = h; return o; }, {}) };
 }
 function receiptLog_(items, kind) {
   var sh = sheet_('영수증기록'), n = Math.max(sh.getLastRow() - 1, 0), yy = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yy'), out = [], rows = [];
   items.forEach(function (x) {
-    var no = 'R' + yy + '-' + ('000' + (++n)).slice(-4);
-    rows.push([no, new Date(), x.term, x.name, "'" + normPhone_(x.phone), Number(x.amount || 0), kind || '납입영수증']); out.push(no);
+    var no = '20' + yy + '-' + ('000' + (++n)).slice(-4);
+    rows.push([no, new Date(), x.term, x.name, "'" + normPhone_(x.phone), Number(x.amount || 0), kind || '납입증명서']); out.push(no);
   });
   if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, 7).setValues(rows);
   return { ok: true, numbers: out };
@@ -1676,7 +1714,7 @@ function report_() {
   terms.forEach(function (t) { out.by[t] = { 신청: 0, 대기: 0, 취소: 0, 입금: 0, 미입금: 0, 입금액: 0, 이수: 0, 미이수: 0, 미확정: 0, 이수정보: 0, days: [] }; });
   var info = {};
   rows_('이수정보').forEach(function (r) { info[personKey_(r['성명'], r['휴대폰'])] = 1; });
-  rows_('신청자').forEach(function (r) {
+  apps_().forEach(function (r) {
     var t = out.by[clean_(r['기수'])]; if (!t) return;
     var st = r['상태'] || '신청'; t[st] = (t[st] || 0) + 1;
     if (st === '취소') return;
@@ -1701,4 +1739,71 @@ function loadtest_(clear) {
 
 function docTpls_() {
   return rows_('문서양식').map(function (r) { var d = {}; try { d = JSON.parse(r['내용'] || '{}'); } catch (e) {} return { kind: r['종류'], t: r['이름'], d: r['설명'], data: d }; });
+}
+
+// ───────────────────────── 강사 배정 (주강사·보조강사) ─────────────────────────
+// 연수일정 한 줄이 한 차시 묶음. 주강사는 연수일정 '강사'(연수생 시간표)와 강사일정에 같이 적고, 보조강사는 강사일정에만 적는다(연수생 화면에 안 보임)
+function assignGet_() {
+  var ts = rows_('강사일정').filter(function (r) { return r['날짜'] && clean_(r['강사명']); });
+  var slots = rows_('연수일정').filter(function (r) { return r['날짜']; }).map(function (r) {
+    var d = toDate_(r['날짜']), date = fmtDate_(d), st = fmtTime_(r['시작']), term = clean_(r['기수']);
+    var mine = ts.filter(function (x) { return clean_(x['기수']) === term && fmtDate_(x['날짜']) === date && fmtTime_(x['시작']) === st; });
+    var main = mine.filter(function (x) { return !/보조/.test(clean_(x['역할'])); })[0];
+    return { term: term, date: date, dow: d ? DOW[d.getDay()] : '', start: st, end: fmtTime_(r['종료']), hours: Number(r['시간(h)'] || 0), title: clean_(r['내용']), who: clean_(r['강사']),
+      mode: main ? clean_(main['비고']) : '', assts: mine.filter(function (x) { return /보조/.test(clean_(x['역할'])); }).map(function (x) { return clean_(x['강사명']); }).join(', ') };
+  });
+  var names = {};
+  try { adminTable_('강사정보').rows.forEach(function (r) { if (clean_(r['성명'])) names[clean_(r['성명'])] = 1; }); } catch (e) {}
+  ts.forEach(function (r) { names[clean_(r['강사명'])] = 1; });
+  return { terms: termList_(), slots: slots, names: Object.keys(names).filter(function (n) { return n !== '미정'; }).sort() };
+}
+function assignSave_(p) {
+  var term = clean_(p.term), items = p.items || [];
+  if (!term) throw new Error('기수가 없어요.');
+  var by = {}; items.forEach(function (x) { by[fmtDate_(x.date) + '|' + clean_(x.start)] = x; });
+  // 1) 연수일정의 강사 칸 (연수생 시간표)
+  var sh = sheet_('연수일정'), v = sh.getDataRange().getValues(), h = v[0].map(String);
+  var ci = { term: h.indexOf('기수'), date: h.indexOf('날짜'), start: h.indexOf('시작'), end: h.indexOf('종료'), hours: h.indexOf('시간(h)'), title: h.indexOf('내용'), who: h.indexOf('강사') };
+  var slots = [];
+  for (var i = 1; i < v.length; i++) {
+    if (clean_(v[i][ci.term]) !== term || !v[i][ci.date]) continue;
+    var date = fmtDate_(v[i][ci.date]), st = fmtTime_(v[i][ci.start]), x = by[date + '|' + st];
+    if (!x) continue;
+    var who = clean_(x.who);
+    if (clean_(v[i][ci.who]) !== who) sh.getRange(i + 1, ci.who + 1).setValue(who);
+    slots.push({ date: date, start: st, end: fmtTime_(v[i][ci.end]), hours: v[i][ci.hours], title: clean_(v[i][ci.title]), who: who, mode: clean_(x.mode), assts: String(x.assts || '').split(/[,，、\/]/).map(function (n) { return clean_(n); }).filter(String) });
+  }
+  // 2) 강사일정: 이 기수 줄만 새로 쓴다. 주강사의 소속·역할은 예전 값을 지킨다
+  var t = sheet_('강사일정'), tv = t.getDataRange().getValues(), th = SHEETS['강사일정'], keep = [], old = {};
+  for (var j = 1; j < tv.length; j++) {
+    var r = {}; tv[0].forEach(function (k, c) { r[String(k)] = tv[j][c]; });
+    if (!r['날짜'] && !clean_(r['강사명'])) continue;
+    if (clean_(r['기수']) !== term) { keep.push(th.map(function (k) { var val = r[k]; return k === '시작' || k === '종료' ? "'" + fmtTime_(val) : (k === '날짜' ? fmtDate_(val) : (val == null ? '' : val)); })); continue; }
+    if (!/보조/.test(clean_(r['역할']))) old[fmtDate_(r['날짜']) + '|' + fmtTime_(r['시작'])] = r;
+    old['@' + clean_(r['강사명'])] = old['@' + clean_(r['강사명'])] || r;
+  }
+  var add = [];
+  slots.forEach(function (x) {
+    var d = toDate_(x.date), dow = d ? DOW[d.getDay()] : '', o = old[x.date + '|' + x.start] || {}, same = clean_(o['강사명']) === x.who;
+    add.push([x.date, dow, "'" + x.start, "'" + x.end, x.hours, term, x.who || '미정', same ? clean_(o['소속']) : clean_((old['@' + x.who] || {})['소속']), clean_(o['역할']) || '주강사', x.title, x.mode]);
+    x.assts.forEach(function (n) { add.push([x.date, dow, "'" + x.start, "'" + x.end, x.hours, term, n, clean_((old['@' + n] || {})['소속']), '보조강사', x.title, '']); });
+  });
+  var all = keep.concat(add);
+  all.sort(function (a, b) { return String(a[0]).localeCompare(String(b[0])) || String(a[2]).localeCompare(String(b[2])) || (/보조/.test(a[8]) ? 1 : 0) - (/보조/.test(b[8]) ? 1 : 0); });
+  if (t.getLastRow() > 1) t.getRange(2, 1, t.getLastRow() - 1, Math.max(t.getLastColumn(), th.length)).clearContent();
+  if (all.length) t.getRange(2, 1, all.length, th.length).setValues(all);
+  bust_();
+  return { ok: true, count: slots.length };
+}
+
+// 테스트 계정 만들기(편집기에서 한 번 실행). 이미 있으면 다시 만들지 않는다
+function makeTestAccount() {
+  var name = '김햇살', phone = '010-1234-5678', s = settings_(), term = termList_()[0];
+  var sh = sheet_('신청자'), h = SHEETS['신청자'];
+  var hit = rows_('신청자').filter(function (r) { return clean_(r['성명']) === name && normPhone_(r['연락처']) === normPhone_(phone); })[0];
+  if (hit) { Logger.log('이미 있어요: ' + hit['기수']); return; }
+  var o = { '기수': term, '신청일': fmtDate_(new Date()), '성명': name, '생년월일': "'19900101", '소속학교': '종덕초등학교', '소속청': '경기도교육청', '연락처': "'" + phone, '입금액': Number(s['연수비'] || 0), '입금일': fmtDate_(new Date()), '상태': '신청', '메모': '테스트계정 (통계·정산·문자·메일에서 빠짐)' };
+  sh.appendRow(h.map(function (k) { return o[k] == null ? '' : o[k]; }));
+  bust_();
+  Logger.log('테스트 계정을 만들었어요: ' + term + ' ' + name);
 }

@@ -680,19 +680,32 @@
       '<div class="status-row"><div>게시판 글</div><div>' + ((r.posts || []).length ? r.posts.map(function (q) {
         return '<div style="padding:6px 0">' + stateBadge2(q.state) + ' ' + esc(q.board === '환불요청' ? '환불 요청' : q.title) + ' <span class="note">(' + esc(q.no) + ', ' + esc(wd(q.at)) + ')</span></div>';
       }).join('') : '<span class="note">남긴 글이 없어요.</span>') + '</div></div>' +
-      '<div class="status-row"><div>연수비 납입 확인서</div><div>' + (r.certificate ? '<button class="btn line" style="height:40px;padding:0 18px" id="certBtn"><i class="xi-print"></i>확인서 보기·인쇄</button>' : '<span class="note">' + (C.certificate ? '입금 확인 후 출력할 수 있어요.' : '발급 준비 중이에요.') + '</span>') + '</div></div>' +
+      '<div class="status-row"><div>연수비 납입증명서</div><div>' + (r.certificate ? '<button class="btn line" style="height:40px;padding:0 18px" id="certBtn"><i class="xi-print"></i>증명서 보기·인쇄</button>' : '<span class="note">' + (C.certificate ? '입금 확인 후 출력할 수 있어요.' : '발급 준비 중이에요.') + '</span>') + '</div></div>' +
       '</div><div id="certOut"></div></div>';
     if (r.certificate) $('#certBtn').onclick = function () { showCert($('#certOut'), r.certificate); };
   }
 
+  function hangulWon(n) {
+    n = Math.floor(Number(n) || 0); if (!n) return '영';
+    var d = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'], u = ['', '십', '백', '천'], big = ['', '만', '억'], out = '', g = 0;
+    while (n > 0) { var part = n % 10000, t = ''; for (var i = 0; i < 4; i++) { var k = Math.floor(part / Math.pow(10, i)) % 10; if (k) t = d[k] + u[i] + t; } if (t) out = t + big[g] + out; n = Math.floor(n / 10000); g++; }
+    return out;
+  }
+  function koLong(v) { var m = String(v || '').match(/(\d{4})-(\d{2})-(\d{2})/); return m ? m[1] + '년 ' + (+m[2]) + '월 ' + (+m[3]) + '일' : String(v || ''); }
   function showCert(out, c) {
-    out.innerHTML = '<div class="cert"><h4>납입확인서</h4><table>' +
-      '<tr><th>성명</th><td>' + esc(c.name) + '</td></tr>' +
-      '<tr><th>연수명</th><td>' + esc(c.course) + ' (' + esc(c.term) + ')</td></tr>' +
-      '<tr><th>연수기관</th><td>' + esc(c.org) + '</td></tr>' +
-      '<tr><th>납입 금액</th><td>' + won(c.amount) + '</td></tr>' +
-      '<tr><th>납입일</th><td>' + esc(c.paidAt) + '</td></tr>' +
-      '</table><p>위와 같이 연수비를 납입하였음을 확인합니다.</p><p class="note">' + esc(c.issuedAt) + '</p><div class="issuer">' + esc(c.operator) + '</div></div>' +
+    var is = c.issuer || {}, per = String(c.period || '').split('~'), b = String(c.birth || '').replace(/\D/g, '');
+    var period = per[0] ? wd(per[0].trim()) + (per[1] ? ' ~ ' + wd(per[1].trim()) : '') : '';
+    out.innerHTML = '<div class="cert">' + (c.no ? '<p class="cert-no">제 ' + esc(c.no) + ' 호</p>' : '') + '<h4>연수비 납입증명서</h4><table>' +
+      '<tr><th>성명</th><td>' + esc(c.name) + '</td><th>생년월일</th><td>' + (b.length === 8 ? b.slice(0, 4) + '. ' + b.slice(4, 6) + '. ' + b.slice(6) + '.' : '') + '</td></tr>' +
+      '<tr><th>소속</th><td colspan="3">' + esc(c.school || '') + '</td></tr>' +
+      '<tr><th>연수명</th><td colspan="3">' + esc(c.course) + ' (' + esc(c.term) + ')</td></tr>' +
+      '<tr><th>연수기관</th><td colspan="3">' + esc(c.org) + '</td></tr>' +
+      '<tr><th>연수기간</th><td colspan="3">' + esc(period) + (c.hours ? ' · ' + esc(c.hours) + '시간' : '') + '</td></tr>' +
+      '<tr><th>납입금액</th><td colspan="3"><b>금 ' + hangulWon(c.amount) + '원정</b> (₩' + Number(c.amount || 0).toLocaleString('ko-KR') + ')</td></tr>' +
+      '<tr><th>납입일</th><td colspan="3">' + esc(koLong(c.paidAt)) + '</td></tr>' +
+      '</table><p class="cert-say">위 사람은 위 연수의 연수비를 납입하였음을 증명합니다.</p><p class="cert-date">' + esc(koLong(c.issuedAt)) + '</p>' +
+      '<div class="issuer">' + esc(is.name || c.operator) + (is.ceo ? ' <span>대표이사 ' + esc(is.ceo) + '</span>' : '') + ' <i class="seal">(인)</i></div>' +
+      (is.biz || is.addr || is.tel ? '<p class="cert-foot">' + [is.biz ? '사업자등록번호 ' + esc(is.biz) : '', esc(is.addr || ''), is.tel ? '문의 ' + esc(is.tel) : ''].filter(String).join(' · ') + '</p>' : '') + '</div>' +
       '<div class="btns"><button class="btn" onclick="window.print()"><i class="xi-print"></i>인쇄 / PDF 저장</button></div>';
     out.scrollIntoView({ behavior: 'smooth' });
   }
@@ -969,7 +982,7 @@
           { cat: '신청·변경', q: '기수를 바꾸고 싶어요.', a: '2027년에는 기수 변경을 받지 않아요. 신청한 기수 그대로 참여해 주세요. 참여가 어려우면 Q&A·환불 > 환불 요청에 사유와 함께 취소를 접수해 주세요.' },
           { cat: '신청·변경', q: '수강을 취소하고 환불받고 싶어요.', a: 'Q&A·환불 > 환불 요청에 사유를 적어 접수해 주세요. 연수 시작 전날까지 요청하면 전액 환불돼요.' },
           { cat: '영수증·증빙', q: '현금영수증 번호를 잘못 넣었어요.', a: '셀프 신청 > 현금영수증 수정으로 올바른 번호를 접수해 주세요.' },
-          { cat: '영수증·증빙', q: '연수비 납입증명서가 필요해요.', a: '내 현황 조회에서 입금이 확인된 분은 납입확인서를 바로 인쇄하거나 PDF로 저장할 수 있어요.' },
+          { cat: '영수증·증빙', q: '연수비 납입증명서가 필요해요.', a: '내 현황 조회에서 입금이 확인된 분은 납입증명서를 바로 인쇄하거나 PDF로 저장할 수 있어요.' },
           { cat: '이수', q: '이수 기준이 어떻게 되나요?', a: '총 15시간 중 12시간(80%) 이상 출석하면 이수돼요. Zoom 이름은 기수_성명_휴대폰 뒷 4자리(예: 1기_홍길동_1234)로 바꿔 주세요.' },
           { cat: '이수', q: '이수정보를 잘못 입력했어요.', a: '같은 이름과 휴대폰 번호로 이수정보를 다시 제출하면 최신 내용으로 바뀌어요. 메일을 따로 보내지 않으셔도 돼요.' },
           { cat: '이수', q: '이수증은 언제 나오나요?', a: '연수가 끝나고 교육연수원에서 이수 처리를 마치면 발급돼요. 나이스 등재도 연수원에서 진행해요.' }
@@ -1011,7 +1024,7 @@
         posts: [{ no: 'Q0003', board: 'Q&A', title: '출석 문의', at: '2027-01-15', state: '답변 완료' }],
         attendance: { term: '1기', need: 12, total: 10, judge: '진행 중', days: [{ date: '2027-02-01', dow: '월', in: '08:52', out: '15:02', got: 5, status: '정상' }, { date: '2027-02-02', dow: '화', in: '09:24', out: '15:01', got: 4, status: '지각 24분' }, { date: '2027-02-03', dow: '수', in: '', out: '', got: 0, status: '예정' }] },
         requests: [{ no: 'R0104-2381', type: '현금영수증 수정', at: '2027-01-04', state: '완료', memo: '수정한 번호로 재발행했어요.' }],
-        certificate: { name: data.name, term: '1기', amount: 100000, paidAt: '2026-12-16', course: '연구하는 교사되기 2027', org: '서울대학교 사범대학 교육연수원', operator: '연구하는 교사되기 운영팀', issuedAt: new Date().toISOString().slice(0, 10) }
+        certificate: { no: '2027-0001', birth: '19900101', school: '예시초등학교', period: '2027-01-11~2027-01-13', hours: 15, issuer: { name: '㈜키인컨설팅', ceo: '○○○', biz: '000-00-00000', addr: '서울특별시 ○○구 ○○로 00', tel: 'snu27@dumokquoka.com' }, name: data.name, term: '1기', amount: 100000, paidAt: '2026-12-16', course: '연구하는 교사되기 2027', org: '서울대학교 사범대학 교육연수원', operator: '연구하는 교사되기 운영팀', issuedAt: new Date().toISOString().slice(0, 10) }
       });
     }
     return wait({ ok: false, error: '알 수 없는 요청' });
