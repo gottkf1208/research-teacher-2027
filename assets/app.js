@@ -127,7 +127,7 @@
 
   // ───────── 홈 ─────────
   function renderHome() {
-    $('#hero').innerHTML = '<section class="hero home"><p class="eyebrow">서울대학교 사범대학 교육연수원 직무연수</p><h1>연구하는 교사되기 2027</h1><p class="lead">교사를 위한 현장 교육 연구 실천의 방법과 실제</p><div class="hero-qk" aria-hidden="true"><img src="assets/img/quoka-snu.webp" alt=""><img src="assets/img/quoka-researcher.webp" alt=""><img src="assets/img/quoka-teacher.webp" alt=""></div></section>';
+    $('#hero').innerHTML = '<section class="home-hero"><div class="wrap"><div class="hh-text"><p class="eyebrow">서울대학교 사범대학 교육연수원 직무연수</p><h1>연구하는 교사되기 <em>2027</em></h1><p class="lead">교사를 위한 현장 교육 연구 실천의 방법과 실제</p><div class="hh-btns"><a class="btn navy" href="#/attend"><i class="xi-check-circle-o"></i>출석체크</a><a class="btn line" href="#/schedule">시간표 보기</a></div></div><div class="hh-stage" aria-hidden="true"><img src="assets/img/quoka-snu.webp" alt=""><img src="assets/img/quoka-researcher.webp" alt=""><img src="assets/img/quoka-teacher.webp" alt=""></div></div></section>';
     $('#subtabs').innerHTML = '';
     $('#ptitle').innerHTML = '';
     $$('#gnb a').forEach(function (a) { a.classList.remove('on'); });

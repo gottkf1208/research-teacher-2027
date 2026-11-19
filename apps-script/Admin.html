@@ -233,6 +233,16 @@ main { max-width: 1280px; margin: 0 auto; }
 .doc-plans button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border:1.5px solid #d6dae6;border-radius:10px;background:#fff;cursor:pointer;text-align:left;font:inherit}
 .doc-plans button b{font-size:17px}.doc-plans button span{font-size:12.5px;color:#666;line-height:1.4}
 .doc-plans button.on{border-color:#001871;background:#eef1fb}.doc-plans button.on b{color:#001871}
+.sms-terms{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:10px;margin-bottom:10px}
+.sms-terms button{display:flex;align-items:center;justify-content:center;gap:10px;height:58px;border:1.5px solid #d6dae6;border-radius:12px;background:#fff;cursor:pointer;font:inherit;color:#555}
+.sms-terms button b{font-size:19px}.sms-terms button span{font-size:13px}
+.sms-terms button.on{background:#001871;border-color:#001871;color:#fff}
+.sms-term-info{display:grid;grid-template-columns:1.4fr 1fr 1fr 1.4fr;gap:0;background:#fff;border:1px solid #e2e5ee;border-radius:12px;margin-bottom:14px}
+.sms-term-info>div{padding:14px 18px;display:flex;flex-direction:column;gap:3px;align-items:flex-start}.sms-term-info>div+div{border-left:1px solid #eef0f5}
+.sms-term-info small{font-size:12px;color:#777}.sms-term-info b{font-size:16px}.sms-term-info em{font-style:normal;font-size:12.5px;color:#666}
+.sms-term-info>span{padding:14px 18px;grid-column:1/-1}
+.sms-when{font-style:normal;font-size:11px;font-weight:700;color:#001871;background:#eef1fb;border-radius:20px;padding:1px 7px;margin-left:4px;white-space:nowrap}
+@media(max-width:900px){.sms-term-info{grid-template-columns:1fr 1fr}.sms-term-info>div+div{border-left:0;border-top:1px solid #eef0f5}}
 </style>
 </head>
 <body>
@@ -372,7 +382,7 @@ var GROUPS = [
   { id: 'today', t: '오늘', tabs: [['dash', '지금 할 일'], ['ops', '업무표 · D-day'], ['meet', '회의']] },
   { id: 'people', t: '수강생', tabs: [['apps', '신청자 명단'], ['pay', '입금 대조'], ['reqs', '셀프신청'], ['check', '이수정보 점검']] },
   { id: 'attend', t: '출결 · 이수', tabs: [['attend', '출결 · 이수 판정'], ['zoom', 'Zoom 기록 대조'], ['roster', '이수생관리부'], ['report', '결과 통계']] },
-  { id: 'talk', t: '소통', tabs: [['board', '게시판'], ['sms', '문자'], ['outbox', '보낼 메일'], ['mail', '연수원 메일'], ['notice', '공지'], ['faq', 'FAQ'], ['mats', '연수자료']] },
+  { id: 'talk', t: '소통', tabs: [['board', '게시판'], ['mail', '연수원 메일 전송기'], ['sms', '문자나라'], ['outbox', '수강생 메일 대기함'], ['notice', '공지'], ['faq', 'FAQ'], ['mats', '연수자료']] },
   { id: 'docs', t: '문서', tabs: [['docs', '공문 · 계약서'], ['receipt', '영수증'], ['settle', '정산'], ['tdoc', '강사 자료']] },
   { id: 'set', t: '설정', tabs: [['settings', '설정'], ['sched', '연수 일정'], ['tsched', '강사 일정'], ['tinfo', '강사 정보'], ['logs', '문자 기록']] }
 ];
@@ -537,38 +547,66 @@ function renderCheck() {
 // ───── 문자 발송 (문자나라 도우미) ─────
 var SMS_STATE = { kind: 'fix', term: '', off: {} };
 var SMS_KINDS = [
-  { grp: '연수 전', id: 'welcome', q: 'cheer', t: '신청 확정·환영', d: '신청자 전원', who: 'apply',
+  { grp: '연수 전', id: 'welcome', w: '신청 확정 직후', q: 'cheer', t: '신청 확정·환영', d: '신청자 전원', who: 'apply',
     m: '[연구하는 교사되기 2027]\n{기수} 신청이 확정되었습니다. 함께하게 되어 반갑습니다 : )\n\n· 연수 일정: {기간}\n· 운영 사이트: {사이트}\n\n※ 기수 변경은 받지 않아요. 취소·현금영수증은 사이트의 셀프 신청, 문의는 Q&A 게시판으로 남겨 주세요.' },
-  { grp: '연수 전', id: 'pay', q: 'sponsor', t: '연수비 납부 안내', d: '입금 확인 안 된 분', who: 'unpaid',
+  { grp: '연수 전', id: 'pay', w: '확정 3일 뒤', q: 'sponsor', t: '연수비 납부 안내', d: '입금 확인 안 된 분', who: 'unpaid',
     m: '[연구하는 교사되기 2027]\n아직 연수비 입금이 확인되지 않았어요.\n교육연수원 안내에 따라 입금 부탁드립니다.\n\n입금 후에는 {사이트} > 내 현황 조회에서 납입확인서를 바로 출력할 수 있어요.' },
-  { grp: '연수 전', id: 'fix', q: 'people', t: '이수정보 보완 요청', d: '점검에 걸린 분', who: 'issue',
+  { grp: '연수 전', id: 'fix', w: '점검 후 수시', q: 'people', t: '이수정보 보완 요청', d: '점검에 걸린 분', who: 'issue',
     m: '[연구하는 교사되기 2027]\n이수증 발급에 필요한 정보 중 빠지거나 확인이 필요한 곳이 있어요.\n\n{사이트} > 이수정보 입력에서 {마감}까지 보완해 주세요.\n(NEIS 개인번호, 생년월일 8자리, 정식 학교명)\n\n같은 이름·번호로 다시 제출하면 최신 내용으로 바뀌어요.' },
-  { grp: '연수 전', id: 'wait', q: 'sleep', t: '대기자 안내', d: '대기 상태인 분', who: 'wait',
+  { grp: '연수 전', id: 'wait', w: '수시', q: 'sleep', t: '대기자 안내', d: '대기 상태인 분', who: 'wait',
     m: '[연구하는 교사되기 2027]\n현재 {기수} 대기로 접수되어 있어요. 자리가 나면 순서대로 바로 연락드릴게요.\n(기수 변경은 받지 않아요. 대기를 원하지 않으시면 {사이트} > 셀프 신청 > 수강취소로 접수해 주세요.)' },
-  { grp: '연수 전', id: 'noinfo', q: 'people', t: '이수정보 미입력 안내', d: '이수정보를 아직 안 낸 분', who: 'noinfo',
+  { grp: '연수 전', id: 'noinfo', w: 'D-7', q: 'people', t: '이수정보 미입력 안내', d: '이수정보를 아직 안 낸 분', who: 'noinfo',
     m: '[연구하는 교사되기 2027]\n이수증 발급에 필요한 이수정보가 아직 입력되지 않았어요.\n\n{사이트} > 이수정보 입력에서 {마감}까지 입력해 주세요. (2분이면 끝나요)\n· NEIS 개인번호, 생년월일, 학교명, 이메일' },
-  { grp: '연수 전', id: 'd1', q: 'cheer', t: '연수 하루 전 안내', d: '해당 기수 신청자', who: 'apply',
+  { grp: '연수 전', id: 'kakao', w: 'D-7', q: 'crowd', t: '오픈채팅방 초대', d: '해당 기수 신청자', who: 'apply',
+    m: '[연구하는 교사되기 2027]\n{기수} 연수 오픈채팅방을 열었어요. 공지와 실시간 안내가 이 방으로 나가니 꼭 들어와 주세요.\n\n· {기수} 오픈채팅방: {오픈카톡}\n· 입장 이름: "{기수}_성명_휴대폰 뒷 4자리"\n· 연수 일정: {기간} (매일 {시간})\n\n시간표와 연수자료는 {사이트}에서 볼 수 있어요.' },
+  { grp: '연수 전', id: 'd1', w: 'D-1 저녁', q: 'cheer', t: '연수 하루 전 안내', d: '해당 기수 신청자', who: 'apply',
     m: '[연구하는 교사되기 2027]\n내일부터 {기수} 연수가 시작돼요! ({기간}, 매일 13:00~18:00)\n\n· 시작 30분 전부터 {사이트} > 출석체크에서 출석하면 강의실(Zoom) 버튼이 나와요.\n· Zoom 이름: \"{기수}_성명_휴대폰 뒷 4자리\" (예: {기수}_홍길동_1234)\n· 연수자료도 사이트 > 연수자료에서 볼 수 있어요.\n\n내일 만나요 : )' },
-  { grp: '연수 중', id: 'day', q: 'facil', t: '당일 입실 안내', d: '해당 기수 신청자', who: 'apply',
+  { grp: '연수 중', id: 'day', w: '1일차 12:00', q: 'facil', t: '당일 입실 안내', d: '해당 기수 신청자', who: 'apply',
     m: '[연구하는 교사되기 2027]\n오늘 {기수} 연수가 시작돼요!\n\n① {사이트} > 출석체크에서 출석\n② 나오는 버튼으로 강의실(Zoom) 입장\n③ 끝날 때 퇴실체크\n\n출석·퇴실이 둘 다 있어야 그날 출석이 인정돼요. Zoom 이름은 \"{기수}_성명_휴대폰 뒷 4자리\"로 바꿔 주세요.' },
-  { grp: '연수 중', id: 'noin', q: 'sleep', t: '미입실 안내', d: '그날 출석체크 안 한 분', who: 'noin',
+  { grp: '연수 중', id: 'dayn', w: '매일 12:00', day: true, q: 'facil', t: '일차별 아침 안내', d: '해당 기수 신청자 · 일차를 골라요', who: 'apply',
+    m: '[연구하는 교사되기 2027]\n{기수} {일차}({날짜}) 안내예요.\n\n■ 오늘 강의 ({시간})\n{오늘강의}\n\n· 12:30부터 {사이트} > 출석체크에서 출석하면 강의실(Zoom) 버튼이 나와요.\n· 끝날 때 퇴실체크까지 꼭 눌러 주세요.\n· 급한 문의는 {기수} 오픈채팅방으로 남겨 주세요.' },
+  { grp: '연수 중', id: 'noin', w: '시작 20분 뒤', q: 'sleep', t: '미입실 안내', d: '그날 출석체크 안 한 분', who: 'noin',
     m: '[연구하는 교사되기 2027]\n{기수} 연수가 시작됐는데 아직 출석체크가 확인되지 않았어요.\n\n{사이트} > 출석체크에서 출석하면 강의실 링크가 바로 나와요.\n(출석·퇴실이 둘 다 있어야 그날 출석이 인정돼요)' },
-  { grp: '연수 중', id: 'noout', q: 'people', t: '퇴실체크 요청', d: '그날 퇴실체크 안 한 분', who: 'noout',
+  { grp: '연수 중', id: 'noout', w: '종료 직후', q: 'people', t: '퇴실체크 요청', d: '그날 퇴실체크 안 한 분', who: 'noout',
     m: '[연구하는 교사되기 2027]\n오늘 출석은 확인됐는데 퇴실체크가 아직 없어요.\n\n{사이트} > 출석체크에서 퇴실체크를 눌러 주세요. 퇴실체크가 없으면 그날 출석이 인정되지 않을 수 있어요.' },
-  { grp: '연수 후', id: 'short', q: 'sleep', t: '이수 미달 안내', d: '인정 시간이 기준 미달인 분', who: 'short',
+  { grp: '연수 후', id: 'short', w: '마지막 날 다음 날', q: 'sleep', t: '이수 미달 안내', d: '인정 시간이 기준 미달인 분', who: 'short',
     m: '[연구하는 교사되기 2027]\n출결 기록상 인정 시간이 이수 기준(15시간 중 12시간)에 미치지 못해요.\n기록이 잘못됐다고 생각되시면 {사이트} > Q&A 게시판에 남겨 주세요. 확인해 드릴게요.' },
-  { grp: '연수 후', id: 'end', q: 'crowd', t: '이수 처리 안내', d: '이수 대상자', who: 'done',
+  { grp: '연수 후', id: 'end', w: '이수 확정 후', q: 'crowd', t: '이수 처리 안내', d: '이수 대상자', who: 'done',
     m: '[연구하는 교사되기 2027]\n{기수} 연수를 함께해 주셔서 감사합니다.\n이수 정보는 교육연수원에 전달했고, 이수증 발급과 나이스 등재는 연수원에서 진행돼요.\n\n결국 사람이 남는 연수였기를 바라며, 다음에 또 만나요 : )' },
-  { grp: '연수 후', id: 'close', q: 'crowd', t: '연수 종료 · 이수정보 확인', d: '해당 기수 신청자', who: 'apply',
+  { grp: '연수 후', id: 'close', w: '3일차 종료 후', q: 'crowd', t: '연수 종료 · 이수정보 확인', d: '해당 기수 신청자', who: 'apply',
     m: '[연구하는 교사되기 2027]\n{기수} 연수가 모두 끝났어요. 3일 동안 정말 수고 많으셨습니다 : )\n\n· 출석 시간과 이수 예상은 {사이트} > 내 현황 조회에서 볼 수 있어요.\n· 이수정보를 아직 안 내셨다면 {마감}까지 꼭 입력해 주세요.\n· 이수증은 교육연수원 홈페이지에서 발급돼요. (발급 시작되면 다시 안내드릴게요)' },
+  { grp: '연수 후', id: 'cert', w: '연수원 발급 시작일', q: 'cheer', t: '이수증 발급 안내', d: '이수 대상자', who: 'done',
+    m: '[연구하는 교사되기 2027]\n{기수} 이수증 발급이 시작됐어요.\n\n· 교육연수원 홈페이지(cite.snu.ac.kr) > 나의 강의실에서 출력할 수 있어요.\n· 나이스 등재는 연수원에서 차례로 진행돼요.\n· 납입확인서는 {사이트} > 내 현황 조회에서 바로 출력돼요.' },
+  { grp: '연수 후', id: 'refunded', w: '환불 처리 후', q: 'sponsor', t: '환불 완료 안내', d: '환불이 끝난 분', who: 'refunded',
+    m: '[연구하는 교사되기 2027]\n요청하신 {기수} 연수비 환불이 완료되었어요. 계좌를 확인해 주세요.\n\n입금이 보이지 않으면 {사이트} > Q&A 게시판에 남겨 주세요. 다음에 꼭 다시 만나요 : )' },
   { grp: '기타', id: 'free', q: 'cheer', t: '자유 문구', d: '직접 쓰기', who: 'apply', m: '[연구하는 교사되기 2027]\n' }
 ];
 var PEOPLE = null;
 function bytes(s) { var n = 0; for (var i = 0; i < s.length; i++) n += s.charCodeAt(i) > 127 ? 2 : 1; return n; }
 function renderSms() {
   var p = PEOPLE ? Promise.resolve(PEOPLE) : run('people').then(function (x) { PEOPLE = x; return x; });
-  Promise.all([p, run('table', { sheet: '문자기록' })]).then(function (res) {
-    var people = res[0], logs = res[1].rows.slice(-6).reverse();
+  Promise.all([p, run('table', { sheet: '문자기록' }), run('table', { sheet: '연수일정' }).catch(function () { return { rows: [] }; })]).then(function (res) {
+    var people = res[0], logs = res[1].rows.slice(-6).reverse(), sched = res[2].rows || [];
+    var S0 = BOOT.settings, today0 = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+    function daysOf(t) {
+      var m = {}; sched.forEach(function (r) { if (r['기수'] !== t || !r['날짜']) return; var d = String(r['날짜']).slice(0, 10); (m[d] = m[d] || []).push(r); });
+      return Object.keys(m).sort().map(function (d) { return { date: d, rows: m[d].sort(function (a, b) { return String(a['시작']) < String(b['시작']) ? -1 : 1; }) }; });
+    }
+    function hhmm(v) { var m = String(v || '').match(/(\d{1,2}):(\d{2})/); return m ? ('0' + m[1]).slice(-2) + ':' + m[2] : ''; }
+    function timeOf(t) { var ds = daysOf(t); if (!ds.length) return '13:00~18:00'; var r = ds[0].rows; return (hhmm(r[0]['시작']) || '13:00') + '~' + (hhmm(r[r.length - 1]['종료']) || '18:00'); }
+    if (!SMS_STATE.term) { // 다가오는 기수부터
+      var up = BOOT.terms.filter(function (t) { var ds = daysOf(t); return ds.length && ds[ds.length - 1].date >= today0; })[0];
+      SMS_STATE.term = up || BOOT.terms[0] || '';
+    }
+    function termCard() {
+      var t = SMS_STATE.term; if (!t) return '<div class="sms-term-info"><span class="muted">전체 기수에게 보내는 문자예요. 기수별 링크와 날짜가 들어가는 문자는 기수를 골라 주세요.</span></div>';
+      var ds = daysOf(t), mine = people.filter(function (x) { return x.term === t && x.state !== '취소'; }), ok = mine.filter(function (x) { return x.state === '신청'; });
+      var dd = ds.length ? Math.round((new Date(ds[0].date) - new Date(today0)) / 864e5) : null;
+      var has = function (v) { return v ? '<span class="badge b-ok">들어 있음</span>' : '<span class="badge b-red">비어 있음 · 설정에서 넣어 주세요</span>'; };
+      return '<div class="sms-term-info"><div><small>연수 기간</small><b>' + esc(String(S0['연수기간_' + t] || (ds.length ? ds[0].date + ' ~ ' + ds[ds.length - 1].date : '미정'))) + '</b><em>매일 ' + timeOf(t) + (dd === null ? '' : ' · ' + (dd > 0 ? 'D-' + dd : dd === 0 ? '오늘 시작' : '진행·종료')) + '</em></div>' +
+        '<div><small>Zoom 강의실</small>' + has(S0['줌링크_' + t]) + '</div><div><small>오픈채팅방</small>' + has(S0['오픈카톡_' + t]) + '</div>' +
+        '<div><small>받는 분</small><b>' + ok.length + '명</b><em>대기 ' + mine.filter(function (x) { return x.state === '대기'; }).length + ' · 입금 미확인 ' + ok.filter(function (x) { return !x.paid; }).length + ' · 이수정보 미입력 ' + ok.filter(function (x) { return !x.info; }).length + '</em></div></div>';
+    }
     var active = people.filter(function (x) { return x.state !== '취소'; });
     $('#main').innerHTML =
       '<div class="sms-head"><div class="sms-hello">' + '<span style="width:52px;flex:none">' + qk('cheer') + '</span><div><b>문자, 이제 종류만 고르면 돼요</b><span>신청자 명단에서 기수·상태별로 받는 분을 바로 골라 줘요. 연락처는 이 운영자 페이지 밖으로 나가지 않아요.</span></div></div>' +
@@ -576,12 +614,13 @@ function renderSms() {
       '<div class="sms-stats"><div class="sms-stat"><small>문자 종류</small><b>' + SMS_KINDS.length + '<span>가지</span></b><em>연수 전 · 중 · 후</em></div>' +
       '<div class="sms-stat"><small>받을 수 있는 분</small><b>' + active.length + '<span>명</span></b><em>취소 제외, 번호 중복 없이</em></div>' +
       '<div class="sms-stat"><small>이수정보 보완 필요</small><b>' + active.filter(function (x) { return x.issue; }).length + '<span>명</span></b><em>점검 결과와 연결</em></div></div>' +
+      '<div class="sms-terms">' + BOOT.terms.concat(['']).map(function (t) { return '<button data-term="' + esc(t) + '" class="' + (t === SMS_STATE.term ? 'on' : '') + '">' + (t ? '<b>' + esc(t) + '</b><span>' + esc(String(S0['연수기간_' + t] || '')) + '</span>' : '<b>전체 기수</b><span>공통 안내</span>') + '</button>'; }).join('') + '</div><div id="termCard">' + termCard() + '</div>' +
       '<div class="sms-grid"><div class="sms-col"><div class="sms-col-h">보낼 문자<span>누르면 휴대폰에 떠요</span></div><div class="sms-list" id="kinds"></div></div>' +
-      '<div class="phone"><div class="phone-h"><b id="pTitle"></b><span id="pBytes"></span></div><div class="bubble"><span class="tag" id="pTag"></span><textarea id="pText"></textarea></div><div class="phone-f">{기수} {사이트} {마감} {기간} {줌} 은 자동으로 채워져요. 고쳐 써도 돼요.</div></div>' +
+      '<div class="phone"><div class="phone-h"><b id="pTitle"></b><span id="pBytes"></span></div><div class="bubble"><span class="tag" id="pTag"></span><textarea id="pText"></textarea></div><div class="phone-f">기수를 고르면 날짜·시간·Zoom·오픈채팅방·오늘 강의가 자동으로 채워져요. 고쳐 써도 돼요.</div></div>' +
       '<div class="sms-col"><div class="sms-col-h">받는 분<span id="rcCnt"></span></div><div class="rcpt">' +
-      '<div class="ctl"><select id="rTerm"><option value="">전체 기수</option>' + BOOT.terms.map(function (t) { return '<option' + (t === SMS_STATE.term ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' +
-      '<select id="rWho"><option value="apply">신청 (대기·취소 제외)</option><option value="all">전체 (취소 제외)</option><option value="issue">이수정보 보완 필요</option><option value="noinfo">이수정보 미입력</option><option value="unpaid">입금 미확인</option><option value="wait">대기</option><option value="done">이수 대상(Y)</option><option value="noin">미입실 (날짜)</option><option value="noout">미퇴실 (날짜)</option><option value="short">이수 미달 (N)</option><option value="refund">환불 요청 진행 중</option></select>' +
-      '<select id="rDate" hidden></select></div>' +
+      '<div class="ctl"><select id="rTerm" hidden><option value="">전체 기수</option>' + BOOT.terms.map(function (t) { return '<option' + (t === SMS_STATE.term ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' +
+      '<select id="rWho"><option value="apply">신청 (대기·취소 제외)</option><option value="all">전체 (취소 제외)</option><option value="issue">이수정보 보완 필요</option><option value="noinfo">이수정보 미입력</option><option value="unpaid">입금 미확인</option><option value="wait">대기</option><option value="done">이수 대상(Y)</option><option value="noin">미입실 (날짜)</option><option value="noout">미퇴실 (날짜)</option><option value="short">이수 미달 (N)</option><option value="refund">환불 요청 진행 중</option><option value="refunded">환불 완료</option></select>' +
+      '<select id="rDate" hidden></select><select id="rDay" hidden></select></div>' +
       '<div class="chips" id="chips"></div>' +
       '<button class="sms-btn" id="go1">① 문구 복사하고 문자나라 열기</button>' +
       '<button class="sms-btn sub2" id="go2">② 받는 번호 복사 (쉼표로 이어서)</button>' +
@@ -592,11 +631,19 @@ function renderSms() {
     var grp = '';
     $('#kinds').innerHTML = SMS_KINDS.map(function (k) {
       var h = k.grp !== grp ? '<div class="sms-grp">' + esc(k.grp) + '</div>' : ''; grp = k.grp;
-      return h + '<button class="sms-pick" data-k="' + k.id + '" aria-pressed="' + (k.id === SMS_STATE.kind) + '">' + qk(k.q) + '<span><b>' + esc(k.t) + '</b><small>' + esc(k.d) + '</small></span></button>';
+      return h + '<button class="sms-pick" data-k="' + k.id + '" aria-pressed="' + (k.id === SMS_STATE.kind) + '">' + qk(k.q) + '<span><b>' + esc(k.t) + (k.w ? ' <i class="sms-when">' + esc(k.w) + '</i>' : '') + '</b><small>' + esc(k.d) + '</small></span></button>';
     }).join('');
-    $$('.sms-pick').forEach(function (b) { b.onclick = function () { SMS_STATE.kind = b.dataset.k; SMS_STATE.off = {}; var k = kindOf(); $('#rWho').value = k.who; dateVis(); $$('.sms-pick').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); fillText(); drawRc(); }; });
+    $$('.sms-pick').forEach(function (b) { b.onclick = function () { SMS_STATE.kind = b.dataset.k; SMS_STATE.off = {}; var k = kindOf(); $('#rWho').value = k.who; dateVis(); dayFill(); $$('.sms-pick').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); fillText(); drawRc(); }; });
     $('#rWho').value = kindOf().who;
     $('#rTerm').onchange = function () { SMS_STATE.term = this.value; SMS_STATE.off = {}; fillText(); drawRc(); };
+    $$('[data-term]').forEach(function (b) { b.onclick = function () { SMS_STATE.term = b.dataset.term; SMS_STATE.off = {}; SMS_STATE.day = 0; $('#rTerm').value = SMS_STATE.term; $$('[data-term]').forEach(function (x) { x.classList.toggle('on', x === b); }); $('#termCard').innerHTML = termCard(); dayFill(); fillText(); drawRc(); }; });
+    function dayFill() {
+      var k = kindOf(), ds = daysOf(SMS_STATE.term), el = $('#rDay');
+      el.hidden = !(k.day && ds.length); if (el.hidden) return;
+      if (!SMS_STATE.day) { var i = ds.map(function (d) { return d.date; }).indexOf(today0); SMS_STATE.day = i >= 0 ? i + 1 : 1; }
+      el.innerHTML = ds.map(function (d, i) { return '<option value="' + (i + 1) + '"' + (i + 1 === SMS_STATE.day ? ' selected' : '') + '>' + (i + 1) + '일차 · ' + d.date.slice(5).replace('-', '/') + '</option>'; }).join('');
+      el.onchange = function () { SMS_STATE.day = +el.value; fillText(); };
+    }
     var allDates = {};
     people.forEach(function (x) { Object.keys(x.days || {}).forEach(function (d) { allDates[d] = 1; }); });
     var dl = Object.keys(allDates).sort(), today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
@@ -611,7 +658,12 @@ function renderSms() {
       var t = k.m.replace(/\{기수\}/g, term || '각 기수').replace(/\{사이트\}/g, (s['사이트주소'] || '').replace(/^https?:\/\//, ''))
         .replace(/\{마감\}/g, s['이수정보마감'] ? String(s['이수정보마감']).slice(0, 10) : '마감 전')
         .replace(/\{기간\}/g, term ? String(s['연수기간_' + term] || '').replace('~', ' ~ ') : '사이트 참고')
-        .replace(/\{줌\}/g, term ? (s['줌링크_' + term] || '(설정에서 줌링크 입력)') : '(기수를 골라 주세요)');
+        .replace(/\{줌\}/g, term ? (s['줌링크_' + term] || '(설정에서 줌링크 입력)') : '(기수를 골라 주세요)')
+        .replace(/\{오픈카톡\}/g, term ? (s['오픈카톡_' + term] || '(설정에서 오픈채팅방 링크 입력)') : '(기수를 골라 주세요)')
+        .replace(/\{시간\}/g, timeOf(term || BOOT.terms[0]));
+      var ds = daysOf(term), d = ds[(SMS_STATE.day || 1) - 1];
+      t = t.replace(/\{일차\}/g, d ? (SMS_STATE.day || 1) + '일차' : '(일차)').replace(/\{날짜\}/g, d ? +d.date.slice(5, 7) + '/' + +d.date.slice(8, 10) + ' ' + '일월화수목금토'[new Date(d.date).getDay()] : '(날짜)')
+        .replace(/\{오늘강의\}/g, d ? d.rows.map(function (r) { var who = String(r['강사'] || '').trim(); return '· ' + hhmm(r['시작']) + '~' + hhmm(r['종료']) + ' ' + r['내용'] + (who && !/미정|섭외/.test(who) ? ' (' + who + ')' : ''); }).join('\n') : '(연수일정 시트에 이 기수 일정을 넣어 주세요)');
       $('#pText').value = t; $('#pTitle').textContent = '문자 · ' + k.t; countBytes();
     }
     function countBytes() { var b = bytes($('#pText').value); var el = $('#pBytes'); el.textContent = (b > 90 ? 'LMS' : 'SMS') + ' · ' + b + ' / ' + (b > 90 ? '2,000' : '90') + ' byte'; el.classList.toggle('over', b > 2000); }
@@ -630,6 +682,7 @@ function renderSms() {
         if (who === 'noout' && (x.state !== '신청' || !dt || !dd.in || dd.out || dd.status === '조정')) return false;
         if (who === 'short' && x.judge !== 'N') return false;
         if (who === 'refund' && (!x.refund || ['환불 완료', '반려'].indexOf(x.refund) >= 0)) return false;
+        if (who === 'refunded' && x.refund !== '환불 완료') return false;
         if (!x.phone || seen[x.phone]) return false;
         seen[x.phone] = 1; return true;
       });
@@ -650,7 +703,7 @@ function renderSms() {
       var btn = this; btn.disabled = true;
       run('smsLog', { kind: k.t, target: (SMS_STATE.term || '전체') + ' ' + $('#rWho').selectedOptions[0].textContent, count: t.length, text: $('#pText').value }).then(function () { btn.classList.add('done'); btn.textContent = '✓ 보냄으로 기록했어요'; });
     };
-    dateVis(); fillText(); drawRc();
+    dateVis(); dayFill(); fillText(); drawRc();
   });
 }
 
@@ -1634,6 +1687,7 @@ function MOCK(a, p) {
   if (a === 'table') {
     if (p.sheet === '회의') return { headers: ['날짜', '제목', '참석자', '안건', '회의록', '결정사항', '할 일', '상태'], rows: [
       { _row: 2, 날짜: '2026-11-24', 제목: '2027 운영 킥오프', 참석자: '두목쿼카, 박성춘 교수님, 간사', 안건: '1. 일정 확정 (1기 1/11~13, 2기 2/1~3)\n2. 강사 섭외 현황\n3. 교크협 계약', 회의록: '', 결정사항: '신청 기간은 12/7~12/24', '할 일': '· 계약서 초안 검토 (교수님)\n· 홍보 카드뉴스 (간사)', 상태: '예정' }] };
+    if (p.sheet === '연수일정') return { headers: ['기수', '날짜', '요일', '시작', '종료', '시간(h)', '내용', '강사'], rows: [['1기', '2027-01-11'], ['1기', '2027-01-12'], ['1기', '2027-01-13'], ['2기', '2027-02-01']].reduce(function (o, d) { return o.concat([{ 기수: d[0], 날짜: d[1], 시작: '13:00', 종료: '15:00', 내용: '연구하는 교사의 길', 강사: '박성춘 교수님' }, { 기수: d[0], 날짜: d[1], 시작: '15:00', 종료: '18:00', 내용: '연구대회의 실제', 강사: '미정' }]); }, []) };
     if (p.sheet === '문자기록') return { headers: ['보낸시각', '문자종류', '대상', '인원', '내용'], rows: [{ _row: 2, 보낸시각: '2027-01-20 10:12', 문자종류: '신청 확정·환영', 대상: '1기 신청', 인원: '205' }] };
     if (p.sheet === '셀프신청') return { headers: ['접수시각', '접수번호', '유형', '성명', '휴대폰', '현재기수', '희망기수', '현금영수증번호', '내용', '처리상태', '처리메모', '처리일'], rows: [
       { _row: 2, 접수시각: '2027-01-12 09:20', 유형: '수강취소', 성명: '김하늘', 휴대폰: '010-1234-1000', 현재기수: '1기', 처리상태: '접수' },

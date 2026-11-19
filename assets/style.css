@@ -464,3 +464,34 @@ main > .wrap { max-width: 1132px; }
   .tt-tabs button span { font-size: 12px; }
   .tt-day li { padding: 14px; gap: 12px; }
 }
+
+/* ───── 홈 첫 화면: 왼쪽 제목·버튼, 오른쪽 캐릭터 무대 ───── */
+.home-hero { background: linear-gradient(180deg, #f4f6fc 0%, #e9edf9 100%); border-bottom: 1px solid #dfe4f2; overflow: hidden; }
+.home-hero .wrap { max-width: 1132px; display: flex; align-items: center; justify-content: space-between; gap: 32px; min-height: 420px; padding-top: 40px; padding-bottom: 40px; }
+.hh-text { flex: 1 1 0; min-width: 0; }
+.hh-text .eyebrow { margin: 0 0 14px; font-size: 15px; font-weight: 700; color: var(--navy); }
+.hh-text h1 { margin: 0; font-size: 50px; line-height: 1.2; font-weight: 800; letter-spacing: -.03em; color: var(--ink); }
+.hh-text h1 em { font-style: normal; color: var(--navy); }
+.hh-text .lead { margin: 16px 0 0; font-size: 19px; color: var(--gray-1); }
+.hh-btns { display: flex; gap: 10px; margin-top: 32px; flex-wrap: wrap; }
+.hh-btns .btn { height: 52px; padding: 0 28px; border-radius: 26px; font-size: 16px; }
+.hh-btns .btn.line { border-color: #c9d0e6; color: var(--navy); }
+.hh-stage { flex: 0 0 auto; position: relative; display: flex; align-items: flex-end; padding: 0 28px 22px; }
+.hh-stage::before { content: ""; position: absolute; left: 0; right: 0; bottom: 6px; height: 46px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,24,113,.20), rgba(0,24,113,.06) 70%, transparent); }
+.hh-stage img { position: relative; height: 236px; width: auto; display: block; }
+.hh-stage img:nth-child(2) { height: 276px; margin: 0 -18px; z-index: 1; }
+@media (max-width: 1024px) {
+  .hh-text h1 { font-size: 40px; }
+  .hh-stage img { height: 190px; } .hh-stage img:nth-child(2) { height: 222px; }
+}
+@media (max-width: 760px) {
+  .home-hero .wrap { flex-direction: column; text-align: center; gap: 22px; min-height: 0; padding-top: 34px; padding-bottom: 26px; }
+  .hh-text h1 { font-size: 30px; }
+  .hh-text .eyebrow { font-size: 13px; margin-bottom: 10px; }
+  .hh-text .lead { font-size: 15px; margin-top: 10px; }
+  .hh-btns { justify-content: center; margin-top: 22px; }
+  .hh-btns .btn { height: 46px; padding: 0 22px; font-size: 15px; }
+  .hh-stage { padding: 0 16px 16px; }
+  .hh-stage::before { height: 30px; bottom: 4px; }
+  .hh-stage img { height: 132px; } .hh-stage img:nth-child(2) { height: 154px; margin: 0 -10px; }
+}
