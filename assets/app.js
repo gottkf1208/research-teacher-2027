@@ -246,7 +246,7 @@
       '<div><b>STEP 1</b><strong>연수원 신청·입금</strong>교육연수원 홈페이지에서 신청(12.3.~12.10.), 확정 문자를 받은 뒤 12.18.까지 입금</div>' +
       '<div><b>STEP 2</b><strong>이수정보 입력</strong>이 사이트에서 마감 전까지 입력</div>' +
       '<div><b>STEP 3</b><strong>연수 참여·이수</strong>Zoom 출석 80% 이상 → 이수증·나이스 등재(연수원)</div>' +
-      '</div><div class="box" style="margin-bottom:16px;border-left:4px solid var(--danger)"><b style="color:var(--danger)">2027년에는 기수 변경을 받지 않습니다.</b><br><span class="note">신청한 기수 그대로 참여해 주세요. 다른 기수 날짜로 대신 듣는 것도 안 돼요. 참여가 어려우면 연수 시작 전날까지 Q&A·환불 > 환불 요청으로 취소해 주세요.</span></div><div class="box note">신청 접수, 이수증 발급, 나이스 등재는 교육연수원에서 처리해요. 현금영수증 번호와 이수정보는 이 사이트의 셀프 서비스에서, 취소와 환불은 환불 요청 게시판에서 접수해 주세요. 대기 신청과 소속 학교 수강 협조 공문 발급은 하지 않아요.</div></div>';
+      '</div><div class="box" style="margin-bottom:16px;border-left:4px solid var(--danger)"><b style="color:var(--danger)">2027년에는 기수 변경을 받지 않습니다.</b><br><span class="note">신청한 기수 그대로 참여해 주세요. 다른 기수 날짜로 대신 듣는 것도 안 돼요. 참여가 어려우면 연수 시작 전날까지 Q&A·환불 > 환불 요청으로 취소해 주세요.</span></div><div class="box note">신청 접수, 이수증 발급, 나이스 등재는 교육연수원에서 처리해요. 현금영수증 번호와 이수정보는 이 사이트의 셀프 서비스에서, 취소와 환불은 환불 요청 게시판에서 접수해 주세요. 소속 학교 수강 협조 공문은 발급하지 않아요.</div></div>';
   }
   function infoDue() {
     if (C.deadlines.info) return C.deadlines.info;
@@ -260,7 +260,7 @@
   function hm(t) { var m = String(t || '').match(/(\d+):(\d+)/); return m ? +m[1] * 60 + +m[2] : 0; }
   function md(d) { var m = String(d).match(/\d+-(\d+)-(\d+)/); return m ? +m[1] + '.' + +m[2] : d; }
   // 신청·확정·입금 일정(1기·2기 공통, 2026-11-19 확정). 바뀌면 여기와 FAQ를 같이 고친다.
-  var TERM_STEPS = [['신청 기간', '2026.12.3.(목) 10:00 ~ 12.10.(목)', '교육연수원 홈페이지에서 신청해요. 대기 신청과 마감 뒤 추가 신청은 받지 않아요'], ['확정 문자', '2026.12.14.(월)', '신청한 휴대폰 번호로 입금 안내와 함께 보내 드려요'], ['입금 마감', '2026.12.18.(금)까지', '입금자명은 이름+휴대폰 뒷 4자리, 개인 계좌이체만 받아요']];
+  var TERM_STEPS = [['신청 기간', '2026.12.3.(목) 10:00 ~ 12.10.(목)', '교육연수원 홈페이지에서 신청해요. 마감 뒤 메일·전화 추가 신청은 받지 않아요'], ['확정 문자', '2026.12.14.(월)', '신청한 휴대폰 번호로 입금 안내와 함께 보내 드려요'], ['입금 마감', '2026.12.18.(금)까지', '입금자명은 이름+휴대폰 뒷 4자리, 개인 계좌이체만 받아요']];
   var TERM_INFO = { '1기': TERM_STEPS, '2기': TERM_STEPS };
   function hmTxt(m) { return ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + m % 60).slice(-2); }
   function renderSchedule(v, brief) {
