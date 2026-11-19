@@ -23,7 +23,10 @@ var SHEETS = {
   // 출석: 연수생이 사이트에서 직접 입실/퇴실 체크. 운영자가 고치면 구분=조정 + 인정시간
   출석: ['기록시각', '기수', '날짜', '구분', '성명', '휴대폰', '인정시간', '비고'],
   // 게시판: Q&A, 환불요청. 내용은 본인(이름+휴대폰)만 열람
-  게시판: ['작성시각', '글번호', '게시판', '제목', '내용', '성명', '휴대폰', '기수', '공개', '환불사유', '처리상태', '답변', '답변시각', '운영메모']
+  게시판: ['작성시각', '글번호', '게시판', '제목', '내용', '성명', '휴대폰', '기수', '공개', '환불사유', '처리상태', '답변', '답변시각', '운영메모'],
+  // 운영 업무표·D-day 일정표 (2027_연수운영_업무표.xlsx). 운영자 페이지 '운영 업무표' 탭에서 완료 체크
+  업무표: ['ID', '단계', '업무명', '분류', '처리방식', '담당', 'D-day', '1기날짜', '2기날짜', '2026실제', '근거', '사이트기능', '완료', '메모'],
+  일정표: ['날짜', '요일', 'D_1기', 'D_2기', '대상', 'ID', '업무', '담당', '분류']
 };
 // 강사 민감정보는 운영 시트와 다른 파일(비공개)에 저장
 var INSTRUCTOR_HEADERS = ['성명', '소속', '직위', '전화', '이메일', '생년월일', '주민등록번호', '은행', '계좌번호', '예금주', '비고'];
@@ -601,7 +604,7 @@ function isAdmin_() {
   return me.toLowerCase() === owner.toLowerCase() || extra.indexOf(me.toLowerCase()) >= 0;
 }
 
-var ADMIN_SHEETS = ['신청자', '이수정보', '셀프신청', '공지', 'FAQ', '연수일정', '강사일정', '설정', '문자기록', '강사정보', '출석', '게시판'];
+var ADMIN_SHEETS = ['신청자', '이수정보', '셀프신청', '공지', 'FAQ', '연수일정', '강사일정', '설정', '문자기록', '강사정보', '출석', '게시판', '업무표'];
 var TEXT_COLS = ['연락처', '휴대폰', '생년월일', 'NEIS 번호', '나이스개인번호', '현금영수증번호', '전화', '주민등록번호', '계좌번호', '연수지명번호'];
 
 function adminApi(action, p) {
@@ -629,6 +632,7 @@ function adminApi(action, p) {
       case 'attendApply': return attendApply_(String(p.term || '').trim());
       case 'board': return adminTable_('게시판');
       case 'boardReply': return boardReply_(p);
+      case 'ops': return opsData_();
       default: throw new Error('알 수 없는 요청: ' + action);
     }
   } finally { lock.releaseLock(); }
@@ -1066,6 +1070,39 @@ var CURRICULUM_2027 = [
   [2, '15:00', '17:00', 2, '영상·방송 연구대회의 실제', '미정', '교사강사'],
   [2, '17:00', '18:00', 1, '연구하는 교사되기 로드맵 (종합 질의응답)', '박성춘 교수님', '종합']
 ];
+// ───── 운영 업무표 ─────
+function opsData_() {
+  var ss = SpreadsheetApp.getActive();
+  if (!ss.getSheetByName('업무표') || !ss.getSheetByName('일정표')) return { empty: true };
+  return { tasks: adminTable_('업무표'), sched: adminTable_('일정표').rows };
+}
+// 업무표.csv / 일정표.csv 내용을 시트에 넣음. 다시 넣어도 완료·메모는 ID 기준으로 유지
+function importOps(tasksCsv, schedCsv) {
+  var ss = SpreadsheetApp.getActive();
+  [['업무표', tasksCsv], ['일정표', schedCsv]].forEach(function (x) {
+    if (!x[1]) return;
+    var rows = Utilities.parseCsv(String(x[1]).replace(/^\uFEFF/, ''));
+    var src = rows.shift().map(function (h) { return String(h).trim(); });
+    var head = SHEETS[x[0]];
+    var sh = ss.getSheetByName(x[0]) || ss.insertSheet(x[0]);
+    var keep = {};
+    if (x[0] === '업무표' && sh.getLastRow() > 1) rows_('업무표').forEach(function (r) { keep[r['ID']] = r; });
+    var out = rows.filter(function (r) { return r.join('') !== ''; }).map(function (r) {
+      var o = {};
+      src.forEach(function (h, i) { o[h] = r[i]; });
+      return head.map(function (h) {
+        if (h === '완료' || h === '메모') return keep[o['ID']] ? String(keep[o['ID']][h] || '') : '';
+        return o[h] == null ? '' : String(o[h]);
+      });
+    });
+    sh.clear();
+    sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    if (out.length) sh.getRange(2, 1, out.length, head.length).setNumberFormat('@').setValues(out);
+  });
+  return 'ok';
+}
+
 function seedCurriculum2027() {
   // 예전 기본값(2/1~3, 2/4~6)이 남아 있으면 초안 날짜로 바꿈
   var st = sheet_('설정'), sv = st.getDataRange().getValues();
