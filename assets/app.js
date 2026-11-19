@@ -107,11 +107,16 @@
     window.scrollTo(0, 0);
   }
 
+  var QK_EYES = { snu: [26, 61.9, 49.1, 12.5, 14.2], researcher: [26.6, 62, 41.6, 11.7, 15.6], teacher: [26.3, 61.8, 40.3, 12.4, 16.4] };
+  function qkHead(kind, cls, label) {
+    var e = QK_EYES[kind], lid = function (x) { return '<i class="lid" style="left:' + x + '%;top:' + e[2] + '%;width:' + e[3] + '%;height:' + e[4] + '%"></i>'; };
+    return '<button type="button" class="qk ' + cls + '" aria-label="' + label + '"><span><img src="assets/img/qk-' + kind + '.webp" alt="">' + lid(e[0]) + lid(e[1]) + '</span></button>';
+  }
   var ORBS = '<span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span>';
   function renderChrome(key, p) {
     document.body.classList.remove('is-home');
     var g = p.g ? GROUPS[p.g] : { name: p.t, en: '', tabs: [] };
-    $('#hero').innerHTML = '<section class="hero sub">' + ORBS + '<div class="wrap"><div><h1>' + esc(g.name) + '</h1><p>' + esc(g.en) + '</p></div>' + (g.qk ? '<button type="button" class="qk solo" aria-label="쿼카"><span><img src="assets/img/quoka-' + g.qk + '.webp" alt=""></span></button>' : '') + '</div></section>';
+    $('#hero').innerHTML = '<section class="hero sub">' + ORBS + '<div class="wrap"><div><h1>' + esc(g.name) + '</h1><p>' + esc(g.en) + '</p></div>' + (g.qk ? qkHead(g.qk, 'solo', '쿼카') : '') + '</div></section>';
     qkBind($('#hero'));
     $('#subtabs').innerHTML = g.tabs.length ? '<div class="subtabs"><div class="wrap"><ul>' + g.tabs.map(function (t) {
       var on = t[0] === key;
@@ -152,10 +157,17 @@
       };
       q.addEventListener('animationend', function (e) { if (e.animationName === 'qk-boing') q.classList.remove('boing'); });
     });
-    var stage = $('.hh-stage', root); if (!stage || !window.matchMedia || !matchMedia('(hover: hover)').matches) return;
-    var sec = stage.closest('section');
-    sec.onmousemove = function (e) { var r = stage.getBoundingClientRect(), x = (e.clientX - (r.left + r.width / 2)) / (r.width / 2); stage.style.setProperty('--lx', Math.max(-1.5, Math.min(1.5, x)).toFixed(2)); };
-    sec.onmouseleave = function () { stage.style.setProperty('--lx', 0); };
+    var stage = $('.hh-stage', root); if (!stage || !window.matchMedia) return;
+    var sec = stage.closest('section'), tick = 0;
+    // 스크롤하면 배경과 캐릭터가 살짝 따라 움직인다
+    window.onscroll = function () {
+      if (tick || !document.body.contains(sec)) return;
+      tick = requestAnimationFrame(function () { tick = 0; sec.style.setProperty('--sy', Math.min(1, window.scrollY / 480).toFixed(3)); });
+    };
+    if (!matchMedia('(hover: hover)').matches) return;
+    var cl = function (n) { return Math.max(-1.5, Math.min(1.5, n)).toFixed(2); };
+    sec.onmousemove = function (e) { var r = stage.getBoundingClientRect(); sec.style.setProperty('--lx', cl((e.clientX - (r.left + r.width / 2)) / (r.width / 2))); sec.style.setProperty('--ly', cl((e.clientY - (r.top + r.height / 2)) / (r.height / 2))); };
+    sec.onmouseleave = function () { sec.style.setProperty('--lx', 0); sec.style.setProperty('--ly', 0); };
   }
 
   // ───────── 홈 ─────────
@@ -163,9 +175,9 @@
     document.body.classList.add('is-home');
     $('#hero').innerHTML = '<section class="home-hero">' + ORBS + '<div class="wrap"><div class="hh-text"><p class="eyebrow"><span class="chip">교원 직무연수</span>서울대학교 사범대학 교육연수원</p><h1>연구하는 교사되기 <em>2027</em></h1><p class="lead">교사를 위한 현장 교육 연구 실천의 방법과 실제</p><div class="hh-tags" id="hhTags"></div><div class="hh-btns"><a class="btn navy" href="#/attend"><i class="xi-check-circle-o"></i>출석체크</a><a class="btn line" href="#/schedule"><i class="xi-calendar-check"></i>강의 시간표</a></div></div>' +
       '<div class="hh-stage"><i class="spk s1"></i><i class="spk s2"></i><i class="spk s3"></i><i class="spk s4"></i><div class="hh-say" id="hhSay" aria-live="polite"></div>' +
-      '<button type="button" class="qk q1" aria-label="서울대 쿼카"><span><img src="assets/img/quoka-snu.webp" alt=""></span></button>' +
-      '<button type="button" class="qk q2" aria-label="연구원 쿼카"><span><img src="assets/img/quoka-researcher.webp" alt=""></span></button>' +
-      '<button type="button" class="qk q3" aria-label="선생님 쿼카"><span><img src="assets/img/quoka-teacher.webp" alt=""></span></button></div></div></section>';
+      qkHead('snu', 'q1', '서울대 쿼카') + '' +
+      qkHead('researcher', 'q2', '연구원 쿼카') + '' +
+      qkHead('teacher', 'q3', '선생님 쿼카') + '</div></div></section>';
     $('#subtabs').innerHTML = '';
     $('#ptitle').innerHTML = '';
     $$('#gnb a').forEach(function (a) { a.classList.remove('on'); });
@@ -251,13 +263,17 @@
   function infoDue() {
     if (C.deadlines.info) return C.deadlines.info;
     var last = {}; (C.schedule || []).forEach(function (x) { if (!last[x.term] || x.date > last[x.term]) last[x.term] = x.date; });
-    var t = C.terms.filter(function (k) { return last[k]; }).map(function (k) { return k + ' ' + md(last[k]) + '.'; });
+    var t = C.terms.filter(function (k) { return last[k]; }).map(function (k) { return k + ' ' + wd(last[k]).replace(/^\d+-0?(\d+)-0?(\d+)/, '$1.$2'); });
     return '기수별 연수 마지막 날 19:00' + (t.length ? ' (' + t.join(', ') + ')' : '');
   }
   function row(k, val) { return '<tr><th>' + esc(k) + '</th><td>' + esc(val) + '</td></tr>'; }
 
   var curTerm = null;
   function hm(t) { var m = String(t || '').match(/(\d+):(\d+)/); return m ? +m[1] * 60 + +m[2] : 0; }
+  // 날짜 뒤에 요일 붙이기: '2027-01-11 13:00' → '2027-01-11(월) 13:00'
+  function wd(v) {
+    return String(v == null ? '' : v).replace(/(\d{4})[-.](\d{1,2})[-.](\d{1,2})(?!\.?\s?\()/, function (m, y, mo, d) { var t = new Date(+y, +mo - 1, +d); return isNaN(t) ? m : m + '(' + DOW[t.getDay()] + ')'; });
+  }
   function md(d) { var m = String(d).match(/\d+-(\d+)-(\d+)/); return m ? +m[1] + '.' + +m[2] : d; }
   // 신청·확정·입금 일정(1기·2기 공통, 2026-11-19 확정). 바뀌면 여기와 FAQ를 같이 고친다.
   var TERM_STEPS = [['신청 기간', '2026.12.3.(목) 10:00 ~ 12.10.(목)', '교육연수원 홈페이지에서 신청해요. 마감 뒤 메일·전화 추가 신청은 받지 않아요'], ['확정 문자', '2026.12.14.(월)', '신청한 휴대폰 번호로 입금 안내와 함께 보내 드려요'], ['입금 마감', '2026.12.18.(금)까지', '입금자명은 이름+휴대폰 뒷 4자리, 개인 계좌이체만 받아요']];
@@ -294,8 +310,7 @@
     }).join('');
     var info = TERM_INFO[curTerm] || [];
     v.innerHTML = '<div class="tt-tabs">' + C.terms.map(function (t) {
-      var ds = C.schedule.filter(function (x) { return x.term === t; }).map(function (x) { return x.date; }).sort();
-      return '<button class="' + (t === curTerm ? 'on' : '') + '" data-t="' + esc(t) + '"><b>' + esc(t) + '</b><span>' + (ds.length ? esc(md(ds[0])) + ' ~ ' + esc(md(ds[ds.length - 1])) : '일정 안내 예정') + '</span></button>';
+      return '<button class="' + (t === curTerm ? 'on' : '') + '" data-t="' + esc(t) + '"><span class="in"><b>' + esc(t) + '</b><span>' + esc(termRange(t)) + '</span></span></button>';
     }).join('') + '</div>' +
       (days.length ? '<p class="tt-sum">매일 <b>' + esc(days[0].rows[0].start) + '~' + esc(days[0].rows[days[0].rows.length - 1].end) + '</b> · 실시간 원격(Zoom) · 총 <b>' + total + '시간(' + n + '차시)</b> · ' + esc(C.site.criteria) + '</p><div class="tt-grid n' + Math.min(days.length, 3) + '">' + cards + '</div>' : '<div class="empty">' + esc(curTerm) + ' 시간표는 곧 안내할게요.</div>') +
       (brief ? '' :
@@ -333,7 +348,7 @@
     var m = location.hash.match(/[?&]i=(\d+)/);
     if (m && C.notices[+m[1]]) {
       var n = C.notices[+m[1]];
-      v.innerHTML = '<div class="view"><p class="vTit">' + esc(n.title) + '</p><div class="meta"><span><i class="xi-user-o"></i> 운영팀</span><span><i class="xi-calendar"></i> ' + esc(n.date) + '</span></div><div class="body">' + linkify(n.body) + '</div></div><div class="btns"><a class="btn" href="#/notice">목록</a></div>';
+      v.innerHTML = '<div class="view"><p class="vTit">' + esc(n.title) + '</p><div class="meta"><span><i class="xi-user-o"></i> 운영팀</span><span><i class="xi-calendar"></i> ' + esc(wd(n.date)) + '</span></div><div class="body">' + linkify(n.body) + '</div></div><div class="btns"><a class="btn" href="#/notice">목록</a></div>';
       return;
     }
     v.innerHTML = C.notices.length ? '<table class="board"><thead><tr><th style="width:90px">번호</th><th>제목</th><th style="width:140px">등록일</th></tr></thead><tbody>' +
@@ -494,7 +509,7 @@
     if (r.kind === 'in') {
       $('#st1').className = 'done'; $('#st2').className = 'on';
       out.innerHTML = '<div class="result" style="margin-top:28px"><i class="xi-check-circle-o"></i><h4>' + esc(r.time) + ' 출석 완료' + test + '</h4>' +
-        '<p class="note">' + esc(r.term) + ' · ' + esc(r.date) + ' (' + esc(r.start) + '~' + esc(r.end) + ')' + (r.late > 0 ? '<br>시작 시각보다 ' + r.late + '분 늦게 출석했어요.' : '') + '</p>' +
+        '<p class="note">' + esc(r.term) + ' · ' + esc(wd(r.date)) + ' (' + esc(r.start) + '~' + esc(r.end) + ')' + (r.late > 0 ? '<br>시작 시각보다 ' + r.late + '분 늦게 출석했어요.' : '') + '</p>' +
         (r.zoom ? '<a class="btn navy big" id="zoomGo" href="' + esc(r.zoom) + '" target="_blank" rel="noopener" style="margin-top:12px"><i class="xi-video-camera"></i>강의실(Zoom) 입장</a>' : '<p class="note"><b>강의실 링크가 아직 등록되지 않았어요.</b> 오픈채팅 공지를 확인해 주세요.</p>') +
         '<p class="note" style="margin-top:16px">연수가 끝나면 이 화면에서 <b>퇴실체크</b>를 꼭 눌러 주세요.</p></div>';
       var z = $('#zoomGo'); if (z) z.onclick = function () { $('#st2').className = 'done'; $('#st3').className = 'on'; };
@@ -532,7 +547,7 @@
         '<div class="board-top"><span class="note">전체 ' + items.length + '건</span><a class="btn navy" href="#/' + page + '?w=1"><i class="xi-pen-o"></i>' + (board === '환불요청' ? '환불 요청하기' : '글쓰기') + '</a></div>' +
         (items.length ? '<table class="board"><thead><tr><th style="width:90px">번호</th><th>제목</th><th style="width:100px" class="hide-m">작성자</th><th style="width:120px" class="hide-m">작성일</th><th style="width:110px">상태</th></tr></thead><tbody>' +
           items.map(function (x) {
-            return '<tr class="click" data-no="' + esc(x.no) + '"><td class="c">' + esc(x.no) + '</td><td>' + (x.pub ? '' : '<i class="xi-lock" style="color:var(--gray-2)"></i> ') + esc(x.title) + '</td><td class="c hide-m">' + esc(x.author) + '</td><td class="c hide-m">' + esc(x.at) + '</td><td class="c">' + stateBadge2(x.state) + '</td></tr>';
+            return '<tr class="click" data-no="' + esc(x.no) + '"><td class="c">' + esc(x.no) + '</td><td>' + (x.pub ? '' : '<i class="xi-lock" style="color:var(--gray-2)"></i> ') + esc(x.title) + '</td><td class="c hide-m">' + esc(x.author) + '</td><td class="c hide-m">' + esc(wd(x.at)) + '</td><td class="c">' + stateBadge2(x.state) + '</td></tr>';
           }).join('') + '</tbody></table>' : '<div class="empty">아직 글이 없어요.</div>');
       $$('tr.click', v).forEach(function (tr) { tr.onclick = function () { location.hash = '#/' + page + '?no=' + tr.dataset.no; }; });
     }).catch(showLoadError);
@@ -606,7 +621,7 @@
     var me = loadMe() || {};
     function show(res) {
       v.innerHTML = '<div class="view"><p class="vTit">' + (res.pub ? '' : '<i class="xi-lock"></i> ') + esc(res.board === '환불요청' ? '환불 요청' : res.title) + ' ' + stateBadge2(res.state) + '</p>' +
-        '<div class="meta"><span><i class="xi-user-o"></i> ' + esc(res.author) + '</span><span><i class="xi-calendar"></i> ' + esc(res.at) + '</span><span>' + esc(res.no) + '</span></div>' +
+        '<div class="meta"><span><i class="xi-user-o"></i> ' + esc(res.author) + '</span><span><i class="xi-calendar"></i> ' + esc(wd(res.at)) + '</span><span>' + esc(res.no) + '</span></div>' +
         '<div class="body">' + (res.reason ? '<p><b>환불 사유 :</b> ' + esc(res.reason) + '</p>' : '') + linkify(res.content) + '</div></div>' +
         (res.answer ? '<div class="answer"><b><i class="xi-forum"></i> 운영팀 답변</b> <span class="note">' + esc(res.answeredAt) + '</span><div>' + linkify(res.answer) + '</div></div>' : '<div class="answer wait"><span class="note">' + (res.board === '환불요청' ? '현재 단계: <b>' + esc(res.state) + '</b>. 단계가 바뀌면 문자로 알려 드려요.' : '아직 답변 전이에요. 조금만 기다려 주세요.') + '</span></div>') +
         '<div class="btns"><a class="btn" href="#/' + page + '">목록</a></div>';
@@ -654,16 +669,16 @@
     var stateBadge = a ? (a.state === '취소' ? '<span class="badge red">취소</span>' : a.state === '대기' ? '<span class="badge gray">대기</span>' : '<span class="badge ok">신청 완료</span>') : '<span class="badge gray">명단 확인 중</span>';
     var reqs = r.requests.length ? r.requests.map(function (q) {
       var cls = q.state === '완료' ? 'ok' : q.state === '반려' ? 'red' : 'navy';
-      return '<div style="padding:6px 0"><span class="badge ' + cls + '">' + esc(q.state) + '</span> ' + esc(q.type) + ' <span class="note">(' + esc(q.no) + ', ' + esc(q.at) + ')</span>' + (q.memo ? '<div class="note">↳ ' + esc(q.memo) + '</div>' : '') + '</div>';
+      return '<div style="padding:6px 0"><span class="badge ' + cls + '">' + esc(q.state) + '</span> ' + esc(q.type) + ' <span class="note">(' + esc(q.no) + ', ' + esc(wd(q.at)) + ')</span>' + (q.memo ? '<div class="note">↳ ' + esc(q.memo) + '</div>' : '') + '</div>';
     }).join('') : '<span class="note">셀프 신청 내역이 없어요.</span>';
     out.innerHTML = '<div style="margin-top:40px"><h3 class="sec">' + esc(r.name) + ' 선생님 현황</h3><div class="status-card">' +
       '<div class="status-row"><div>신청 상태</div><div>' + stateBadge + (a ? ' ' + esc(a.term) : '') + '</div></div>' +
       (a && a.state !== '취소' ? '<div class="status-row"><div>연수비 입금</div><div>' + (a.paid ? '<span class="badge ok">입금 확인</span>' : '<span class="badge red">미입금</span> <span class="note">' + (C.pay && C.pay.account ? esc(C.pay.account) + (C.pay.due ? ' · ' + esc(C.pay.due) + '까지' : '') + ' · 입금자명은 이름+휴대폰 뒷 4자리. ' : '') + '입금 확인은 반영까지 하루 이틀 걸릴 수 있어요.</span>') + '</div></div>' : '') +
-      '<div class="status-row"><div>이수정보</div><div>' + (info ? '<span class="badge ok">제출 완료</span> <span class="note">' + esc(info.at) + ' · ' + esc(info.term) + ' · ' + esc(info.sido) + ' ' + esc(info.school) + ' · ' + esc(info.birthMasked) + '</span>' : '<span class="badge red">미제출</span> <a href="#/info" style="text-decoration:underline;margin-left:6px">지금 입력하기</a>') + '</div></div>' +
+      '<div class="status-row"><div>이수정보</div><div>' + (info ? '<span class="badge ok">제출 완료</span> <span class="note">' + esc(wd(info.at)) + ' · ' + esc(info.term) + ' · ' + esc(info.sido) + ' ' + esc(info.school) + ' · ' + esc(info.birthMasked) + '</span>' : '<span class="badge red">미제출</span> <a href="#/info" style="text-decoration:underline;margin-left:6px">지금 입력하기</a>') + '</div></div>' +
       '<div class="status-row"><div>셀프 신청 처리</div><div>' + reqs + '</div></div>' +
       '<div class="status-row"><div>출석</div><div>' + attSummary(r.attendance) + '</div></div>' +
       '<div class="status-row"><div>게시판 글</div><div>' + ((r.posts || []).length ? r.posts.map(function (q) {
-        return '<div style="padding:6px 0">' + stateBadge2(q.state) + ' ' + esc(q.board === '환불요청' ? '환불 요청' : q.title) + ' <span class="note">(' + esc(q.no) + ', ' + esc(q.at) + ')</span></div>';
+        return '<div style="padding:6px 0">' + stateBadge2(q.state) + ' ' + esc(q.board === '환불요청' ? '환불 요청' : q.title) + ' <span class="note">(' + esc(q.no) + ', ' + esc(wd(q.at)) + ')</span></div>';
       }).join('') : '<span class="note">남긴 글이 없어요.</span>') + '</div></div>' +
       '<div class="status-row"><div>연수비 납입 확인서</div><div>' + (r.certificate ? '<button class="btn line" style="height:40px;padding:0 18px" id="certBtn"><i class="xi-print"></i>확인서 보기·인쇄</button>' : '<span class="note">' + (C.certificate ? '입금 확인 후 출력할 수 있어요.' : '발급 준비 중이에요.') + '</span>') + '</div></div>' +
       '</div><div id="certOut"></div></div>';
@@ -883,9 +898,9 @@
     document.body.appendChild(top);
     window.addEventListener('scroll', function () { top.classList.toggle('on', window.scrollY > 500); }, { passive: true });
     var btn = document.createElement('button'); btn.id = 'qbotBtn'; btn.className = 'qbot-btn'; btn.setAttribute('aria-label', '쿼카에게 물어보기');
-    btn.innerHTML = '<span class="qbot-face img"><img src="assets/img/quoka-face.webp" alt=""></span><span class="qbot-label">쿼카에게 물어보기</span>';
+    btn.innerHTML = '<span class="qbot-face img"><img src="assets/img/qk-researcher.webp" alt=""></span><span class="qbot-label">쿼카에게 물어보기</span>';
     var panel = document.createElement('section'); panel.id = 'qbot'; panel.className = 'qbot'; panel.hidden = true;
-    panel.innerHTML = '<header><span class="qbot-face sm img"><img src="assets/img/quoka-face.webp" alt=""></span><div><b>쿼카 도우미</b><small>자주 묻는 질문에 바로 답해요</small></div><button id="qbotX" aria-label="닫기">×</button></header>' +
+    panel.innerHTML = '<header><span class="qbot-face sm img"><img src="assets/img/qk-researcher.webp" alt=""></span><div><b>쿼카 도우미</b><small>자주 묻는 질문에 바로 답해요</small></div><button id="qbotX" aria-label="닫기">×</button></header>' +
       '<div class="qbot-log" id="qbotLog"></div><div class="qbot-chips" id="qbotChips"></div>' +
       '<form id="qbotForm"><input id="qbotIn" autocomplete="off" placeholder="궁금한 걸 적어 주세요" maxlength="120"><button aria-label="보내기"><i class="xi-arrow-up"></i></button></form>';
     document.body.appendChild(btn); document.body.appendChild(panel);
