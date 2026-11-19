@@ -702,7 +702,7 @@
       '<div style="position:absolute;left:0;width:794px;top:219px;text-align:center;font-size:34.7px;line-height:1;white-space:nowrap;letter-spacing:7px;text-indent:7px;' + M + '">연 수 비 납 입 증 명 서</div>' +
       T(113.4, 343.5, 14.7, '성&emsp;&emsp;명 :') + T(191.4, 343.5, 14.7, esc(c.name)) +
       T(113.4, 367, 14.7, '생년월일 :') + T(191.4, 367, 14.7, b.length === 8 ? b.slice(2, 4) + '.' + b.slice(4, 6) + '.' + b.slice(6) : '') +
-      T(113.4, 454, 14.7, '연수내용', G + 'font-weight:700;letter-spacing:2.2px') +
+      T(113.4, 454, 14.7, '연수내용', G + 'letter-spacing:2.4px') +
       '<div style="position:absolute;left:' + (X[0] - 1) + 'px;top:' + (Y[0] - 1) + 'px;width:' + (X[4] - X[0] + 2) + 'px;height:' + (Y[4] - Y[0] + 2) + 'px;border:2px solid #000;box-sizing:border-box"></div>' +
       hl(Y[1]) + hl(Y[2]) + hl(Y[3]) + vl(X[1], 0) + vl(X[2], 2) + vl(X[3], 2) +
       cell(0, 1, 0, '연수과정') + cell(1, 4, 0, esc((year ? year + '년 ' : '') + course + ' (' + c.term + ')')) +
