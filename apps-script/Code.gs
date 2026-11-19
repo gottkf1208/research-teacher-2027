@@ -44,8 +44,8 @@ var DEFAULT_SETTINGS = [
   ['오픈카톡_2기', '', ''],
   ['패들렛_질문', '', ''],
   ['나이스번호형식', '^[A-Z][0-9]{9}$', '영문 1자 + 숫자 9자 (2026 이수생관리부 기준)'],
-  ['연수기간_1기', '2027-02-01~2027-02-03', '이수대장 연수시작·종료일자'],
-  ['연수기간_2기', '2027-02-04~2027-02-06', ''],
+  ['연수기간_1기', '2027-01-11~2027-01-13', '이수대장 연수시작·종료일자 (초안: 날짜 확정되면 고치고 seedCurriculum2027 다시 실행)'],
+  ['연수기간_2기', '2027-02-01~2027-02-03', ''],
   ['담당자', '', '이수정보확인서 담당자 이름'],
   ['이수대장_연수과정명', '연구하는 교사되기', ''],
   ['이수대장_교육유형구분코드', '010', '2026 제출값'],
@@ -1052,4 +1052,42 @@ function boardReply_(p) {
   if (answer !== clean_(o['답변']) || state !== o['처리상태']) sh.getRange(row, h.indexOf('답변시각') + 1).setValue(new Date());
   if (p.memo !== undefined) sh.getRange(row, h.indexOf('운영메모') + 1).setValue(clean_(p.memo));
   return { ok: true, state: state };
+}
+
+// ───────────────────────── 2027 커리큘럼 넣기 (한 번만 실행) ─────────────────────────
+// 1·2기 동일 15차시, 매일 13:00~18:00. 날짜는 설정의 연수기간_1기/2기를 따른다.
+var CURRICULUM_2027 = [
+  [0, '13:00', '15:00', 2, '연구하는 교사의 길', '박성춘 교수님', '주강사'],
+  [0, '15:00', '18:00', 3, '디지털교육 연구대회의 실제', '이대형', '교사강사'],
+  [1, '13:00', '15:00', 2, '수업혁신 사례 연구 (초등)', '미정', '교사강사'],
+  [1, '15:00', '17:00', 2, '수업혁신 사례 연구 (중등)', '한세웅', '교사강사'],
+  [1, '17:00', '18:00', 1, '연구 주제 선정 (실습)', '김햇살', '실습'],
+  [2, '13:00', '15:00', 2, '인성교육 실천사례 연구', '방정은', '교사강사'],
+  [2, '15:00', '17:00', 2, '영상·방송 연구대회의 실제', '미정', '교사강사'],
+  [2, '17:00', '18:00', 1, '연구하는 교사되기 로드맵 (종합 질의응답)', '박성춘 교수님', '종합']
+];
+function seedCurriculum2027() {
+  // 예전 기본값(2/1~3, 2/4~6)이 남아 있으면 초안 날짜로 바꿈
+  var st = sheet_('설정'), sv = st.getDataRange().getValues();
+  var fix = { '연수기간_1기': ['2027-02-01~2027-02-03', '2027-01-11~2027-01-13'], '연수기간_2기': ['2027-02-04~2027-02-06', '2027-02-01~2027-02-03'] };
+  for (var i = 1; i < sv.length; i++) { var f = fix[String(sv[i][0]).trim()]; if (f && String(sv[i][1]).trim() === f[0]) st.getRange(i + 1, 2).setValue(f[1]); }
+  var s = settings_();
+  var sched = sheet_('연수일정'), tsched = sheet_('강사일정');
+  if (sched.getLastRow() > 1) sched.getRange(2, 1, sched.getLastRow() - 1, sched.getLastColumn()).clearContent();
+  if (tsched.getLastRow() > 1) tsched.getRange(2, 1, tsched.getLastRow() - 1, tsched.getLastColumn()).clearContent();
+  var a = [], b = [];
+  termList_().forEach(function (t) {
+    var start = toDate_(String(s['연수기간_' + t] || '').split('~')[0]);
+    if (!start) return;
+    CURRICULUM_2027.forEach(function (c) {
+      var d = new Date(start); d.setDate(d.getDate() + c[0]);
+      var ds = Utilities.formatDate(d, 'Asia/Seoul', 'yyyy-MM-dd');
+      a.push([t, ds, DOW[d.getDay()], "'" + c[1], "'" + c[2], c[3], c[4], c[5]]);
+      b.push([ds, DOW[d.getDay()], "'" + c[1], "'" + c[2], c[3], t, c[5], '', c[6], c[4], '']);
+    });
+  });
+  if (a.length) sched.getRange(2, 1, a.length, a[0].length).setValues(a);
+  if (b.length) tsched.getRange(2, 1, b.length, b[0].length).setValues(b);
+  try { CacheService.getScriptCache().remove('attendCtx'); } catch (e) {}
+  Logger.log('연수일정 ' + a.length + '줄, 강사일정 ' + b.length + '줄');
 }
