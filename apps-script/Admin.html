@@ -63,6 +63,17 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .row-actions { display: flex; gap: 6px; }
 .empty { padding: 40px; text-align: center; color: var(--gray-2); }
+.dup { display: inline-block; margin-left: 4px; font-size: 11px; font-weight: 800; color: #b45309; background: #fff4e0; border: 1px solid #f6c77a; padding: 0 6px; vertical-align: middle; }
+.att-tbl td.d { text-align: center; font-size: 13px; line-height: 1.35; }
+.att-tbl td.d small { display: block; color: var(--gray-2); font-size: 11px; }
+.att-tbl td.d.bad { background: #fff3f4; } .att-tbl td.d.chk { background: #fff8e6; } .att-tbl td.d.okc { background: #f1faf4; }
+.seg { display: inline-flex; border: 1px solid #ccc; } .seg button { border: 0; background: #fff; padding: 0 14px; height: 38px; font-weight: 700; cursor: pointer; } .seg button.on { background: var(--navy); color: #fff; }
+.post { background: #fff; border: 1px solid var(--line); padding: 16px 18px; margin-bottom: 10px; }
+.post .h { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.post .c { white-space: pre-wrap; margin: 10px 0; font-size: 14px; }
+.post .ctl { display: grid; grid-template-columns: 160px 1fr; gap: 8px; align-items: start; }
+.post .ctl textarea { height: 70px; }
+@media (max-width: 900px) { .post .ctl { grid-template-columns: 1fr; } }
 /* 모달 */
 .modal { position: fixed; inset: 0; background: rgba(14,21,45,.55); display: none; align-items: flex-start; justify-content: center; z-index: 50; padding: 40px 16px; overflow: auto; }
 .modal.open { display: flex; }
@@ -172,6 +183,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
     <button data-tab="apps">신청자 명단</button>
     <button data-tab="reqs">셀프신청 처리 <span class="cnt" id="cntReq" hidden></span></button>
     <button data-tab="check">이수정보 점검 <span class="cnt" id="cntChk" hidden></span></button>
+    <button data-tab="attend">출결 · 이수 판정</button>
+    <button data-tab="board">게시판 (Q&amp;A·환불) <span class="cnt" id="cntBoard" hidden></span></button>
     <button data-tab="sms">문자 발송</button>
     <button data-tab="roster">이수생관리부</button>
     <div class="grp">안내</div>
@@ -299,7 +312,7 @@ function tsv(rows) { return rows.map(function (r) { return r.map(function (v) { 
 // ───── 탭 ─────
 var TABS = {
   dash: renderDash, apps: function () { renderTable('신청자', '신청자 명단', '연수원 명단을 붙여넣어 가져오고, 한 줄씩 고칠 수 있어요.', ['기수', '성명', '연락처', '소속학교', '소속청', 'NEIS 번호', '생년월일', '입금일', '상태', '이수(Y/N)'], importBox); },
-  reqs: renderReqs, check: renderCheck, sms: renderSms, roster: renderRoster,
+  reqs: renderReqs, check: renderCheck, sms: renderSms, roster: renderRoster, attend: renderAttend, board: renderBoard,
   notice: function () { renderTable('공지', '공지사항', '여기서 쓰면 연수생 사이트에 바로 보여요.', ['게시일', '제목', '상단고정(Y)', '공개(Y)']); },
   faq: function () { renderTable('FAQ', 'FAQ', '같은 문의가 두 번 오면 여기에 한 줄 추가하세요.', ['분류', '질문', '공개(Y)']); },
   sched: function () { renderTable('연수일정', '연수 일정', '날짜만 넣으면 요일은 자동이에요. 연수생 사이트 시간표에 바로 반영돼요.', ['기수', '날짜', '요일', '시작', '종료', '시간(h)', '내용', '강사']); },
@@ -325,6 +338,8 @@ function refreshBoot() {
     $('#ssLink').href = b.ssUrl; $('#siteLink').href = b.site || '#';
     var r = $('#cntReq'); r.hidden = !b.pending; r.textContent = b.pending;
     var c = $('#cntChk'); c.hidden = !b.issues; c.textContent = b.issues;
+    DUPS = b.dups || {};
+    var bp = (b.board || {}), bn = (bp.qna || 0) + (bp.refund || 0); var cb = $('#cntBoard'); cb.hidden = !bn; cb.textContent = bn;
     return b;
   });
 }
@@ -340,12 +355,15 @@ function renderDash() {
       '<div class="stat" data-go="apps"><small>신청자 (취소 제외)</small><b>' + (apps + wait) + '<span>명</span></b></div>' +
       '<div class="stat ' + (b.pending ? 'warn' : '') + '" data-go="reqs"><small>처리 안 된 셀프신청</small><b>' + b.pending + '<span>건</span></b></div>' +
       '<div class="stat ' + (b.issues ? 'warn' : '') + '" data-go="check"><small>이수정보 확인 필요</small><b>' + b.issues + '<span>/ ' + b.total + '명</span></b></div>' +
-      '<div class="stat" data-go="sms"><small>문자 보내기</small><b style="font-size:20px;padding:6px 0">문자나라 도우미 →</b></div>' +
+      '<div class="stat ' + ((b.board || {}).refund ? 'warn' : '') + '" data-go="board"><small>처리 중 환불 요청 · 미답변 Q&A</small><b>' + ((b.board || {}).refund || 0) + '<span>건 · ' + ((b.board || {}).qna || 0) + '건</span></b></div>' +
       '</div><div class="grid2"><div class="card"><b>기수별 현황</b><table class="tbl" style="margin-top:10px"><thead><tr><th>기수</th><th>신청</th><th>대기</th><th>취소</th></tr></thead><tbody>' + termRows + '</tbody></table></div>' +
       '<div class="card"><b>PM 루틴</b><ol style="margin:10px 0 0;padding-left:20px;line-height:2">' +
       '<li>연수원 신청자 목록 받으면 → <a href="#" data-go="apps">신청자 명단</a>에 붙여넣기</li>' +
-      '<li><a href="#" data-go="reqs">셀프신청</a> 완료/반려 처리 (기수변경·취소는 명단에 자동 반영)</li>' +
+      '<li><a href="#" data-go="reqs">셀프신청</a> 완료/반려 처리 (취소는 명단에 자동 반영, 기수 변경은 받지 않음)</li>' +
       '<li><a href="#" data-go="check">이수정보 점검</a> → <a href="#" data-go="sms">문자 발송</a>으로 보완 요청</li>' +
+      '<li><a href="#" data-go="board">게시판</a> 답변 · 환불 단계 바꾸고 안내 문자</li>' +
+      '<li>연수 날 <a href="#" data-go="attend">출결</a>에서 미입실·미퇴실 확인 → 문자, 끝나면 이수 판정 반영</li>' +
+      (Object.keys(DUPS).length ? '<li style="color:#b45309">동명이인 ' + Object.keys(DUPS).length + '쌍 있음. 이름 옆 <span class="dup">동명이인</span> 표시를 보고 휴대폰으로 구분하세요.</li>' : '') +
       '<li>연수 후 <a href="#" data-go="roster">이수생관리부</a> 복사 → 연수원 표준양식에 붙여넣기</li></ol></div></div>';
     $$('[data-go]').forEach(function (el) { el.onclick = function (e) { e.preventDefault(); go(el.dataset.go); }; });
   });
@@ -382,7 +400,10 @@ function renderTable(sheet, title, sub, cols, extra) {
     draw();
   });
 }
+var DUPS = {};
+function dupTag(name) { return DUPS[name] ? '<span class="dup" title="같은 이름 ' + DUPS[name].length + '명: ' + esc(DUPS[name].map(function (x) { return x.term + ' ' + (x.school || '') + ' ' + String(x.phone).slice(-4); }).join(' / ')) + '">동명이인</span>' : ''; }
 function cell(c, v) {
+  if (c === '성명' && v) return esc(v) + dupTag(String(v).replace(/\s/g, ''));
   if (SECRET.indexOf(c) >= 0 && v) return '●●●●' + esc(String(v).slice(-2));
   if (c === '상태') return v === '취소' ? '<span class="badge b-red">취소</span>' : v === '대기' ? '<span class="badge b-gray">대기</span>' : '<span class="badge b-ok">' + esc(v || '신청') + '</span>';
   if (c === '처리상태') return v === '완료' ? '<span class="badge b-ok">완료</span>' : v === '반려' ? '<span class="badge b-red">반려</span>' : '<span class="badge b-navy">' + esc(v || '접수') + '</span>';
@@ -439,12 +460,12 @@ function renderReqs() {
     var open = t.rows.filter(function (r) { return ['완료', '반려'].indexOf(r['처리상태']) < 0; });
     var done = t.rows.filter(function (r) { return ['완료', '반려'].indexOf(r['처리상태']) >= 0; }).reverse().slice(0, 50);
     function rowHtml(r, act) {
-      var detail = r['유형'] === '기수변경' ? esc(r['현재기수']) + ' → <b>' + esc(r['희망기수']) + '</b>' : r['유형'] === '현금영수증 수정' ? '<b>' + esc(r['현금영수증번호']) + '</b>' : '';
-      return '<tr><td>' + esc(r['접수시각']) + '</td><td><span class="badge b-navy">' + esc(r['유형']) + '</span></td><td><b>' + esc(r['성명']) + '</b><div class="muted">' + esc(r['휴대폰']) + '</div></td><td>' + detail + (r['내용'] ? '<div class="muted" style="white-space:normal">' + esc(r['내용']) + '</div>' : '') + '</td>' +
+      var detail = r['유형'] === '현금영수증 수정' ? '<b>' + esc(r['현금영수증번호']) + '</b>' : '';
+      return '<tr><td>' + esc(r['접수시각']) + '</td><td><span class="badge b-navy">' + esc(r['유형']) + '</span></td><td><b>' + esc(r['성명']) + '</b>' + dupTag(r['성명']) + '<div class="muted">' + esc(r['휴대폰']) + '</div></td><td>' + detail + (r['내용'] ? '<div class="muted" style="white-space:normal">' + esc(r['내용']) + '</div>' : '') + '</td>' +
         (act ? '<td><input type="text" placeholder="연수생에게 보일 한 줄 (선택)" data-memo="' + r._row + '" style="width:220px;height:32px"></td><td class="row-actions"><button class="btn ok sm" data-done="' + r._row + '">완료</button><button class="btn red sm" data-rej="' + r._row + '">반려</button></td>'
           : '<td>' + cell('처리상태', r['처리상태']) + '</td><td class="muted">' + esc(r['처리메모']) + '</td>') + '</tr>';
     }
-    $('#main').innerHTML = '<h2>셀프신청 처리</h2><p class="sub">완료를 누르면 기수변경·취소·현금영수증이 신청자 명단에 자동 반영되고, 연수생은 내 현황에서 결과를 봐요.</p>' +
+    $('#main').innerHTML = '<h2>셀프신청 처리</h2><p class="sub">완료를 누르면 취소·현금영수증이 신청자 명단에 자동 반영되고(2027은 기수 변경 접수 없음), 연수생은 내 현황에서 결과를 봐요.</p>' +
       '<div class="tbl-wrap" style="margin-bottom:24px"><table class="tbl"><thead><tr><th>접수</th><th>유형</th><th>신청자</th><th>내용</th><th>메모</th><th>처리</th></tr></thead><tbody>' +
       (open.length ? open.map(function (r) { return rowHtml(r, true); }).join('') : '<tr><td colspan="6" class="empty">처리할 신청이 없어요 : )</td></tr>') + '</tbody></table></div>' +
       '<b>최근 처리한 신청</b><div class="tbl-wrap" style="margin-top:8px"><table class="tbl"><thead><tr><th>접수</th><th>유형</th><th>신청자</th><th>내용</th><th>상태</th><th>메모</th></tr></thead><tbody>' +
@@ -464,7 +485,7 @@ function renderCheck() {
     $('#main').innerHTML = '<h2>이수정보 점검</h2><p class="sub">전체 ' + r.total + '명 중 <b style="color:var(--danger)">' + r.issues.length + '명</b>이 확인 필요해요. NEIS 번호(영문 1자+숫자 9자), 생년월일, 소속교육청, 학교명, 중복을 봐요.</p>' +
       '<div class="toolbar"><button class="btn navy" id="toSms">이 사람들에게 문자 보내기 →</button><button class="btn line" id="cpPh">번호만 복사</button></div>' +
       '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>기수</th><th>성명</th><th>연락처</th><th>문제</th><th>보완 입력</th></tr></thead><tbody>' +
-      (r.issues.length ? r.issues.map(function (x) { return '<tr><td>' + esc(x.term) + '</td><td><b>' + esc(x.name) + '</b></td><td>' + esc(x.phone) + '</td><td><span class="badge b-red">' + esc(x.problem) + '</span></td><td>' + (x.fixed ? '<span class="badge b-ok">사이트에서 고침</span>' : '') + '</td></tr>'; }).join('') : '<tr><td colspan="5" class="empty">모두 이상 없어요 : )</td></tr>') +
+      (r.issues.length ? r.issues.map(function (x) { return '<tr><td>' + esc(x.term) + '</td><td><b>' + esc(x.name) + '</b>' + dupTag(x.name) + '</td><td>' + esc(x.phone) + '</td><td><span class="badge b-red">' + esc(x.problem) + '</span></td><td>' + (x.fixed ? '<span class="badge b-ok">사이트에서 고침</span>' : '') + '</td></tr>'; }).join('') : '<tr><td colspan="5" class="empty">모두 이상 없어요 : )</td></tr>') +
       '</tbody></table></div>';
     $('#cpPh').onclick = function () { copy(r.phones).then(function () { toast(r.issues.length + '명 번호를 복사했어요.'); }); };
     $('#toSms').onclick = function () { SMS_STATE.kind = 'fix'; go('sms'); };
@@ -475,15 +496,21 @@ function renderCheck() {
 var SMS_STATE = { kind: 'fix', term: '', off: {} };
 var SMS_KINDS = [
   { grp: '연수 전', id: 'welcome', q: 'cheer', t: '신청 확정·환영', d: '신청자 전원', who: 'apply',
-    m: '[연구하는 교사되기 2027]\n{기수} 신청이 확정되었습니다. 함께하게 되어 반갑습니다 : )\n\n· 연수 일정: {기간}\n· 운영 사이트: {사이트}\n\n기수변경·취소·현금영수증은 사이트의 셀프 신청으로 접수해 주세요. 메일보다 빠르게 처리돼요.' },
+    m: '[연구하는 교사되기 2027]\n{기수} 신청이 확정되었습니다. 함께하게 되어 반갑습니다 : )\n\n· 연수 일정: {기간}\n· 운영 사이트: {사이트}\n\n※ 기수 변경은 받지 않아요. 취소·현금영수증은 사이트의 셀프 신청, 문의는 Q&A 게시판으로 남겨 주세요.' },
   { grp: '연수 전', id: 'pay', q: 'sponsor', t: '연수비 납부 안내', d: '입금 확인 안 된 분', who: 'unpaid',
     m: '[연구하는 교사되기 2027]\n아직 연수비 입금이 확인되지 않았어요.\n교육연수원 안내에 따라 입금 부탁드립니다.\n\n입금 후에는 {사이트} > 내 현황 조회에서 납입확인서를 바로 출력할 수 있어요.' },
   { grp: '연수 전', id: 'fix', q: 'people', t: '이수정보 보완 요청', d: '점검에 걸린 분', who: 'issue',
     m: '[연구하는 교사되기 2027]\n이수증 발급에 필요한 정보 중 빠지거나 확인이 필요한 곳이 있어요.\n\n{사이트} > 이수정보 입력에서 {마감}까지 보완해 주세요.\n(NEIS 개인번호, 생년월일 8자리, 정식 학교명)\n\n같은 이름·번호로 다시 제출하면 최신 내용으로 바뀌어요.' },
   { grp: '연수 전', id: 'wait', q: 'sleep', t: '대기자 안내', d: '대기 상태인 분', who: 'wait',
-    m: '[연구하는 교사되기 2027]\n현재 {기수} 대기로 접수되어 있어요. 자리가 나면 순서대로 바로 연락드릴게요.\n다른 기수로 바꾸고 싶으시면 {사이트} > 셀프 신청 > 기수변경으로 접수해 주세요.' },
+    m: '[연구하는 교사되기 2027]\n현재 {기수} 대기로 접수되어 있어요. 자리가 나면 순서대로 바로 연락드릴게요.\n(기수 변경은 받지 않아요. 대기를 원하지 않으시면 {사이트} > 셀프 신청 > 수강취소로 접수해 주세요.)' },
   { grp: '연수 중', id: 'day', q: 'facil', t: '당일 입실 안내', d: '해당 기수 신청자', who: 'apply',
-    m: '[연구하는 교사되기 2027]\n오늘 {기수} 연수가 시작돼요!\n\n· Zoom 입장: {줌}\n· Zoom 이름은 "{기수}_성명"으로 바꿔 주세요. 이름으로 출석을 확인해요.\n· 카메라를 켜고 참여해 주세요.\n\n접속 안내: {사이트}' },
+    m: '[연구하는 교사되기 2027]\n오늘 {기수} 연수가 시작돼요!\n\n① {사이트} > 출석체크에서 출석\n② 나오는 버튼으로 강의실(Zoom) 입장\n③ 끝날 때 퇴실체크\n\n출석·퇴실이 둘 다 있어야 그날 출석이 인정돼요. Zoom 이름은 \"{기수}_성명\"으로 바꿔 주세요.' },
+  { grp: '연수 중', id: 'noin', q: 'sleep', t: '미입실 안내', d: '그날 출석체크 안 한 분', who: 'noin',
+    m: '[연구하는 교사되기 2027]\n{기수} 연수가 시작됐는데 아직 출석체크가 확인되지 않았어요.\n\n{사이트} > 출석체크에서 출석하면 강의실 링크가 바로 나와요.\n(출석·퇴실이 둘 다 있어야 그날 출석이 인정돼요)' },
+  { grp: '연수 중', id: 'noout', q: 'people', t: '퇴실체크 요청', d: '그날 퇴실체크 안 한 분', who: 'noout',
+    m: '[연구하는 교사되기 2027]\n오늘 출석은 확인됐는데 퇴실체크가 아직 없어요.\n\n{사이트} > 출석체크에서 퇴실체크를 눌러 주세요. 퇴실체크가 없으면 그날 출석이 인정되지 않을 수 있어요.' },
+  { grp: '연수 후', id: 'short', q: 'sleep', t: '이수 미달 안내', d: '인정 시간이 기준 미달인 분', who: 'short',
+    m: '[연구하는 교사되기 2027]\n출결 기록상 인정 시간이 이수 기준(15시간 중 12시간)에 미치지 못해요.\n기록이 잘못됐다고 생각되시면 {사이트} > Q&A 게시판에 남겨 주세요. 확인해 드릴게요.' },
   { grp: '연수 후', id: 'end', q: 'crowd', t: '이수 처리 안내', d: '이수 대상자', who: 'done',
     m: '[연구하는 교사되기 2027]\n{기수} 연수를 함께해 주셔서 감사합니다.\n이수 정보는 교육연수원에 전달했고, 이수증 발급과 나이스 등재는 연수원에서 진행돼요.\n\n결국 사람이 남는 연수였기를 바라며, 다음에 또 만나요 : )' },
   { grp: '기타', id: 'free', q: 'cheer', t: '자유 문구', d: '직접 쓰기', who: 'apply', m: '[연구하는 교사되기 2027]\n' }
@@ -505,7 +532,8 @@ function renderSms() {
       '<div class="phone"><div class="phone-h"><b id="pTitle"></b><span id="pBytes"></span></div><div class="bubble"><span class="tag" id="pTag"></span><textarea id="pText"></textarea></div><div class="phone-f">{기수} {사이트} {마감} {기간} {줌} 은 자동으로 채워져요. 고쳐 써도 돼요.</div></div>' +
       '<div class="sms-col"><div class="sms-col-h">받는 분<span id="rcCnt"></span></div><div class="rcpt">' +
       '<div class="ctl"><select id="rTerm"><option value="">전체 기수</option>' + BOOT.terms.map(function (t) { return '<option' + (t === SMS_STATE.term ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' +
-      '<select id="rWho"><option value="apply">신청 (대기·취소 제외)</option><option value="all">전체 (취소 제외)</option><option value="issue">이수정보 보완 필요</option><option value="unpaid">입금 미확인</option><option value="wait">대기</option><option value="done">이수 대상(Y)</option></select></div>' +
+      '<select id="rWho"><option value="apply">신청 (대기·취소 제외)</option><option value="all">전체 (취소 제외)</option><option value="issue">이수정보 보완 필요</option><option value="unpaid">입금 미확인</option><option value="wait">대기</option><option value="done">이수 대상(Y)</option><option value="noin">미입실 (날짜)</option><option value="noout">미퇴실 (날짜)</option><option value="short">이수 미달 (N)</option><option value="refund">환불 요청 진행 중</option></select>' +
+      '<select id="rDate" hidden></select></div>' +
       '<div class="chips" id="chips"></div>' +
       '<button class="sms-btn" id="go1">① 문구 복사하고 문자나라 열기</button>' +
       '<button class="sms-btn sub2" id="go2">② 받는 번호 복사 (쉼표로 이어서)</button>' +
@@ -518,10 +546,16 @@ function renderSms() {
       var h = k.grp !== grp ? '<div class="sms-grp">' + esc(k.grp) + '</div>' : ''; grp = k.grp;
       return h + '<button class="sms-pick" data-k="' + k.id + '" aria-pressed="' + (k.id === SMS_STATE.kind) + '">' + qk(k.q) + '<span><b>' + esc(k.t) + '</b><small>' + esc(k.d) + '</small></span></button>';
     }).join('');
-    $$('.sms-pick').forEach(function (b) { b.onclick = function () { SMS_STATE.kind = b.dataset.k; SMS_STATE.off = {}; var k = kindOf(); $('#rWho').value = k.who; $$('.sms-pick').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); fillText(); drawRc(); }; });
+    $$('.sms-pick').forEach(function (b) { b.onclick = function () { SMS_STATE.kind = b.dataset.k; SMS_STATE.off = {}; var k = kindOf(); $('#rWho').value = k.who; dateVis(); $$('.sms-pick').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); fillText(); drawRc(); }; });
     $('#rWho').value = kindOf().who;
     $('#rTerm').onchange = function () { SMS_STATE.term = this.value; SMS_STATE.off = {}; fillText(); drawRc(); };
-    $('#rWho').onchange = function () { SMS_STATE.off = {}; drawRc(); };
+    var allDates = {};
+    people.forEach(function (x) { Object.keys(x.days || {}).forEach(function (d) { allDates[d] = 1; }); });
+    var dl = Object.keys(allDates).sort(), today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+    $('#rDate').innerHTML = dl.length ? dl.map(function (d) { return '<option' + (d === (SMS_STATE.date || today) ? ' selected' : '') + '>' + d + '</option>'; }).join('') : '<option value="">연수 일정 없음</option>';
+    function dateVis() { $('#rDate').hidden = ['noin', 'noout'].indexOf($('#rWho').value) < 0; }
+    $('#rDate').onchange = function () { SMS_STATE.date = this.value; SMS_STATE.off = {}; drawRc(); };
+    $('#rWho').onchange = function () { SMS_STATE.off = {}; dateVis(); drawRc(); };
     $('#pText').oninput = countBytes;
     function kindOf() { return SMS_KINDS.filter(function (k) { return k.id === SMS_STATE.kind; })[0]; }
     function fillText() {
@@ -542,6 +576,11 @@ function renderSms() {
         if (who === 'unpaid' && (x.paid || x.state === '대기')) return false;
         if (who === 'wait' && x.state !== '대기') return false;
         if (who === 'done' && (!x.done || x.state !== '신청')) return false;
+        var dt = $('#rDate').value, dd = (x.days || {})[dt] || {};
+        if (who === 'noin' && (x.state !== '신청' || !dt || !(x.days || {})[dt] || dd.in || dd.status === '예정' || dd.status === '조정')) return false;
+        if (who === 'noout' && (x.state !== '신청' || !dt || !dd.in || dd.out || dd.status === '조정')) return false;
+        if (who === 'short' && x.judge !== 'N') return false;
+        if (who === 'refund' && (!x.refund || ['환불 완료', '반려'].indexOf(x.refund) >= 0)) return false;
         if (!x.phone || seen[x.phone]) return false;
         seen[x.phone] = 1; return true;
       });
@@ -551,7 +590,7 @@ function renderSms() {
       $('#pTag').textContent = '대상 · ' + (SMS_STATE.term || '전체 기수') + ' ' + $('#rWho').selectedOptions[0].textContent.replace(/ \(.*\)/, '');
       var on = list.filter(function (x) { return !SMS_STATE.off[x.phone]; }).length;
       $('#rcCnt').textContent = '보냄 ' + on + ' / ' + list.length + '명';
-      $('#chips').innerHTML = list.length ? list.map(function (x) { return '<span class="chip' + (SMS_STATE.off[x.phone] ? ' off' : '') + '" data-ph="' + esc(x.phone) + '" title="' + esc(x.phone + (x.issue ? ' · ' + x.issue : '')) + '">' + esc(x.name) + (SMS_STATE.term ? '' : '<small>' + esc(x.term) + '</small>') + '</span>'; }).join('') : '<span class="muted">해당하는 분이 없어요.</span>';
+      $('#chips').innerHTML = list.length ? list.map(function (x) { return '<span class="chip' + (SMS_STATE.off[x.phone] ? ' off' : '') + '" data-ph="' + esc(x.phone) + '" title="' + esc(x.phone + (x.issue ? ' · ' + x.issue : '')) + '">' + esc(x.name) + (DUPS[x.name] ? '<small>' + esc(String(x.phone).slice(-4)) + '</small>' : '') + (SMS_STATE.term ? '' : '<small>' + esc(x.term) + '</small>') + '</span>'; }).join('') : '<span class="muted">해당하는 분이 없어요.</span>';
       $$('#chips .chip').forEach(function (c) { c.onclick = function () { var ph = c.dataset.ph; SMS_STATE.off[ph] = !SMS_STATE.off[ph]; drawRc(); }; });
     }
     function targets() { return pick().filter(function (x) { return !SMS_STATE.off[x.phone]; }); }
@@ -562,7 +601,7 @@ function renderSms() {
       var btn = this; btn.disabled = true;
       run('smsLog', { kind: k.t, target: (SMS_STATE.term || '전체') + ' ' + $('#rWho').selectedOptions[0].textContent, count: t.length, text: $('#pText').value }).then(function () { btn.classList.add('done'); btn.textContent = '✓ 보냄으로 기록했어요'; });
     };
-    fillText(); drawRc();
+    dateVis(); fillText(); drawRc();
   });
 }
 
@@ -598,17 +637,177 @@ function renderDoc() {
   });
 }
 
+// ───── 출결 · 이수 판정 ─────
+var ATT_STATE = { term: '', filter: 'all', q: '' };
+function renderAttend() {
+  var term = ATT_STATE.term || (BOOT.terms[0] || '');
+  ATT_STATE.term = term;
+  run('attendance', { term: term }).then(function (r) {
+    var days = r.days || [];
+    var cnt = { all: r.people.length, check: 0, n: 0, y: 0, dup: 0 };
+    r.people.forEach(function (x) { if (x.judge === '확인 필요') cnt.check++; if (x.judge === 'N') cnt.n++; if (x.judge === 'Y') cnt.y++; if (x.dup) cnt.dup++; });
+    $('#main').innerHTML = '<h2>출결 · 이수 판정</h2><p class="sub">연수생이 사이트에서 누른 출석체크·퇴실체크로 자동 집계해요. 이름이 아니라 <b>이름+휴대폰</b>으로 묶어서 동명이인이 섞이지 않아요. 기준 ' + r.need + '시간, 지각·조퇴 ' + r.grace + '분 넘으면 1시간 단위로 빼요.</p>' +
+      '<div class="toolbar"><select id="aTerm">' + BOOT.terms.map(function (t) { return '<option' + (t === term ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' +
+      '<div class="seg" id="aSeg">' + [['all', '전체 ' + cnt.all], ['check', '확인 필요 ' + cnt.check], ['n', '미달 ' + cnt.n], ['y', '이수 ' + cnt.y], ['dup', '동명이인 ' + cnt.dup]].map(function (f) { return '<button data-f="' + f[0] + '" class="' + (ATT_STATE.filter === f[0] ? 'on' : '') + '">' + f[1] + '</button>'; }).join('') + '</div>' +
+      '<input type="search" id="aQ" placeholder="이름·학교·번호" value="' + esc(ATT_STATE.q) + '" style="width:180px"><span class="grow"></span>' +
+      '<button class="btn line sm" id="aCopy">표 복사</button><button class="btn navy sm" id="aApply">이수 판정 → 신청자 명단 반영</button></div>' +
+      '<div class="stats" style="grid-template-columns:repeat(' + Math.max(1, Math.min(days.length, 4)) + ',1fr)">' + (days.length ? days.map(function (d) {
+        var c = r.counts[d.date] || {};
+        return '<div class="stat" style="cursor:default"><small>' + esc(d.date) + '(' + esc(d.dow) + ') ' + esc(d.startHm) + '~' + esc(d.endHm) + ' · ' + d.hours + 'h</small><b>' + (c.in || 0) + '<span>/ ' + r.people.length + '명 입실</span></b>' +
+          '<div class="row-actions" style="margin-top:6px"><button class="btn red sm" data-noin="' + d.date + '">미입실 ' + (c.noIn || 0) + ' → 문자</button><button class="btn line sm" data-noout="' + d.date + '">미퇴실 ' + (c.noOut || 0) + ' → 문자</button></div></div>';
+      }).join('') : '<div class="card">연수 일정 탭에 ' + esc(term) + ' 날짜·시작·종료를 먼저 넣어 주세요.</div>') + '</div>' +
+      '<details class="card" style="margin-bottom:14px"><summary style="cursor:pointer;font-weight:800">보조 확인: Zoom 참가자 목록과 대조 (선택)</summary>' +
+      '<p class="muted" style="margin:8px 0">Zoom 보고서의 참가자 이름 열을 통째로 붙여넣으면, 출석체크는 했는데 Zoom 명단에 이름이 없는 분과 그 반대를 보여 줘요. 이름으로만 찾기 때문에 참고용이에요. 저장하지 않아요.</p>' +
+      '<div class="toolbar"><select id="zDate">' + days.map(function (d) { return '<option>' + esc(d.date) + '</option>'; }).join('') + '</select><button class="btn navy sm" id="zGo">대조하기</button></div>' +
+      '<textarea id="zText" rows="5" placeholder="1기_홍길동&#10;1기_김하늘&#10;…"></textarea><div id="zOut"></div></details>' +
+      '<div class="tbl-wrap"><table class="tbl att-tbl"><thead><tr><th>성명</th><th>학교</th>' + days.map(function (d) { return '<th style="text-align:center">' + esc(d.date.slice(5)) + '(' + esc(d.dow) + ')</th>'; }).join('') + '<th>인정</th><th>판정</th></tr></thead><tbody id="aTb"></tbody></table></div>' +
+      '<p class="muted" style="margin-top:8px">칸을 누르면 그날 인정 시간을 직접 고칠 수 있어요. (퇴실체크를 깜빡한 분 등)</p>';
+    function draw() {
+      var q = ATT_STATE.q.trim();
+      var list = r.people.filter(function (x) {
+        if (ATT_STATE.filter === 'check' && x.judge !== '확인 필요') return false;
+        if (ATT_STATE.filter === 'n' && x.judge !== 'N') return false;
+        if (ATT_STATE.filter === 'y' && x.judge !== 'Y') return false;
+        if (ATT_STATE.filter === 'dup' && !x.dup) return false;
+        return !q || (x.name + x.phone + x.school).indexOf(q) >= 0;
+      });
+      $('#aTb').innerHTML = list.length ? list.map(function (x, i) {
+        return '<tr><td><b>' + esc(x.name) + '</b>' + dupTag(x.name) + '<div class="muted">' + esc(x.phone) + '</div></td><td class="muted">' + esc(x.school) + '</td>' +
+          days.map(function (d) {
+            var o = x.days[d.date] || {};
+            var cls = /미체크/.test(o.status) ? 'chk' : (o.status === '결석' || o.status === '미입실') ? 'bad' : (o.status === '정상' || o.status === '조정') ? 'okc' : '';
+            return '<td class="d ' + cls + '" data-i="' + r.people.indexOf(x) + '" data-d="' + d.date + '" style="cursor:pointer">' + esc(o.in || '-') + ' ~ ' + esc(o.out || '-') + '<small>' + esc(o.status) + (o.hours ? ' · ' + o.hours + 'h' : '') + '</small></td>';
+          }).join('') +
+          '<td><b>' + x.total + '</b>h</td><td>' + (x.judge === 'Y' ? '<span class="badge b-ok">이수</span>' : x.judge === 'N' ? '<span class="badge b-red">미달</span>' : '<span class="badge b-navy">' + esc(x.judge) + '</span>') + '</td></tr>';
+      }).join('') : '<tr><td colspan="' + (days.length + 4) + '" class="empty">해당하는 분이 없어요.</td></tr>';
+      $$('#aTb td.d').forEach(function (td) { td.onclick = function () { adjust(r.people[+td.dataset.i], td.dataset.d); }; });
+    }
+    function adjust(x, date) {
+      var o = x.days[date] || {}, d = days.filter(function (y) { return y.date === date; })[0] || {};
+      $('#mTitle').textContent = x.name + ' · ' + date + ' 출결 고치기';
+      $('#mBody').innerHTML = '<div class="f"><label>기록</label><div>입실 ' + esc(o.in || '-') + ' · 퇴실 ' + esc(o.out || '-') + ' · <b>' + esc(o.status) + '</b></div></div>' +
+        '<div class="f"><label>인정 시간 (h)</label><div><input type="text" id="adjH" value="' + (o.status === '조정' ? o.hours : '') + '" placeholder="0~' + d.hours + ', 비우면 자동 계산으로 되돌림"></div></div>' +
+        '<div class="f"><label>사유 메모</label><div><input type="text" id="adjM" value="' + esc(o.memo || '') + '" placeholder="예: 퇴실체크 누락, Zoom 기록으로 확인"></div></div>';
+      $('#mFoot').innerHTML = '<span class="sp"></span><button class="btn line" onclick="closeModal()">취소</button><button class="btn navy" id="adjSave">저장</button>';
+      $('#modal').classList.add('open');
+      $('#adjSave').onclick = function () {
+        var h = $('#adjH').value.trim();
+        if (h !== '' && (isNaN(+h) || +h < 0 || +h > d.hours)) return toast('0 ~ ' + d.hours + ' 사이 숫자로 넣어 주세요.');
+        this.disabled = true;
+        run('attendAdjust', { term: term, date: date, name: x.name, phone: x.phone, hours: h, memo: $('#adjM').value }).then(function () { closeModal(); toast('고쳤어요.'); PEOPLE = null; renderAttend(); });
+      };
+    }
+    $('#aTerm').onchange = function () { ATT_STATE.term = this.value; renderAttend(); };
+    $$('#aSeg button').forEach(function (b) { b.onclick = function () { ATT_STATE.filter = b.dataset.f; $$('#aSeg button').forEach(function (x) { x.classList.toggle('on', x === b); }); draw(); }; });
+    $('#aQ').oninput = function () { ATT_STATE.q = this.value; draw(); };
+    $('#aCopy').onclick = function () {
+      var rows = [['성명', '휴대폰', '학교'].concat(days.map(function (d) { return d.date + ' 입실'; }), days.map(function (d) { return d.date + ' 퇴실'; }), days.map(function (d) { return d.date + ' 인정h'; }), ['합계', '판정'])];
+      r.people.forEach(function (x) { rows.push([x.name, x.phone, x.school].concat(days.map(function (d) { return (x.days[d.date] || {}).in || ''; }), days.map(function (d) { return (x.days[d.date] || {}).out || ''; }), days.map(function (d) { return (x.days[d.date] || {}).hours || 0; }), [x.total, x.judge])); });
+      copy(tsv(rows)).then(function () { toast(r.people.length + '명 출결표를 복사했어요.'); });
+    };
+    $('#aApply').onclick = function () {
+      if (!confirm(term + ' 이수 판정을 신청자 명단의 이수(Y/N)에 반영할까요?\n확인 필요·진행 중인 분은 그대로 둬요.')) return;
+      this.disabled = true;
+      run('attendApply', { term: term }).then(function (x) { toast(x.msg, 5000); PEOPLE = null; renderAttend(); });
+    };
+    $$('[data-noin]').forEach(function (b) { b.onclick = function () { SMS_STATE.kind = 'noin'; SMS_STATE.term = term; SMS_STATE.date = b.dataset.noin; SMS_STATE.off = {}; PEOPLE = null; go('sms'); }; });
+    $$('[data-noout]').forEach(function (b) { b.onclick = function () { SMS_STATE.kind = 'noout'; SMS_STATE.term = term; SMS_STATE.date = b.dataset.noout; SMS_STATE.off = {}; PEOPLE = null; go('sms'); }; });
+    if ($('#zGo')) $('#zGo').onclick = function () {
+      var date = $('#zDate').value, text = $('#zText').value.replace(/\s/g, '');
+      if (!text) return toast('Zoom 참가자 이름을 붙여넣어 주세요.');
+      var noZoom = [], noCheck = [];
+      r.people.forEach(function (x) {
+        var o = x.days[date] || {}, inZoom = text.indexOf(x.name) >= 0;
+        if (o.in && !inZoom) noZoom.push(x);
+        if (!o.in && inZoom) noCheck.push(x);
+      });
+      function li(a) { return a.length ? a.map(function (x) { return esc(x.name) + dupTag(x.name) + ' <span class="muted">' + esc(x.phone.slice(-4)) + '</span>'; }).join(', ') : '<span class="muted">없음</span>'; }
+      $('#zOut').innerHTML = '<div style="margin-top:10px;line-height:1.9"><b>출석체크 O, Zoom 이름 없음 (' + noZoom.length + ')</b><br>' + li(noZoom) + '<br><b>Zoom 이름 있음, 출석체크 X (' + noCheck.length + ')</b> <span class="muted">→ 칸을 눌러 인정 시간 조정</span><br>' + li(noCheck) + '</div>';
+    };
+    draw();
+  });
+}
+
+// ───── 게시판 (Q&A · 환불 요청) ─────
+var BOARD_UI = { board: '환불요청', filter: 'open' };
+var BOARD_STATES = { 'Q&A': ['접수', '답변 완료'], '환불요청': ['접수', '검토 중', '연수원 전달', '환불 완료', '반려'] };
+function boardSms(r) {
+  var s = BOOT.settings || {}, site = String(s['사이트주소'] || '').replace(/^https?:\/\//, ''), wait = s['환불소요'] || '영업일 기준 2~3주';
+  var head = '[연구하는 교사되기 2027]\n' + r['성명'] + ' 선생님, ';
+  if (r['게시판'] === 'Q&A') return head + '남겨 주신 문의(' + r['글번호'] + ')에 답변을 달았어요.\n' + site + ' > 게시판 > Q&A에서 이름·휴대폰 번호로 확인해 주세요.';
+  var st = r['처리상태'] || '접수';
+  if (st === '접수') return head + '환불 요청(' + r['글번호'] + ')이 접수되었어요.\n실시간 환불이 아니라 운영팀 확인 → 교육연수원 전달 → 연수원 환불 처리 순서로 진행되며, ' + wait + ' 정도 걸릴 수 있어요. 단계가 바뀌면 다시 알려 드릴게요.';
+  if (st === '검토 중') return head + '환불 요청(' + r['글번호'] + ')을 운영팀이 확인하고 있어요. 확인되면 교육연수원에 전달하고 다시 알려 드릴게요.';
+  if (st === '연수원 전달') return head + '환불 요청(' + r['글번호'] + ')을 교육연수원에 전달했어요.\n연수원 처리 일정에 따라 ' + wait + ' 정도 걸릴 수 있어요. 진행 상황은 ' + site + ' > 게시판 > 환불 요청에서 볼 수 있어요.';
+  if (st === '환불 완료') return head + '환불 처리가 완료되었어요. 입금 내역을 확인해 주세요.\n이번에 함께하지 못해 아쉬워요. 다음에 꼭 만나요 : )';
+  return head + '환불 요청(' + r['글번호'] + ')에 대한 답변을 남겼어요.\n' + site + ' > 게시판 > 환불 요청에서 확인해 주세요.';
+}
+function renderBoard() {
+  run('board').then(function (t) {
+    var all = t.rows.slice().reverse();
+    var done = ['답변 완료', '환불 완료', '반려'];
+    var mine = all.filter(function (r) { return r['게시판'] === BOARD_UI.board; });
+    var list = mine.filter(function (r) { return BOARD_UI.filter === 'all' || done.indexOf(r['처리상태']) < 0; });
+    var nOpen = function (b) { return all.filter(function (r) { return r['게시판'] === b && done.indexOf(r['처리상태']) < 0; }).length; };
+    var refund = BOARD_UI.board === '환불요청';
+    $('#main').innerHTML = '<h2>게시판</h2><p class="sub">연수생은 본인 글만 볼 수 있어요(이름+휴대폰). 단계를 바꾸고 저장한 뒤 <b>안내 문자</b>로 알려 주세요. 문자 문구는 단계에 맞춰 자동으로 바뀌어요.</p>' +
+      '<div class="toolbar"><div class="seg" id="bSeg"><button data-b="환불요청" class="' + (refund ? 'on' : '') + '">환불 요청 · 진행 ' + nOpen('환불요청') + '</button><button data-b="Q&A" class="' + (!refund ? 'on' : '') + '">Q&A · 미답변 ' + nOpen('Q&A') + '</button></div>' +
+      '<div class="seg" id="bFil"><button data-f="open" class="' + (BOARD_UI.filter === 'open' ? 'on' : '') + '">진행 중</button><button data-f="all" class="' + (BOARD_UI.filter === 'all' ? 'on' : '') + '">전체</button></div><span class="grow"></span>' +
+      (refund ? '<button class="btn line sm" id="bXfer">연수원 전달용 표 복사 (검토 중)</button>' : '') + '</div>' +
+      (list.length ? list.map(function (r) {
+        var states = BOARD_STATES[r['게시판']] || BOARD_STATES['Q&A'];
+        return '<div class="post" data-row="' + r._row + '"><div class="h"><b>' + esc(r['글번호']) + '</b>' + cell('처리상태', r['처리상태'] || '접수') +
+          '<b>' + esc(r['성명']) + '</b>' + dupTag(String(r['성명']).replace(/\s/g, '')) + '<span class="muted">' + esc(r['휴대폰']) + ' · ' + esc(r['기수'] || '기수 미확인') + ' · ' + esc(r['작성시각']) + '</span>' +
+          (r['공개'] === 'Y' ? '<span class="badge b-gray">공개</span>' : '') + (r['운영메모'] === '신청자 명단에서 찾지 못함' ? '<span class="badge b-red">명단에 없음</span>' : '') + '</div>' +
+          (refund ? '<div style="margin-top:8px"><span class="badge b-navy">' + esc(r['환불사유']) + '</span></div>' : '<div style="margin-top:8px;font-weight:800">' + esc(r['제목']) + '</div>') +
+          '<div class="c">' + esc(r['내용']) + '</div>' +
+          '<div class="ctl"><select data-st>' + states.map(function (s) { return '<option' + (s === (r['처리상태'] || '접수') ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select>' +
+          '<textarea data-ans placeholder="' + (refund ? '연수생에게 보일 답변 (선택)' : '답변을 쓰면 상태가 답변 완료로 바뀌어요') + '">' + esc(r['답변']) + '</textarea>' +
+          '<span class="muted">운영 메모 (비공개)</span><input type="text" data-memo value="' + esc(r['운영메모']) + '"></div>' +
+          '<div class="toolbar" style="margin:10px 0 0"><button class="btn navy sm" data-save>저장</button><button class="btn line sm" data-sms>안내 문자: 문구 복사 + 문자나라</button><button class="btn line sm" data-ph>번호 복사</button><span class="muted">' + (r['답변시각'] ? '마지막 처리 ' + esc(r['답변시각']) : '') + '</span></div></div>';
+      }).join('') : '<div class="card empty">' + (BOARD_UI.filter === 'open' ? '처리할 글이 없어요 : )' : '아직 글이 없어요.') + '</div>');
+    $$('#bSeg button').forEach(function (b) { b.onclick = function () { BOARD_UI.board = b.dataset.b; renderBoard(); }; });
+    $$('#bFil button').forEach(function (b) { b.onclick = function () { BOARD_UI.filter = b.dataset.f; renderBoard(); }; });
+    if ($('#bXfer')) $('#bXfer').onclick = function () {
+      var rows = [['글번호', '접수일', '기수', '성명', '휴대폰', '환불사유', '자세한 사유']].concat(mine.filter(function (r) { return r['처리상태'] === '검토 중'; }).map(function (r) { return [r['글번호'], String(r['작성시각']).slice(0, 10), r['기수'], r['성명'], r['휴대폰'], r['환불사유'], r['내용']]; }));
+      if (rows.length < 2) return toast('검토 중인 환불 요청이 없어요.');
+      copy(tsv(rows)).then(function () { toast((rows.length - 1) + '건을 복사했어요. 연수원에 보낸 뒤 단계를 "연수원 전달"로 바꿔 주세요.', 5000); });
+    };
+    $$('.post').forEach(function (el) {
+      var row = +el.dataset.row, r = t.rows.filter(function (x) { return x._row === row; })[0];
+      function cur() { var st = $('[data-st]', el).value, ans = $('[data-ans]', el).value.trim(); if (r['게시판'] === 'Q&A' && ans && st === '접수') st = '답변 완료'; return { state: st, answer: ans, memo: $('[data-memo]', el).value }; }
+      $('[data-save]', el).onclick = function () {
+        var c = cur(), b = this; b.disabled = true;
+        run('boardReply', { row: row, state: c.state, answer: c.answer, memo: c.memo }).then(function (x) { r['처리상태'] = x.state; r['답변'] = c.answer; toast(x.state + '(으)로 저장했어요. 안내 문자도 보내 주세요.', 3500); b.disabled = false; refreshBoot(); $('[data-st]', el).value = x.state; });
+      };
+      $('[data-sms]', el).onclick = function () {
+        var c = cur(); var msg = boardSms(Object.assign({}, r, { '처리상태': c.state }));
+        copy(msg).then(function () { toast('문구를 복사했어요. 문자나라에 붙여넣고, 번호 복사도 눌러 주세요.'); window.open('https://www.munjanara.co.kr/', '_blank'); run('smsLog', { kind: (r['게시판'] === 'Q&A' ? 'Q&A 답변' : '환불 ' + c.state) + ' 안내', target: r['글번호'] + ' ' + r['성명'], count: 1, text: msg }); });
+      };
+      $('[data-ph]', el).onclick = function () { copy(String(r['휴대폰'])).then(function () { toast(r['성명'] + ' 번호를 복사했어요.'); }); };
+    });
+  });
+}
+
 // ───── 미리보기용 예시 데이터 (구글 밖에서 열 때만) ─────
 function MOCK(a, p) {
   var names = ['김하늘', '이도윤', '박서연', '최지우', '정민준', '강예린', '조현우', '윤서아', '장도현', '임채원', '한지민', '오세훈'];
   var people = names.map(function (n, i) { return { name: n, phone: '010-1234-' + (1000 + i), term: i % 2 ? '2기' : '1기', state: i === 5 ? '대기' : i === 9 ? '취소' : '신청', paid: i % 4 !== 0, issue: i % 3 === 0 ? 'NEIS 번호 형식' : '', done: true }; });
-  if (a === 'boot') return { email: 'pm@example.com', terms: ['1기', '2기'], byTerm: { '1기': { 신청: 205, 대기: 3, 취소: 4 }, '2기': { 신청: 140, 대기: 0, 취소: 2 } }, pending: 3, issues: 14, total: 348, ssUrl: '#', site: 'https://snu27.dumokquoka.com', settings: { 사이트주소: 'https://snu27.dumokquoka.com', 이수정보마감: '2027-02-10', '연수기간_1기': '2027-02-01~2027-02-03', '연수기간_2기': '2027-02-04~2027-02-06', '줌링크_1기': 'https://zoom.us/j/000' } };
+  if (a === 'boot') return { dups: { '김하늘': [{ phone: '010-1234-1000', term: '1기', school: '예시초등학교' }, { phone: '010-5555-2222', term: '1기', school: '다른초등학교' }] }, board: { qna: 1, refund: 2 }, email: 'pm@example.com', terms: ['1기', '2기'], byTerm: { '1기': { 신청: 205, 대기: 3, 취소: 4 }, '2기': { 신청: 140, 대기: 0, 취소: 2 } }, pending: 3, issues: 14, total: 348, ssUrl: '#', site: 'https://snu27.dumokquoka.com', settings: { 사이트주소: 'https://snu27.dumokquoka.com', 이수정보마감: '2027-02-10', '연수기간_1기': '2027-02-01~2027-02-03', '연수기간_2기': '2027-02-04~2027-02-06', '줌링크_1기': 'https://zoom.us/j/000', 환불소요: '영업일 기준 2~3주' } };
+  people[3].name = '김하늘'; people[3].phone = '010-5555-2222';
+  var D = ['2027-02-01', '2027-02-02', '2027-02-03'];
+  people.forEach(function (x, i) { x.school = '예시초등학교'; x.days = {}; D.forEach(function (d, j) { x.days[d] = j < 2 ? (i % 5 === 1 && j === 1 ? { in: '', out: '', hours: 0, status: '결석' } : i % 4 === 2 && j === 1 ? { in: '09:05', out: '', hours: 0, status: '퇴실 미체크' } : { in: '08:5' + (i % 9), out: '15:0' + (i % 5), hours: 5, status: '정상' }) : { in: '', out: '', hours: 0, status: '예정' }; }); x.total = Object.keys(x.days).reduce(function (t, d) { return t + x.days[d].hours; }, 0); x.judge = i % 5 === 1 ? 'N' : i % 4 === 2 ? '확인 필요' : '진행 중'; x.dup = x.name === '김하늘'; x.refund = i === 4 ? '검토 중' : ''; });
+  if (a === 'attendance') return { ok: true, term: p.term, need: 12, grace: 10, today: '2027-02-02', days: D.map(function (d, j) { return { date: d, dow: ['월', '화', '수'][j], startHm: '09:00', endHm: '15:00', hours: 5 }; }), counts: { '2027-02-01': { in: 12, out: 12, noIn: 0, noOut: 0 }, '2027-02-02': { in: 9, out: 7, noIn: 3, noOut: 2 }, '2027-02-03': { in: 0, out: 0, noIn: 0, noOut: 0 } }, people: people.filter(function (x) { return x.state === '신청'; }) };
+  if (a === 'board') return { headers: ['작성시각', '글번호', '게시판', '제목', '내용', '성명', '휴대폰', '기수', '공개', '환불사유', '처리상태', '답변', '답변시각', '운영메모'], rows: [
+    { _row: 2, 작성시각: '2027-01-10 09:12', 글번호: 'F0001', 게시판: '환불요청', 제목: '환불 요청', 내용: '학교 방과후 일정과 겹쳐 참여가 어려워 환불 요청드립니다.', 성명: '김하늘', 휴대폰: '010-1234-1000', 기수: '1기', 공개: 'N', 환불사유: '개인 사정(일정 충돌 등)', 처리상태: '검토 중' },
+    { _row: 3, 작성시각: '2027-01-11 14:40', 글번호: 'F0002', 게시판: '환불요청', 제목: '환불 요청', 내용: '실수로 두 번 신청했어요. 한 건 환불 부탁드립니다.', 성명: '정민준', 휴대폰: '010-1234-1004', 기수: '1기', 공개: 'N', 환불사유: '중복 신청', 처리상태: '접수' },
+    { _row: 4, 작성시각: '2027-01-12 08:02', 글번호: 'Q0001', 게시판: 'Q&A', 제목: '출석체크를 깜빡했어요', 내용: '2일차 퇴실체크를 못 눌렀어요. 끝까지 있었습니다.', 성명: '박서연', 휴대폰: '010-1234-1002', 기수: '1기', 공개: 'N', 처리상태: '접수' }] };
   if (a === 'people') return people;
   if (a === 'check') return { total: 348, issues: people.filter(function (x) { return x.issue; }).map(function (x) { return { term: x.term, name: x.name, phone: x.phone, problem: x.issue, fixed: false }; }), phones: '' };
   if (a === 'table') {
     if (p.sheet === '문자기록') return { headers: ['보낸시각', '문자종류', '대상', '인원', '내용'], rows: [{ _row: 2, 보낸시각: '2027-01-20 10:12', 문자종류: '신청 확정·환영', 대상: '1기 신청', 인원: '205' }] };
     if (p.sheet === '셀프신청') return { headers: ['접수시각', '접수번호', '유형', '성명', '휴대폰', '현재기수', '희망기수', '현금영수증번호', '내용', '처리상태', '처리메모', '처리일'], rows: [
-      { _row: 2, 접수시각: '2027-01-12 09:20', 유형: '기수변경', 성명: '김하늘', 휴대폰: '010-1234-1000', 현재기수: '1기', 희망기수: '2기', 처리상태: '접수' },
+      { _row: 2, 접수시각: '2027-01-12 09:20', 유형: '수강취소', 성명: '김하늘', 휴대폰: '010-1234-1000', 현재기수: '1기', 처리상태: '접수' },
       { _row: 3, 접수시각: '2027-01-12 11:02', 유형: '현금영수증 수정', 성명: '이도윤', 휴대폰: '010-1234-1001', 현금영수증번호: '010-9999-0000', 처리상태: '접수' }] };
     return { headers: ['기수', '신청일', 'NEIS 번호', '성명', '생년월일', '전공', '소속학교', '소속청', '연락처', '연수지명번호', '이메일', '입금액', '입금일', '상태', '이수(Y/N)', '메모'],
       rows: people.map(function (x, i) { return { _row: i + 2, 기수: x.term, 'NEIS 번호': 'J10000000' + i, 성명: x.name, 생년월일: '1988.03.1' + (i % 9), 소속학교: '예시초등학교', 소속청: '경기도교육청', 연락처: x.phone, 입금일: x.paid ? '2026-12-20' : '', 상태: x.state, '이수(Y/N)': 'Y' }; }) };

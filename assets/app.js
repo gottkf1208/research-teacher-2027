@@ -12,7 +12,9 @@
   // ───────── 페이지 정의 ─────────
   var GROUPS = {
     guide: { name: '연수 안내', en: 'Course Guide', tabs: [['guide', '연수 개요'], ['schedule', '일정·시간표'], ['access', '접속 안내']] },
+    attend: { name: '출석체크', en: 'Attendance', tabs: [] },
     talk: { name: '공지·FAQ', en: 'Notice & FAQ', tabs: [['notice', '공지사항'], ['faq', '자주 묻는 질문']] },
+    board: { name: '게시판', en: 'Q&A · Refund', tabs: [['qna', 'Q&A'], ['refund', '환불 요청']] },
     self: { name: '셀프 서비스', en: 'Self Service', tabs: [['request', '셀프 신청'], ['info', '이수정보 입력'], ['status', '내 현황 조회']] }
   };
   var PAGES = {
@@ -21,6 +23,9 @@
     access: { g: 'guide', t: '접속 안내', r: renderAccess },
     notice: { g: 'talk', t: '공지사항', r: renderNotice },
     faq: { g: 'talk', t: '자주 묻는 질문', r: renderFaq },
+    attend: { g: 'attend', t: '출석체크', r: renderAttend },
+    qna: { g: 'board', t: 'Q&A', r: function (v) { renderBoard(v, 'Q&A'); } },
+    refund: { g: 'board', t: '환불 요청', r: function (v) { renderBoard(v, '환불요청'); } },
     request: { g: 'self', t: '셀프 신청', r: renderRequest },
     info: { g: 'self', t: '이수정보 입력', r: renderInfo },
     status: { g: 'self', t: '내 현황 조회', r: renderStatus },
@@ -109,10 +114,10 @@
       }).join('');
       v.innerHTML =
         '<div class="quick">' +
+        quick('#/attend', 'xi-check-circle-o', '출석체크', '연수 당일 여기서 출석 → 강의실 입장 → 퇴실체크') +
         quick('#/info', 'xi-pen-o', '이수정보 입력', '이수증 발급에 꼭 필요해요. 생년월일·나이스 번호를 정확히!') +
-        quick('#/request', 'xi-exchange', '기수변경 · 취소 · 영수증', '메일 대신 여기서 신청하면 바로 접수돼요.') +
-        quick('#/status', 'xi-search', '내 현황 · 납입확인', '신청 상태와 처리 결과를 확인해요.') +
-        quick('#/faq', 'xi-help-o', '자주 묻는 질문', '문의 전에 먼저 확인해 주세요.') +
+        quick('#/request', 'xi-exchange', '취소 · 현금영수증', '메일 대신 여기서 신청하면 바로 접수돼요. (기수 변경 불가)') +
+        quick('#/qna', 'xi-forum', 'Q&A · 환불 요청', '궁금한 점과 환불 요청은 게시판에 남겨 주세요.') +
         '</div>' +
         '<div class="home-grid"><section><div class="sec-row"><h3 class="sec">공지사항</h3><a class="more" href="#/notice">더보기 <i class="xi-plus"></i></a></div>' +
         (notices.length ? '<ul class="list-simple">' + notices.map(function (n, i) {
@@ -139,7 +144,7 @@
       '<div><b>STEP 1</b><strong>연수원 신청·입금</strong>서울대 사범대 교육연수원 사이트에서 신청</div>' +
       '<div><b>STEP 2</b><strong>이수정보 입력</strong>이 사이트에서 마감 전까지 입력</div>' +
       '<div><b>STEP 3</b><strong>연수 참여·이수</strong>Zoom 출석 80% 이상 → 이수증·나이스 등재(연수원)</div>' +
-      '</div><div class="box note">신청 접수, 이수증 발급, 나이스 등재는 교육연수원에서 처리해요. 기수변경·취소·현금영수증·이수정보처럼 운영팀이 처리하는 일은 이 사이트의 셀프 서비스로 접수해 주세요.</div></div>';
+      '</div><div class="box" style="margin-bottom:16px;border-left:4px solid var(--danger)"><b style="color:var(--danger)">2027년에는 기수 변경을 받지 않습니다.</b><br><span class="note">신청한 기수 그대로 참여해 주세요. 일정이 맞지 않으면 기수 변경 대신 수강 취소로 접수됩니다. 신청할 때 기수를 신중히 골라 주세요.</span></div><div class="box note">신청 접수, 이수증 발급, 나이스 등재는 교육연수원에서 처리해요. 취소·현금영수증·이수정보처럼 운영팀이 처리하는 일은 이 사이트의 셀프 서비스로 접수해 주세요.</div></div>';
   }
   function row(k, val) { return '<tr><th>' + esc(k) + '</th><td>' + esc(val) + '</td></tr>'; }
 
@@ -167,7 +172,8 @@
       }).join('') +
       (C.padlet ? '<tr><th>질문 게시판</th><td><a class="btn line" style="height:40px;padding:0 18px" href="' + esc(C.padlet) + '" target="_blank" rel="noopener">패들렛 열기</a></td></tr>' : '') +
       '</table><h3 class="sec">출석이 인정되려면</h3><div class="box"><ul style="margin:0;padding-left:20px">' +
-      '<li>Zoom 이름을 <b>기수_성명</b>(예: 1기_홍길동)으로 바꿔 주세요. 이름으로 출석을 확인해요.</li>' +
+      '<li>연수 당일 <a href="#/attend" style="text-decoration:underline"><b>출석체크</b></a>에서 출석하고 강의실에 들어가, 끝날 때 <b>퇴실체크</b>까지 눌러 주세요. 둘 다 있어야 그날 출석이 인정돼요.</li>' +
+      '<li>Zoom 이름은 <b>기수_성명</b>(예: 1기_홍길동)으로 바꿔 주세요.</li>' +
       '<li>카메라를 켜고 참여해 주세요. 장시간 자리 비움은 출석으로 인정되지 않을 수 있어요.</li>' +
       '<li>' + esc(C.site.criteria) + '이어야 이수돼요.</li></ul></div></div>';
   }
@@ -195,7 +201,7 @@
       '<div class="faq">' + list.map(function (f) {
         return '<details><summary><span class="q">Q</span><span>' + esc(f.q) + '</span></summary><div class="ans"><span class="a">A</span><div>' + linkify(f.a) + '</div></div></details>';
       }).join('') + '</div>' +
-      '<div class="faq-cta"><p class="note">찾는 답이 없나요? 기수변경·취소·영수증은 메일보다 셀프 신청이 빨라요.</p><a class="btn navy" href="#/request">셀프 신청하기</a></div>';
+      '<div class="faq-cta"><p class="note">찾는 답이 없나요? 취소·현금영수증은 메일보다 셀프 신청이 빨라요. (기수 변경은 받지 않아요)</p><a class="btn navy" href="#/request">셀프 신청하기</a></div>';
     $$('.faq-cats button', v).forEach(function (b) { b.onclick = function () { faqCat = b.textContent; renderFaq(v); }; });
   }
 
@@ -204,16 +210,16 @@
     var termOpts = C.terms.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
     v.innerHTML = '<div class="narrow">' +
       (C.deadlines.request ? '<p class="note" style="text-align:right">셀프 신청 마감 : <b style="color:var(--danger)">' + esc(C.deadlines.request) + '</b></p>' : '') +
+      '<div class="box" style="margin-bottom:24px;border-left:4px solid var(--danger)"><b style="color:var(--danger)">기수 변경은 받지 않아요.</b> <span class="note">신청한 기수 그대로 참여해 주세요. 참여가 어려우면 수강 취소로 접수해 주세요.</span></div>' +
       '<form class="form" id="reqForm" novalidate>' +
-      field('신청 유형', true, '<div class="radios">' + ['기수변경', '수강취소', '현금영수증 수정', '기타 문의'].map(function (t, i) {
+      field('신청 유형', true, '<div class="radios">' + ['수강취소', '현금영수증 수정', '기타 문의'].map(function (t, i) {
         return '<label><input type="radio" name="type" value="' + t + '"' + (i === 0 ? ' checked' : '') + '>' + t + '</label>';
       }).join('') + '</div>', 'type') +
       field('성명', true, '<input type="text" name="name" autocomplete="name" placeholder="연수 신청할 때 쓴 이름">', 'name') +
       field('휴대폰', true, '<input type="tel" name="phone" inputmode="numeric" autocomplete="tel" placeholder="010-0000-0000">', 'phone', '신청할 때 쓴 번호로 본인을 확인해요.') +
-      field('현재 기수', false, '<select name="fromTerm"><option value="">선택</option>' + termOpts + '</select>', 'fromTerm') +
-      '<div data-show="기수변경">' + field('희망 기수', true, '<select name="toTerm"><option value="">선택</option>' + termOpts + '</select>', 'toTerm', '정원이 찬 기수는 대기로 접수되고, 자리가 나면 순서대로 안내해요.') + '</div>' +
+      field('수강 기수', false, '<select name="fromTerm"><option value="">선택</option>' + termOpts + '</select>', 'fromTerm') +
       '<div data-show="현금영수증 수정">' + field('현금영수증 번호', true, '<input type="text" name="receipt" inputmode="numeric" placeholder="휴대폰 번호 또는 사업자번호">', 'receipt') + '</div>' +
-      '<div data-show="수강취소">' + '<div class="field"><div class="lbl">취소 안내</div><div class="note">취소·환불 기준은 교육연수원 규정을 따라요. 접수되면 운영팀이 확인 후 연수원에 전달해요.</div></div></div>' +
+      '<div data-show="수강취소">' + '<div class="field"><div class="lbl">취소 안내</div><div class="note">취소·환불 기준은 교육연수원 규정을 따라요. 이미 입금하셨다면 <a href="#/refund" style="text-decoration:underline"><b>환불 요청 게시판</b></a>에 사유와 함께 따로 남겨 주세요.</div></div></div>' +
       field('내용', false, '<textarea name="memo" placeholder="필요한 내용을 적어 주세요. (선택)"></textarea>', 'memo') +
       '</form>' + agreeBox() +
       '<div class="btns"><button class="btn navy" id="reqSubmit"><i class="xi-check"></i>신청하기</button></div></div>';
@@ -227,12 +233,10 @@
     autoPhone(f.phone);
     $('#reqSubmit').onclick = function () {
       clearErrs(f);
-      var d = { type: f.type.value, name: f.name.value.trim(), phone: f.phone.value, fromTerm: f.fromTerm.value, toTerm: f.toTerm.value, receipt: f.receipt.value.trim(), memo: f.memo.value.trim() };
+      var d = { type: f.type.value, name: f.name.value.trim(), phone: f.phone.value, fromTerm: f.fromTerm.value, receipt: f.receipt.value.trim(), memo: f.memo.value.trim() };
       var bad = false;
       if (!d.name) bad = setErr(f, 'name', '성명을 입력해 주세요.') || true;
       if (!normPhone(d.phone)) bad = setErr(f, 'phone', '010-0000-0000 형식으로 입력해 주세요.') || true;
-      if (d.type === '기수변경' && !d.toTerm) bad = setErr(f, 'toTerm', '희망 기수를 골라 주세요.') || true;
-      if (d.type === '기수변경' && d.toTerm && d.toTerm === d.fromTerm) bad = setErr(f, 'toTerm', '현재 기수와 같은 기수예요.') || true;
       if (d.type === '현금영수증 수정' && !d.receipt) bad = setErr(f, 'receipt', '현금영수증 번호를 입력해 주세요.') || true;
       if (!$('#agree').checked) { alertBox('개인정보 수집·이용에 동의해 주세요.'); bad = true; }
       if (bad) return focusErr(f);
@@ -297,6 +301,172 @@
     };
   }
 
+  // ───────── 출석체크: 출석 → 강의실 입장 → 퇴실 ─────────
+  var ME_KEY = 'snu27_me';
+  function loadMe() { try { return JSON.parse(localStorage.getItem(ME_KEY) || 'null'); } catch (e) { return null; } }
+  function saveMe(me) { try { if (me) localStorage.setItem(ME_KEY, JSON.stringify(me)); else localStorage.removeItem(ME_KEY); } catch (e) {} }
+  function renderAttend(v) {
+    var me = loadMe() || {};
+    var a = C.attend || { before: 30, outBefore: 20, need: 12 };
+    v.innerHTML = '<div class="narrow">' +
+      '<ol class="att-steps"><li id="st1" class="on"><b>1</b>출석체크</li><li id="st2"><b>2</b>강의실 입장</li><li id="st3"><b>3</b>퇴실체크</li></ol>' +
+      '<form class="form" id="atForm" novalidate>' +
+      field('성명', true, '<input type="text" name="name" autocomplete="name" placeholder="연수 신청할 때 쓴 이름" value="' + esc(me.name || '') + '">', 'name') +
+      field('휴대폰', true, '<input type="tel" name="phone" inputmode="numeric" autocomplete="tel" placeholder="010-0000-0000" value="' + esc(me.phone || '') + '">', 'phone', '같은 이름이 여러 분 계셔서 휴대폰 번호로 본인을 확인해요.') +
+      '<label class="remember"><input type="checkbox" id="atRemember"' + (me.name ? ' checked' : '') + '> 이 기기에 기억하기 (퇴실할 때 다시 안 써도 돼요)</label>' +
+      '</form>' +
+      '<div class="att-actions"><button class="btn navy big" id="atIn"><i class="xi-check-circle-o"></i>출석체크하고 강의실 입장</button><button class="btn line big" id="atOut"><i class="xi-log-out"></i>퇴실체크</button></div>' +
+      '<div id="atOut2"></div>' +
+      '<div class="box" style="margin-top:32px"><b>출석 인정 방법</b><ul style="margin:8px 0 0;padding-left:20px" class="note">' +
+      '<li>출석체크는 연수 시작 <b>' + a.before + '분 전</b>부터, 퇴실체크는 끝나기 <b>' + a.outBefore + '분 전</b>부터 할 수 있어요.</li>' +
+      '<li>출석과 퇴실이 <b>둘 다</b> 있어야 그날 출석으로 인정돼요. Zoom이 끊겨서 다시 들어올 때도 출석체크를 다시 누르면 강의실 링크가 나와요.</li>' +
+      '<li>' + esc(C.site.criteria) + '이어야 이수돼요. (인정 ' + a.need + '시간 이상)</li>' +
+      '<li>Zoom 이름은 <b>기수_성명</b>(예: 1기_홍길동)으로 바꿔 주세요.</li>' +
+      '<li>깜빡했거나 오류가 났다면 <a href="#/qna" style="text-decoration:underline">Q&A 게시판</a>에 남겨 주세요. 운영팀이 확인해요.</li></ul></div></div>';
+    var f = $('#atForm');
+    autoPhone(f.phone);
+    function go(kind, btn) {
+      clearErrs(f);
+      var d = { name: f.name.value.replace(/\s/g, ''), phone: normPhone(f.phone.value), kind: kind };
+      var bad = false;
+      if (d.name.length < 2) bad = setErr(f, 'name', '성명을 입력해 주세요.') || true;
+      if (!d.phone) bad = setErr(f, 'phone', '010-0000-0000 형식으로 입력해 주세요.') || true;
+      if (bad) return focusErr(f);
+      saveMe($('#atRemember').checked ? { name: d.name, phone: d.phone } : null);
+      submit(btn, 'attend', d, function (res) { attendDone($('#atOut2'), res); }, function (msg) {
+        $('#atOut2').innerHTML = '<div class="result fail" style="margin-top:28px"><i class="xi-error-o"></i><h4>' + (kind === 'in' ? '출석체크가 안 됐어요' : '퇴실체크가 안 됐어요') + '</h4><p class="note" style="white-space:pre-line">' + esc(msg) + '</p></div>';
+      });
+    }
+    $('#atIn').onclick = function () { go('in', this); };
+    $('#atOut').onclick = function () { go('out', this); };
+  }
+  function attendDone(out, r) {
+    var test = r.test ? ' <span class="badge gray">리허설</span>' : '';
+    if (r.kind === 'in') {
+      $('#st1').className = 'done'; $('#st2').className = 'on';
+      out.innerHTML = '<div class="result" style="margin-top:28px"><i class="xi-check-circle-o"></i><h4>' + esc(r.time) + ' 출석 완료' + test + '</h4>' +
+        '<p class="note">' + esc(r.term) + ' · ' + esc(r.date) + ' (' + esc(r.start) + '~' + esc(r.end) + ')' + (r.late > 0 ? '<br>시작 시각보다 ' + r.late + '분 늦게 출석했어요.' : '') + '</p>' +
+        (r.zoom ? '<a class="btn navy big" id="zoomGo" href="' + esc(r.zoom) + '" target="_blank" rel="noopener" style="margin-top:12px"><i class="xi-video-camera"></i>강의실(Zoom) 입장</a>' : '<p class="note"><b>강의실 링크가 아직 등록되지 않았어요.</b> 오픈채팅 공지를 확인해 주세요.</p>') +
+        '<p class="note" style="margin-top:16px">연수가 끝나면 이 화면에서 <b>퇴실체크</b>를 꼭 눌러 주세요.</p></div>';
+      var z = $('#zoomGo'); if (z) z.onclick = function () { $('#st2').className = 'done'; $('#st3').className = 'on'; };
+    } else {
+      $('#st1').className = 'done'; $('#st2').className = 'done'; $('#st3').className = 'done';
+      out.innerHTML = '<div class="result" style="margin-top:28px"><i class="xi-check-circle-o"></i><h4>' + esc(r.time) + ' 퇴실 완료' + test + '</h4><p class="note">오늘도 함께해 주셔서 고마워요. 출석 현황은 <a href="#/status" style="text-decoration:underline">내 현황 조회</a>에서 볼 수 있어요.</p></div>';
+    }
+    out.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  function attSummary(at) {
+    if (!at) return '<span class="note">연수가 시작되면 날짜별 출석이 보여요.</span>';
+    var j = at.judge === 'Y' ? '<span class="badge ok">이수 기준 충족</span>' : at.judge === 'N' ? '<span class="badge red">이수 기준 미달</span>' : '<span class="badge navy">' + esc(at.judge) + '</span>';
+    return '<div style="margin-bottom:6px">' + j + ' <span class="note">인정 ' + at.total + '시간 / 기준 ' + at.need + '시간</span></div>' +
+      at.days.map(function (d) {
+        return '<div class="note" style="padding:2px 0">' + esc(d.date) + '(' + esc(d.dow) + ') · 입실 ' + esc(d.in || '-') + ' · 퇴실 ' + esc(d.out || '-') + ' · <b>' + esc(d.status) + '</b>' + (d.got ? ' (' + d.got + 'h)' : '') + '</div>';
+      }).join('');
+  }
+
+  // ───────── 게시판: Q&A · 환불 요청 (내용은 본인만) ─────────
+  var REFUND_REASONS = ['개인 사정(일정 충돌 등)', '중복 신청', '건강·가족 사유', '연수 내용이 기대와 다름', '기타'];
+  function stateBadge2(st) {
+    var cls = /완료/.test(st) ? 'ok' : st === '반려' ? 'red' : st === '접수' ? 'gray' : 'navy';
+    return '<span class="badge ' + cls + '">' + esc(st) + '</span>';
+  }
+  function renderBoard(v, board) {
+    var q = location.hash.split('?')[1] || '';
+    if (/(^|&)w=1/.test(q)) return boardWrite(v, board);
+    var no = (q.match(/(?:^|&)no=([A-Z0-9]+)/) || [])[1];
+    if (no) return boardView(v, board, no);
+    var page = board === '환불요청' ? 'refund' : 'qna';
+    v.innerHTML = '<div class="loading">불러오는 중…</div>';
+    api('boardList', { board: board }).then(function (res) {
+      var items = res.items || [];
+      v.innerHTML = (board === '환불요청' ? refundNotice(true) : '<p class="note" style="margin:0 0 16px">비공개로 쓴 글은 작성자 본인(이름+휴대폰)만 볼 수 있어요. 출결·이수·연수 내용 무엇이든 남겨 주세요.</p>') +
+        '<div class="board-top"><span class="note">전체 ' + items.length + '건</span><a class="btn navy" href="#/' + page + '?w=1"><i class="xi-pen-o"></i>' + (board === '환불요청' ? '환불 요청하기' : '글쓰기') + '</a></div>' +
+        (items.length ? '<table class="board"><thead><tr><th style="width:90px">번호</th><th>제목</th><th style="width:100px" class="hide-m">작성자</th><th style="width:120px" class="hide-m">작성일</th><th style="width:110px">상태</th></tr></thead><tbody>' +
+          items.map(function (x) {
+            return '<tr class="click" data-no="' + esc(x.no) + '"><td class="c">' + esc(x.no) + '</td><td>' + (x.pub ? '' : '<i class="xi-lock" style="color:var(--gray-2)"></i> ') + esc(x.title) + '</td><td class="c hide-m">' + esc(x.author) + '</td><td class="c hide-m">' + esc(x.at) + '</td><td class="c">' + stateBadge2(x.state) + '</td></tr>';
+          }).join('') + '</tbody></table>' : '<div class="empty">아직 글이 없어요.</div>');
+      $$('tr.click', v).forEach(function (tr) { tr.onclick = function () { location.hash = '#/' + page + '?no=' + tr.dataset.no; }; });
+    }).catch(showLoadError);
+  }
+  function refundNotice(short) {
+    var r = C.refund || { wait: '영업일 기준 2~3주', rule: '' };
+    return '<div class="refund-note"><b><i class="xi-time-o"></i> 환불은 실시간으로 처리되지 않아요</b>' +
+      '<ol class="refund-flow"><li>접수</li><li>운영팀 확인</li><li>교육연수원 전달</li><li>연수원 환불 처리</li></ol>' +
+      '<p>연수원 처리 일정에 따라 <b>' + esc(r.wait) + '</b> 정도 걸릴 수 있어요. 단계가 바뀔 때마다 문자로 알려 드리고, 이 게시판과 내 현황 조회에서도 언제든 확인할 수 있어요.' +
+      (short ? '' : ' 같은 내용으로 메일이나 전화를 다시 주시지 않아도 순서대로 처리돼요.') + '</p>' +
+      (r.rule ? '<p class="note" style="margin:6px 0 0">' + esc(r.rule) + '</p>' : '') + '</div>';
+  }
+  function boardWrite(v, board) {
+    var refund = board === '환불요청', page = refund ? 'refund' : 'qna';
+    var me = loadMe() || {};
+    v.innerHTML = '<div class="narrow">' + (refund ? refundNotice(false) : '') + '<form class="form" id="bForm" novalidate>' +
+      field('성명', true, '<input type="text" name="name" autocomplete="name" value="' + esc(me.name || '') + '" placeholder="연수 신청할 때 쓴 이름">', 'name') +
+      field('휴대폰', true, '<input type="tel" name="phone" inputmode="numeric" autocomplete="tel" value="' + esc(me.phone || '') + '" placeholder="010-0000-0000">', 'phone', '답변 확인과 본인 확인에 써요. 목록에는 이름 가운데가 가려져 보여요.') +
+      (refund
+        ? field('환불 사유', true, '<select name="reason"><option value="">선택</option>' + REFUND_REASONS.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('') + '</select>', 'reason') +
+          field('자세한 사유', true, '<textarea name="content" placeholder="예: 학교 업무 일정과 겹쳐 참여가 어려워 환불을 요청드립니다."></textarea>', 'content', '10자 이상. 사유를 알려 주셔야 연수원에 전달할 수 있어요. 계좌번호는 쓰지 마세요.')
+        : field('제목', true, '<input type="text" name="title" maxlength="80">', 'title') +
+          field('내용', true, '<textarea name="content" placeholder="궁금한 점을 적어 주세요. 주민번호·계좌번호 같은 정보는 쓰지 마세요."></textarea>', 'content') +
+          '<div class="field" data-f="pub"><div class="lbl">공개 여부</div><div><label class="remember" style="margin:0"><input type="checkbox" name="pub"> 다른 선생님들도 볼 수 있게 공개 (이름·번호는 보이지 않아요)</label></div></div>') +
+      '</form>' + agreeBox() +
+      (refund ? '<label class="remember strong"><input type="checkbox" id="waitOk"> 실시간 환불이 아니며, 처리까지 기다려야 할 수 있다는 점을 확인했어요.</label>' : '') +
+      '<div class="btns"><a class="btn line" href="#/' + page + '">목록</a><button class="btn navy" id="bSubmit"><i class="xi-check"></i>' + (refund ? '환불 요청 접수' : '등록하기') + '</button></div></div>';
+    var f = $('#bForm');
+    autoPhone(f.phone);
+    $('#bSubmit').onclick = function () {
+      clearErrs(f);
+      var d = { board: board, name: f.name.value.replace(/\s/g, ''), phone: normPhone(f.phone.value), content: f.content.value.trim() };
+      var bad = false;
+      if (d.name.length < 2) bad = setErr(f, 'name', '성명을 입력해 주세요.') || true;
+      if (!d.phone) bad = setErr(f, 'phone', '010-0000-0000 형식으로 입력해 주세요.') || true;
+      if (refund) {
+        d.reason = f.reason.value; d.agree = $('#waitOk').checked;
+        if (!d.reason) bad = setErr(f, 'reason', '환불 사유를 골라 주세요.') || true;
+        if (d.content.length < 10) bad = setErr(f, 'content', '사유를 10자 이상 적어 주세요.') || true;
+      } else {
+        d.title = f.title.value.trim(); d.public = f.pub.checked;
+        if (!d.title) bad = setErr(f, 'title', '제목을 입력해 주세요.') || true;
+        if (d.content.length < 5) bad = setErr(f, 'content', '내용을 5자 이상 적어 주세요.') || true;
+      }
+      if (!$('#agree').checked) { alertBox('개인정보 수집·이용에 동의해 주세요.'); bad = true; }
+      else if (refund && !d.agree) { alertBox('처리 기간 안내를 확인했다고 체크해 주세요.'); bad = true; }
+      if (bad) return focusErr(f);
+      submit(this, 'boardWrite', d, function (res) {
+        v.innerHTML = '<div class="narrow"><div class="result"><i class="xi-check-circle-o"></i><h4>' + (refund ? '환불 요청이 접수됐어요' : '글이 등록됐어요') + '</h4>' +
+          '<p>글번호 <b style="color:var(--navy);font-size:20px">' + esc(res.no) + '</b></p>' +
+          '<p class="note">' + (refund ? '운영팀 확인 → 연수원 전달 → 환불 처리 순서로 진행돼요. <b>' + esc((C.refund || {}).wait || '') + '</b> 정도 걸릴 수 있고, 단계가 바뀌면 문자로 알려 드릴게요.' : '답변이 달리면 이 게시판에서 이름과 휴대폰 번호로 확인할 수 있어요.') +
+          (res.matched ? '' : '<br><b style="color:var(--danger)">신청자 명단에서 이름·번호를 바로 찾지 못했어요. 운영팀이 직접 확인할게요.</b>') + '</p></div>' +
+          '<div class="btns"><a class="btn line" href="#/' + page + '">목록</a><a class="btn" href="#/status">내 현황 조회</a></div></div>';
+      });
+    };
+  }
+  function boardView(v, board, no) {
+    var page = board === '환불요청' ? 'refund' : 'qna';
+    var me = loadMe() || {};
+    function show(res) {
+      v.innerHTML = '<div class="view"><p class="vTit">' + (res.pub ? '' : '<i class="xi-lock"></i> ') + esc(res.board === '환불요청' ? '환불 요청' : res.title) + ' ' + stateBadge2(res.state) + '</p>' +
+        '<div class="meta"><span><i class="xi-user-o"></i> ' + esc(res.author) + '</span><span><i class="xi-calendar"></i> ' + esc(res.at) + '</span><span>' + esc(res.no) + '</span></div>' +
+        '<div class="body">' + (res.reason ? '<p><b>환불 사유 :</b> ' + esc(res.reason) + '</p>' : '') + linkify(res.content) + '</div></div>' +
+        (res.answer ? '<div class="answer"><b><i class="xi-forum"></i> 운영팀 답변</b> <span class="note">' + esc(res.answeredAt) + '</span><div>' + linkify(res.answer) + '</div></div>' : '<div class="answer wait"><span class="note">' + (res.board === '환불요청' ? '현재 단계: <b>' + esc(res.state) + '</b>. 단계가 바뀌면 문자로 알려 드려요.' : '아직 답변 전이에요. 조금만 기다려 주세요.') + '</span></div>') +
+        '<div class="btns"><a class="btn" href="#/' + page + '">목록</a></div>';
+    }
+    function ask(msg) {
+      v.innerHTML = '<div class="narrow"><div class="box" style="margin-bottom:20px"><i class="xi-lock"></i> <b>' + esc(no) + '</b> · ' + esc(msg) + '</div><form class="form" id="vForm" novalidate>' +
+        field('성명', true, '<input type="text" name="name" value="' + esc(me.name || '') + '">', 'name') +
+        field('휴대폰', true, '<input type="tel" name="phone" inputmode="numeric" value="' + esc(me.phone || '') + '" placeholder="010-0000-0000">', 'phone') +
+        '</form><div class="btns"><a class="btn line" href="#/' + page + '">목록</a><button class="btn navy" id="vGo">확인</button></div></div>';
+      var f = $('#vForm'); autoPhone(f.phone);
+      $('#vGo').onclick = function () {
+        var d = { no: no, name: f.name.value.replace(/\s/g, ''), phone: normPhone(f.phone.value) };
+        submit(this, 'boardView', d, show, function (m) { ask(m); });
+      };
+    }
+    v.innerHTML = '<div class="loading">불러오는 중…</div>';
+    api('boardView', { no: no, name: me.name || '', phone: me.phone || '' }).then(function (res) {
+      if (res.ok) show(res); else ask(res.error || '본인 글만 볼 수 있어요.');
+    }).catch(showLoadError);
+  }
+
   // ───────── 내 현황 조회 ─────────
   function renderStatus(v) {
     v.innerHTML = '<div class="narrow"><form class="form" id="stForm" novalidate>' +
@@ -329,6 +499,10 @@
       '<div class="status-row"><div>신청 상태</div><div>' + stateBadge + (a ? ' ' + esc(a.term) : '') + '</div></div>' +
       '<div class="status-row"><div>이수정보</div><div>' + (info ? '<span class="badge ok">제출 완료</span> <span class="note">' + esc(info.at) + ' · ' + esc(info.term) + ' · ' + esc(info.sido) + ' ' + esc(info.school) + ' · ' + esc(info.birthMasked) + '</span>' : '<span class="badge red">미제출</span> <a href="#/info" style="text-decoration:underline;margin-left:6px">지금 입력하기</a>') + '</div></div>' +
       '<div class="status-row"><div>셀프 신청 처리</div><div>' + reqs + '</div></div>' +
+      '<div class="status-row"><div>출석</div><div>' + attSummary(r.attendance) + '</div></div>' +
+      '<div class="status-row"><div>게시판 글</div><div>' + ((r.posts || []).length ? r.posts.map(function (q) {
+        return '<div style="padding:6px 0">' + stateBadge2(q.state) + ' ' + esc(q.board === '환불요청' ? '환불 요청' : q.title) + ' <span class="note">(' + esc(q.no) + ', ' + esc(q.at) + ')</span></div>';
+      }).join('') : '<span class="note">남긴 글이 없어요.</span>') + '</div></div>' +
       '<div class="status-row"><div>연수비 납입 확인서</div><div>' + (r.certificate ? '<button class="btn line" style="height:40px;padding:0 18px" id="certBtn"><i class="xi-print"></i>확인서 보기·인쇄</button>' : '<span class="note">' + (C.certificate ? '입금 확인 후 출력할 수 있어요.' : '발급 준비 중이에요.') + '</span>') + '</div></div>' +
       '</div><div id="certOut"></div></div>';
     if (r.certificate) $('#certBtn').onclick = function () { showCert($('#certOut'), r.certificate); };
@@ -445,13 +619,15 @@
         site: { title: '연구하는 교사되기 2027', org: '서울대학교 사범대학 교육연수원', operator: '연구하는 교사되기 운영팀', email: 'snu27@dumokquoka.com', criteria: '총 15시간 중 12시간(80%) 이상 출석', fee: 0 },
         terms: ['1기', '2기'], links: { '1기': { zoom: '', kakao: '' }, '2기': { zoom: '', kakao: '' } }, padlet: '',
         deadlines: { request: '2027-01-25', info: '2027-02-10' }, certificate: true, sido: SIDO,
+        refund: { wait: '영업일 기준 2~3주', rule: '환불 가능 여부와 금액은 교육연수원 환불 규정을 따릅니다.' }, attend: { before: 30, outBefore: 20, need: 12 },
         notices: [
           { date: '2027-01-05', title: '[필독] 이수정보 입력 안내 (마감 2/10)', body: '이수증 발급과 나이스 등재를 위해 이수정보를 꼭 입력해 주세요.\n생년월일은 8자리, 시도교육청은 목록에서 골라 주세요.', pinned: true },
-          { date: '2027-01-03', title: '기수변경·취소·현금영수증은 셀프 신청으로 접수해 주세요', body: '메일 대신 셀프 신청 메뉴를 이용하면 바로 접수되고, 처리 결과도 내 현황에서 확인할 수 있어요.', pinned: true },
+          { date: '2027-01-04', title: '[필독] 2027년에는 기수 변경을 받지 않습니다', body: '신청한 기수 그대로 참여해 주세요. 참여가 어려우면 기수 변경 대신 수강 취소로 접수됩니다. 신청할 때 기수를 신중히 골라 주세요.', pinned: true },
+          { date: '2027-01-03', title: '취소·현금영수증은 셀프 신청으로 접수해 주세요', body: '메일 대신 셀프 신청 메뉴를 이용하면 바로 접수되고, 처리 결과도 내 현황에서 확인할 수 있어요.', pinned: true },
           { date: '2026-12-20', title: '2027 연구하는 교사되기 일정 안내', body: '1기 2/1~2/3, 2기 2/4~2/6 (예시 일정입니다)', pinned: false }
         ],
         faq: [
-          { cat: '신청·변경', q: '기수를 바꾸고 싶어요.', a: '셀프 신청 > 기수변경으로 접수해 주세요. 희망 기수 정원이 차 있으면 대기로 접수되고, 자리가 나면 순서대로 안내해요.' },
+          { cat: '신청·변경', q: '기수를 바꾸고 싶어요.', a: '2027년에는 기수 변경을 받지 않아요. 신청한 기수 그대로 참여해 주세요. 참여가 어려우면 셀프 신청 > 수강취소로 접수해 주세요. 신청할 때 기수를 신중히 골라 주세요.' },
           { cat: '신청·변경', q: '수강을 취소하고 환불받고 싶어요.', a: '셀프 신청 > 수강취소로 접수해 주세요. 환불 기준은 교육연수원 규정을 따라요.' },
           { cat: '영수증·증빙', q: '현금영수증 번호를 잘못 넣었어요.', a: '셀프 신청 > 현금영수증 수정으로 올바른 번호를 접수해 주세요.' },
           { cat: '영수증·증빙', q: '연수비 납입증명서가 필요해요.', a: '내 현황 조회에서 입금이 확인된 분은 납입확인서를 바로 인쇄하거나 PDF로 저장할 수 있어요.' },
@@ -462,6 +638,21 @@
         schedule: sch
       });
     }
+    if (action === 'attend') {
+      var t = new Date(), hm = ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2);
+      return wait(data.kind === 'in' ? { ok: true, kind: 'in', time: hm, term: '1기', date: t.toISOString().slice(0, 10), start: '09:00', end: '15:00', zoom: 'https://zoom.us/', late: 0, test: true } : { ok: true, kind: 'out', time: hm, test: true });
+    }
+    if (action === 'boardList') {
+      return wait({ ok: true, items: data.board === '환불요청'
+        ? [{ no: 'F0002', title: '환불 요청', pub: false, author: '김*늘', at: '2027-01-14', state: '연수원 전달' }, { no: 'F0001', title: '환불 요청', pub: false, author: '이*', at: '2027-01-10', state: '환불 완료' }]
+        : [{ no: 'Q0003', title: '비공개 문의', pub: false, author: '박*연', at: '2027-01-15', state: '접수' }, { no: 'Q0002', title: 'Zoom이 끊겼는데 출석은 어떻게 되나요?', pub: true, author: '최*우', at: '2027-01-12', state: '답변 완료' }] });
+    }
+    if (action === 'boardView') {
+      if (data.no === 'Q0002') return wait({ ok: true, no: 'Q0002', board: 'Q&A', title: 'Zoom이 끊겼는데 출석은 어떻게 되나요?', content: '중간에 인터넷이 끊겨서 10분 정도 나갔다 들어왔어요.', state: '답변 완료', answer: '출석체크를 다시 누르면 강의실 링크가 다시 나와요. 잠깐 끊긴 건 출석에 영향이 없어요 : )', answeredAt: '2027-01-12 14:10', at: '2027-01-12 09:30', author: '최*우', pub: true });
+      if (!data.name || !data.phone) return wait({ ok: false, needAuth: true, error: '본인 글만 볼 수 있어요. 작성할 때 쓴 이름과 휴대폰 번호를 넣어 주세요.' });
+      return wait({ ok: true, no: data.no, board: data.no[0] === 'F' ? '환불요청' : 'Q&A', title: data.no[0] === 'F' ? '환불 요청' : '문의', content: '예시 내용이에요.', reason: data.no[0] === 'F' ? '개인 사정(일정 충돌 등)' : '', state: '검토 중', answer: '', at: '2027-01-14 10:00', author: '김*늘', pub: false });
+    }
+    if (action === 'boardWrite') return wait({ ok: true, no: (data.board === '환불요청' ? 'F' : 'Q') + '0004', matched: true });
     if (action === 'request') return wait({ ok: true, no: 'R0105-' + (1000 + Math.floor(Math.random() * 9000)), matched: true });
     if (action === 'info') return wait({ ok: true, updated: false, matched: true });
     if (action === 'status') {
@@ -469,6 +660,8 @@
         ok: true, name: data.name,
         applicant: { term: '1기', state: '신청', paid: true },
         info: { at: '2027-01-08', term: '1기', sido: '경기', school: '예시초등학교', birthMasked: '1985-**-**' },
+        posts: [{ no: 'Q0003', board: 'Q&A', title: '출석 문의', at: '2027-01-15', state: '답변 완료' }],
+        attendance: { term: '1기', need: 12, total: 10, judge: '진행 중', days: [{ date: '2027-02-01', dow: '월', in: '08:52', out: '15:02', got: 5, status: '정상' }, { date: '2027-02-02', dow: '화', in: '09:24', out: '15:01', got: 4, status: '지각 24분' }, { date: '2027-02-03', dow: '수', in: '', out: '', got: 0, status: '예정' }] },
         requests: [{ no: 'R0104-2381', type: '현금영수증 수정', at: '2027-01-04', state: '완료', memo: '수정한 번호로 재발행했어요.' }],
         certificate: { name: data.name, term: '1기', amount: 120000, paidAt: '2026-12-28', course: '연구하는 교사되기 2027', org: '서울대학교 사범대학 교육연수원', operator: '연구하는 교사되기 운영팀', issuedAt: new Date().toISOString().slice(0, 10) }
       });

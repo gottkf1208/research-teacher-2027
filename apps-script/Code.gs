@@ -19,7 +19,11 @@ var SHEETS = {
   이수정보: ['제출시각', '기수', '성명', '생년월일', '휴대폰', '시도교육청', '학교명', '나이스개인번호', '이메일', '명단확인', '수정횟수'],
   셀프신청: ['접수시각', '접수번호', '유형', '성명', '휴대폰', '현재기수', '희망기수', '현금영수증번호', '내용', '처리상태', '처리메모', '처리일'],
   강사일정: ['날짜', '요일', '시작', '종료', '시간(h)', '기수', '강사명', '소속', '역할', '강의주제', '비고'],
-  문자기록: ['보낸시각', '문자종류', '대상', '인원', '내용']
+  문자기록: ['보낸시각', '문자종류', '대상', '인원', '내용'],
+  // 출석: 연수생이 사이트에서 직접 입실/퇴실 체크. 운영자가 고치면 구분=조정 + 인정시간
+  출석: ['기록시각', '기수', '날짜', '구분', '성명', '휴대폰', '인정시간', '비고'],
+  // 게시판: Q&A, 환불요청. 내용은 본인(이름+휴대폰)만 열람
+  게시판: ['작성시각', '글번호', '게시판', '제목', '내용', '성명', '휴대폰', '기수', '공개', '환불사유', '처리상태', '답변', '답변시각', '운영메모']
 };
 // 강사 민감정보는 운영 시트와 다른 파일(비공개)에 저장
 var INSTRUCTOR_HEADERS = ['성명', '소속', '직위', '전화', '이메일', '생년월일', '주민등록번호', '은행', '계좌번호', '예금주', '비고'];
@@ -52,7 +56,14 @@ var DEFAULT_SETTINGS = [
   ['이수대장_교육형태코드', 'C', '원격교육'],
   ['납입확인서_사용', 'N', 'Y면 사이트에서 셀프 출력 가능'],
   ['관리자메일', '', '운영자 페이지에 들어올 구글 계정 (쉼표로 여러 명, 비우면 시트 주인만)'],
-  ['사이트주소', 'https://snu27.dumokquoka.com', '문자에 들어가는 주소']
+  ['사이트주소', 'https://snu27.dumokquoka.com', '문자에 들어가는 주소'],
+  ['이수인정시간', '12', '이 시간 이상 출석하면 이수 (15시간의 80%)'],
+  ['입실가능(분)', '30', '연수 시작 몇 분 전부터 출석체크 가능'],
+  ['퇴실가능(분)', '20', '연수 종료 몇 분 전부터 퇴실체크 가능 (종료 후 2시간까지)'],
+  ['지각허용(분)', '10', '이 시간 안의 지각·조퇴는 감점 없음. 넘으면 1시간 단위로 뺌'],
+  ['출석테스트', 'N', 'Y면 연수일이 아니어도 출석체크 가능 (리허설용, 끝나면 N)'],
+  ['환불소요', '영업일 기준 2~3주', '환불 요청 화면과 문자에 들어가는 예상 기간'],
+  ['환불규정', '환불 가능 여부와 금액은 교육연수원 환불 규정을 따릅니다.', '환불 요청 화면 안내']
 ];
 
 // 시도교육청 17개 (표준 약어)
@@ -87,6 +98,13 @@ function doGet(e) {
 function doPost(e) {
   var body = {};
   try { body = JSON.parse(e.postData.contents || '{}'); } catch (x) { return json_({ ok: false, error: '요청 형식 오류' }); }
+  try {
+    if (body.action === 'attend') return json_(attend_(body.data || {}));
+    if (body.action === 'boardList') return json_(boardList_(body.data || {}));
+    if (body.action === 'boardView') return json_(boardView_(body.data || {}));
+  } catch (err) {
+    return json_({ ok: false, error: String(err.message || err) });
+  }
   var lock = LockService.getScriptLock();
   try {
     lock.waitLock(20000);
@@ -94,6 +112,7 @@ function doPost(e) {
       case 'request': return json_(submitRequest_(body.data || {}));
       case 'info': return json_(submitInfo_(body.data || {}));
       case 'status': return json_(lookupStatus_(body.data || {}));
+      case 'boardWrite': return json_(boardWrite_(body.data || {}));
       default: return json_({ ok: false, error: '알 수 없는 요청입니다.' });
     }
   } catch (err) {
@@ -131,11 +150,13 @@ function getContent_() {
     terms: terms, links: links, padlet: s['패들렛_질문'] || '',
     deadlines: { request: fmtDate_(s['셀프신청마감']), info: fmtDate_(s['이수정보마감']) },
     certificate: yes_(s['납입확인서_사용']),
-    sido: SIDO, notices: notices, faq: faq, schedule: schedule
+    sido: SIDO, notices: notices, faq: faq, schedule: schedule,
+    refund: { wait: s['환불소요'] || '영업일 기준 2~3주', rule: s['환불규정'] || '' },
+    attend: { before: Number(s['입실가능(분)'] || 30), outBefore: Number(s['퇴실가능(분)'] || 20), need: Number(s['이수인정시간'] || 12) }
   };
 }
 
-// 셀프신청: 기수변경 / 취소 / 현금영수증 수정 / 기타
+// 셀프신청: 취소 / 현금영수증 수정 / 기타  (2027: 기수변경은 받지 않음)
 function submitRequest_(d) {
   var s = settings_();
   if (passed_(s['셀프신청마감'])) return { ok: false, error: '셀프 신청 기간이 끝났습니다. 문의메일로 연락해 주세요.' };
@@ -143,10 +164,10 @@ function submitRequest_(d) {
   var name = clean_(d.name);
   var phone = normPhone_(d.phone);
   var errs = [];
-  if (['기수변경', '수강취소', '현금영수증 수정', '기타 문의'].indexOf(type) < 0) errs.push('신청 유형을 골라 주세요.');
+  if (type === '기수변경') return { ok: false, error: '2027년에는 기수 변경을 받지 않아요. 신청한 기수 그대로 참여하시거나, 어려우면 수강취소로 접수해 주세요.' };
+  if (['수강취소', '현금영수증 수정', '기타 문의'].indexOf(type) < 0) errs.push('신청 유형을 골라 주세요.');
   if (!name) errs.push('성명을 입력해 주세요.');
   if (!phone) errs.push('휴대폰 번호를 010-0000-0000 형식으로 입력해 주세요.');
-  if (type === '기수변경' && !clean_(d.toTerm)) errs.push('희망 기수를 골라 주세요.');
   if (type === '현금영수증 수정' && !clean_(d.receipt)) errs.push('현금영수증 번호를 입력해 주세요.');
   if (errs.length) return { ok: false, error: errs.join('\n') };
 
@@ -154,7 +175,7 @@ function submitRequest_(d) {
   var no = 'R' + Utilities.formatDate(new Date(), 'Asia/Seoul', 'MMdd') + '-' + Math.floor(1000 + Math.random() * 9000);
   sheet_('셀프신청').appendRow([
     new Date(), no, type, name, "'" + phone, applicant ? applicant['기수'] : clean_(d.fromTerm),
-    clean_(d.toTerm), clean_(d.receipt) ? "'" + clean_(d.receipt) : '', clean_(d.memo), '접수', applicant ? '' : '신청자 명단에서 찾지 못함', ''
+    '', clean_(d.receipt) ? "'" + clean_(d.receipt) : '', clean_(d.memo), '접수', applicant ? '' : '신청자 명단에서 찾지 못함', ''
   ]);
   return { ok: true, no: no, matched: !!applicant };
 }
@@ -173,6 +194,7 @@ function submitInfo_(d) {
   for (var i = 1; i < data.length; i++) {
     if (clean_(data[i][2]) === x.name && normPhone_(data[i][4]) === x.phone) { row = i + 1; count = Number(data[i][10] || 0) + 1; break; }
   }
+  if (applicant) x.term = clean_(applicant['기수']);
   var values = [new Date(), x.term, x.name, "'" + x.birth, "'" + x.phone, x.sido, x.school, "'" + x.neis, x.email, applicant ? 'O' : '명단없음', count];
   if (row > 0) sh.getRange(row, 1, 1, values.length).setValues([values]);
   else sh.appendRow(values);
@@ -218,7 +240,11 @@ function lookupStatus_(d) {
     ok: true, name: name,
     applicant: a ? { term: a['기수'], state: a['상태'] || '신청', paid: !!a['입금일'] } : null,
     info: info ? { at: fmtDate_(info['제출시각']), term: info['기수'], sido: info['시도교육청'], school: info['학교명'], birthMasked: mask_(String(info['생년월일'])) } : null,
-    requests: reqs
+    requests: reqs,
+    posts: rows_('게시판').filter(function (r) { return clean_(r['성명']).replace(/\s/g, '') === name && normPhone_(r['휴대폰']) === phone; }).map(function (r) {
+      return { no: r['글번호'], board: r['게시판'], title: r['제목'], at: fmtDate_(r['작성시각']), state: r['처리상태'] || '접수', answered: !!clean_(r['답변']) };
+    }),
+    attendance: a ? (attendanceOf_(name, phone) || null) : null
   };
   if (a && a['입금일'] && yes_(s['납입확인서_사용']) && a['상태'] !== '취소') {
     out.certificate = { name: name, term: a['기수'], amount: Number(a['입금액'] || s['연수비'] || 0), paidAt: fmtDate_(a['입금일']), course: s['연수명'], org: s['연수기관'], operator: s['운영'], issuedAt: fmtDate_(new Date()) };
@@ -266,6 +292,23 @@ function setup() {
   });
   var st = ss.getSheetByName('설정');
   if (st.getLastRow() < 2) st.getRange(2, 1, DEFAULT_SETTINGS.length, 3).setValues(DEFAULT_SETTINGS);
+  else {
+    var haveKeys = st.getRange(2, 1, st.getLastRow() - 1, 1).getValues().map(function (r) { return String(r[0]).trim(); });
+    var missing = DEFAULT_SETTINGS.filter(function (r) { return haveKeys.indexOf(r[0]) < 0; });
+    if (missing.length) st.getRange(st.getLastRow() + 1, 1, missing.length, 3).setValues(missing);
+  }
+  ss.getSheetByName('출석').getRange('A:A').setNumberFormat('yyyy-mm-dd hh:mm:ss');
+  ss.getSheetByName('출석').getRange('C:C').setNumberFormat('@');
+  ss.getSheetByName('게시판').getRange('A:A').setNumberFormat('yyyy-mm-dd hh:mm');
+  var nt = ss.getSheetByName('공지');
+  if (nt.getLastRow() < 2) nt.appendRow([Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd'), '[필독] 2027년에는 기수 변경을 받지 않습니다', '신청한 기수 그대로 참여해 주세요.\n참여가 어려우면 기수 변경 대신 셀프 신청 > 수강취소로 접수됩니다.\n신청할 때 기수를 신중히 골라 주세요.', 'Y', 'Y']);
+  var fq = ss.getSheetByName('FAQ');
+  if (fq.getLastRow() < 2) fq.getRange(2, 1, 4, 4).setValues([
+    ['신청·변경', '기수를 바꾸고 싶어요.', '2027년에는 기수 변경을 받지 않아요. 신청한 기수 그대로 참여해 주세요. 참여가 어려우면 셀프 신청 > 수강취소로 접수해 주세요.', 'Y'],
+    ['환불', '환불은 언제 되나요?', '환불은 실시간으로 처리되지 않아요. 게시판 > 환불 요청에 사유와 함께 남겨 주시면 운영팀 확인 → 교육연수원 전달 → 연수원 환불 처리 순서로 진행되고, 단계가 바뀔 때마다 문자로 알려 드려요.', 'Y'],
+    ['출석', '출석은 어떻게 하나요?', '연수 당일 사이트의 출석체크에서 출석 → 강의실(Zoom) 입장 → 끝날 때 퇴실체크까지 눌러 주세요. 출석과 퇴실이 둘 다 있어야 그날 출석이 인정돼요.', 'Y'],
+    ['출석', 'Zoom이 끊겼어요.', '출석체크를 다시 누르면 강의실 링크가 다시 나와요. 잠깐 끊긴 것은 출석에 영향이 없어요.', 'Y']
+  ]);
   // 입력 규칙
   var sido = SpreadsheetApp.newDataValidation().requireValueInList(SIDO, true).build();
   ss.getSheetByName('이수정보').getRange('F2:F').setDataValidation(sido);
@@ -354,7 +397,7 @@ function mergedRoster_() {
     var phone = normPhone_(r['연락처']);
     var f = fix[name + '|' + phone];
     return {
-      term: f ? f['기수'] : r['기수'], name: name, phone: phone,
+      term: r['기수'], name: name, phone: phone, // 기수는 신청자 명단이 원본 (기수 변경 불가)
       birth: normBirth_(f ? f['생년월일'] : r['생년월일']),
       neis: clean_(f ? f['나이스개인번호'] : r['NEIS 번호']).replace(/\s/g, '').toUpperCase(),
       school: clean_(f ? f['학교명'] : r['소속학교']),
@@ -558,7 +601,7 @@ function isAdmin_() {
   return me.toLowerCase() === owner.toLowerCase() || extra.indexOf(me.toLowerCase()) >= 0;
 }
 
-var ADMIN_SHEETS = ['신청자', '이수정보', '셀프신청', '공지', 'FAQ', '연수일정', '강사일정', '설정', '문자기록', '강사정보'];
+var ADMIN_SHEETS = ['신청자', '이수정보', '셀프신청', '공지', 'FAQ', '연수일정', '강사일정', '설정', '문자기록', '강사정보', '출석', '게시판'];
 var TEXT_COLS = ['연락처', '휴대폰', '생년월일', 'NEIS 번호', '나이스개인번호', '현금영수증번호', '전화', '주민등록번호', '계좌번호', '연수지명번호'];
 
 function adminApi(action, p) {
@@ -581,6 +624,11 @@ function adminApi(action, p) {
         sheet_('문자기록').appendRow([new Date(), p.kind, p.target, p.count, p.text]);
         return { ok: true };
       case 'doc': return instructorDoc_();
+      case 'attendance': return attendanceReport_(String(p.term || '').trim());
+      case 'attendAdjust': return attendAdjust_(p);
+      case 'attendApply': return attendApply_(String(p.term || '').trim());
+      case 'board': return adminTable_('게시판');
+      case 'boardReply': return boardReply_(p);
       default: throw new Error('알 수 없는 요청: ' + action);
     }
   } finally { lock.releaseLock(); }
@@ -598,7 +646,9 @@ function adminBoot_() {
   return {
     email: Session.getActiveUser().getEmail(), settings: s, terms: terms, byTerm: byTerm,
     pending: pending.length, issues: chk.issues.length, total: chk.total,
-    ssUrl: SpreadsheetApp.getActive().getUrl(), site: s['사이트주소'] || ''
+    ssUrl: SpreadsheetApp.getActive().getUrl(), site: s['사이트주소'] || '',
+    dups: dupNames_(),
+    board: boardPending_()
   };
 }
 
@@ -683,7 +733,6 @@ function adminProcess_(row, state, memo) {
     var ni = ah.indexOf('성명'), pi = ah.indexOf('연락처');
     for (var i = 1; i < data.length; i++) {
       if (clean_(data[i][ni]).replace(/\s/g, '') === clean_(o['성명']).replace(/\s/g, '') && normPhone_(data[i][pi]) === normPhone_(o['휴대폰'])) {
-        if (o['유형'] === '기수변경' && o['희망기수']) { a.getRange(i + 1, ah.indexOf('기수') + 1).setValue(o['희망기수']); applied = '신청자 기수를 ' + o['희망기수'] + '로 바꿨어요.'; }
         if (o['유형'] === '수강취소') { a.getRange(i + 1, ah.indexOf('상태') + 1).setValue('취소'); applied = '신청자 상태를 취소로 바꿨어요.'; }
         if (o['유형'] === '현금영수증 수정') {
           var mi = ah.indexOf('메모') + 1;
@@ -694,7 +743,7 @@ function adminProcess_(row, state, memo) {
         break;
       }
     }
-    if (!applied && ['기수변경', '수강취소', '현금영수증 수정'].indexOf(o['유형']) >= 0) applied = '신청자 명단에서 같은 이름·번호를 찾지 못해 자동 반영은 못 했어요.';
+    if (!applied && ['수강취소', '현금영수증 수정'].indexOf(o['유형']) >= 0) applied = '신청자 명단에서 같은 이름·번호를 찾지 못해 자동 반영은 못 했어요.';
   }
   return { ok: true, applied: applied };
 }
@@ -705,9 +754,17 @@ function peopleList_() {
   checkIssues_().issues.forEach(function (x) { bad[x.name + '|' + x.phone] = x.problem; });
   var fixed = {};
   rows_('이수정보').forEach(function (r) { fixed[clean_(r['성명']) + '|' + normPhone_(r['휴대폰'])] = true; });
+  var att = {};
+  termList_().forEach(function (t) { attendanceReport_(t).people.forEach(function (x) { att[x.name + '|' + x.phone] = x; }); });
+  var refund = {};
+  rows_('게시판').filter(function (r) { return r['게시판'] === '환불요청'; }).forEach(function (r) {
+    refund[clean_(r['성명']).replace(/\s/g, '') + '|' + normPhone_(r['휴대폰'])] = r['처리상태'] || '접수';
+  });
   return rows_('신청자').map(function (r) {
     var name = clean_(r['성명']).replace(/\s/g, ''), phone = normPhone_(r['연락처']);
-    return { name: name, phone: phone, term: r['기수'], state: r['상태'] || '신청', paid: !!clean_(r['입금일']), issue: bad[name + '|' + phone] || '', done: clean_(r['이수(Y/N)']).toUpperCase() !== 'N' };
+    var key = name + '|' + phone, at = att[key] || {};
+    return { name: name, phone: phone, term: r['기수'], state: r['상태'] || '신청', paid: !!clean_(r['입금일']), issue: bad[key] || '', done: clean_(r['이수(Y/N)']).toUpperCase() !== 'N',
+      school: clean_(r['소속학교']), days: at.days || {}, judge: at.judge || '', total: at.total || 0, refund: refund[key] || '' };
   }).filter(function (x) { return x.name; });
 }
 
@@ -739,4 +796,260 @@ function menuRecalcDowSilent_() {
     var dates = sh.getRange(2, c[1], n, 1).getValues();
     sh.getRange(2, c[2], n, 1).setValues(dates.map(function (d) { var x = toDate_(d[0]); return [x ? DOW[x.getDay()] : '']; }));
   });
+}
+
+// ───────────────────────── 공통: 기수, 동명이인 ─────────────────────────
+function termList_() {
+  return String(settings_()['기수목록'] || '1기,2기').split(',').map(function (t) { return t.trim(); }).filter(String);
+}
+function personKey_(name, phone) { return clean_(name).replace(/\s/g, '') + '|' + normPhone_(phone); }
+
+// 이름이 같은데 휴대폰이 다른 사람 = 동명이인. 이름만으로는 절대 매칭하지 않는다.
+function dupNames_() {
+  var by = {};
+  rows_('신청자').filter(function (r) { return r['상태'] !== '취소'; }).forEach(function (r) {
+    var n = clean_(r['성명']).replace(/\s/g, ''), ph = normPhone_(r['연락처']);
+    if (!n) return;
+    by[n] = by[n] || {};
+    by[n][ph] = { phone: ph, term: r['기수'], school: clean_(r['소속학교']) };
+  });
+  var out = {};
+  Object.keys(by).forEach(function (n) { var list = Object.keys(by[n]).map(function (k) { return by[n][k]; }); if (list.length > 1) out[n] = list; });
+  return out;
+}
+
+// ───────────────────────── 출석: 출석체크 → 강의실 입장 → 퇴실체크 ─────────────────────────
+function hm_(v) { var m = /(\d{1,2}):(\d{2})/.exec(fmtTime_(v)); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+function hmStr_(min) { min = Math.max(0, Math.round(min)); return ('0' + Math.floor(min / 60)).slice(-2) + ':' + ('0' + (min % 60)).slice(-2); }
+function nowKst_() {
+  var d = new Date();
+  var hm = Utilities.formatDate(d, 'Asia/Seoul', 'HH:mm');
+  return { date: Utilities.formatDate(d, 'Asia/Seoul', 'yyyy-MM-dd'), hm: hm, min: hm_(hm) };
+}
+
+// 기수별 연수일: 같은 날 여러 줄이면 시작=가장 이른 시각, 종료=가장 늦은 시각, 시간=합계
+function termDays_(term) {
+  var by = {};
+  rows_('연수일정').filter(function (r) { return clean_(r['기수']) === term && r['날짜']; }).forEach(function (r) {
+    var date = fmtDate_(r['날짜']); if (!date) return;
+    var st = hm_(r['시작']), en = hm_(r['종료']);
+    var h = Number(r['시간(h)']) || (st !== null && en !== null ? (en - st) / 60 : 0);
+    var d = by[date] || (by[date] = { date: date, dow: DOW[toDate_(date).getDay()], start: st, end: en, hours: 0 });
+    if (st !== null && (d.start === null || st < d.start)) d.start = st;
+    if (en !== null && (d.end === null || en > d.end)) d.end = en;
+    d.hours += h;
+  });
+  return Object.keys(by).sort().map(function (k) { var d = by[k]; d.hours = Math.round(d.hours * 10) / 10; d.startHm = hmStr_(d.start || 0); d.endHm = hmStr_(d.end || 0); return d; });
+}
+
+// 400명이 몰려도 버티도록 명단·일정은 5분 캐시
+function attendCtx_(fresh) {
+  var cache = CacheService.getScriptCache();
+  if (!fresh) { var c = cache.get('attendCtx'); if (c) return JSON.parse(c); }
+  var s = settings_();
+  var people = {};
+  rows_('신청자').forEach(function (r) {
+    if (r['상태'] === '취소') return;
+    people[personKey_(r['성명'], r['연락처'])] = { term: clean_(r['기수']), state: r['상태'] || '신청' };
+  });
+  var days = {}, zoom = {};
+  termList_().forEach(function (t) { days[t] = termDays_(t); zoom[t] = s['줌링크_' + t] || ''; });
+  var ctx = { people: people, days: days, zoom: zoom, before: Number(s['입실가능(분)'] || 30), outBefore: Number(s['퇴실가능(분)'] || 20), test: yes_(s['출석테스트']) };
+  try { cache.put('attendCtx', JSON.stringify(ctx), 300); } catch (e) {}
+  return ctx;
+}
+
+function attend_(d) {
+  var name = clean_(d.name).replace(/\s/g, ''), phone = normPhone_(d.phone), kind = d.kind === 'out' ? 'out' : 'in';
+  if (!name || !phone) return { ok: false, error: '성명과 휴대폰 번호를 정확히 입력해 주세요.' };
+  var key = name + '|' + phone;
+  var ctx = attendCtx_();
+  var me = ctx.people[key];
+  if (!me) { ctx = attendCtx_(true); me = ctx.people[key]; }
+  if (!me) return { ok: false, error: '신청자 명단에서 찾지 못했어요. 연수 신청할 때 쓴 휴대폰 번호인지 확인해 주세요.\n(같은 이름이 여러 분 계셔서 휴대폰 번호로 본인을 확인해요.)' };
+  if (me.state === '대기') return { ok: false, error: '아직 대기 상태예요. 확정 문자를 받은 뒤에 출석할 수 있어요.' };
+  var now = nowKst_();
+  var days = ctx.days[me.term] || [];
+  var day = days.filter(function (x) { return x.date === now.date; })[0];
+  if (!day && ctx.test && days.length) day = { date: now.date, start: days[0].start, end: days[0].end, hours: days[0].hours, test: true };
+  if (!day) {
+    var next = days.filter(function (x) { return x.date > now.date; })[0];
+    return { ok: false, error: '오늘은 ' + me.term + ' 연수일이 아니에요.' + (next ? '\n다음 연수일: ' + next.date + '(' + next.dow + ') ' + next.startHm : '') };
+  }
+  if (!day.test) {
+    if (kind === 'in') {
+      if (now.min < day.start - ctx.before) return { ok: false, error: '출석체크는 ' + hmStr_(day.start - ctx.before) + '부터 할 수 있어요.' };
+      if (now.min > day.end) return { ok: false, error: '오늘 연수는 ' + hmStr_(day.end) + '에 끝났어요. 출결 문의는 Q&A 게시판에 남겨 주세요.' };
+    } else {
+      if (now.min < day.end - ctx.outBefore) return { ok: false, error: '퇴실체크는 연수가 끝나기 ' + ctx.outBefore + '분 전(' + hmStr_(day.end - ctx.outBefore) + ')부터 할 수 있어요. 끝날 때 다시 눌러 주세요.' };
+      if (now.min > day.end + 120) return { ok: false, error: '퇴실체크 시간이 지났어요. Q&A 게시판에 남겨 주시면 확인해 드릴게요.' };
+    }
+  }
+  sheet_('출석').appendRow([new Date(), me.term, "'" + now.date, kind === 'in' ? '입실' : '퇴실', name, "'" + phone, '', day.test ? '테스트' : '']);
+  var out = { ok: true, kind: kind, time: now.hm, term: me.term, date: now.date, start: hmStr_(day.start), end: hmStr_(day.end), test: !!day.test };
+  if (kind === 'in') { out.zoom = ctx.zoom[me.term] || ''; out.late = Math.max(0, now.min - day.start); }
+  return out;
+}
+
+// 출결 집계: 사람 × 날짜. 이름+휴대폰으로만 묶는다(동명이인 안전).
+function attendanceReport_(term) {
+  var s = settings_();
+  var need = Number(s['이수인정시간'] || 12), grace = Number(s['지각허용(분)'] || 10);
+  var days = termDays_(term);
+  var now = nowKst_();
+  var dups = dupNames_();
+  var rec = {};
+  rows_('출석').forEach(function (r) {
+    if (clean_(r['기수']) !== term || clean_(r['비고']) === '테스트') return;
+    var k = personKey_(r['성명'], r['휴대폰']) + '|' + fmtDate_(r['날짜']);
+    var x = rec[k] || (rec[k] = { in: null, out: null, adj: null, memo: '' });
+    var t = r['기록시각'] instanceof Date ? hm_(Utilities.formatDate(r['기록시각'], 'Asia/Seoul', 'HH:mm')) : null;
+    if (r['구분'] === '입실' && t !== null && (x.in === null || t < x.in)) x.in = t;
+    if (r['구분'] === '퇴실' && t !== null && (x.out === null || t > x.out)) x.out = t;
+    if (r['구분'] === '조정') { x.adj = clean_(r['인정시간']) === '' ? null : Number(r['인정시간']); x.memo = clean_(r['비고']); }
+  });
+  var counts = {};
+  days.forEach(function (d) { counts[d.date] = { in: 0, out: 0, noIn: 0, noOut: 0 }; });
+  var people = rows_('신청자').filter(function (r) { return clean_(r['기수']) === term && (r['상태'] || '신청') === '신청'; }).map(function (r) {
+    var name = clean_(r['성명']).replace(/\s/g, ''), phone = normPhone_(r['연락처']);
+    var total = 0, pending = 0, checks = 0, out = {};
+    days.forEach(function (d) {
+      var x = rec[name + '|' + phone + '|' + d.date] || {};
+      var finished = d.date < now.date || (d.date === now.date && now.min > d.end + 120);
+      var started = d.date < now.date || (d.date === now.date && now.min >= d.start - 30);
+      var o = { in: x.in != null ? hmStr_(x.in) : '', out: x.out != null ? hmStr_(x.out) : '', hours: 0, status: '', memo: x.memo || '' };
+      if (x.in != null) counts[d.date].in++; else if (started) counts[d.date].noIn++;
+      if (x.out != null) counts[d.date].out++; else if (x.in != null && finished) counts[d.date].noOut++;
+      if (x.adj != null) { o.hours = x.adj; o.status = '조정'; total += x.adj; }
+      else if (!started) { o.status = '예정'; pending += d.hours; }
+      else if (!finished) { o.status = x.in != null ? (x.out != null ? '퇴실' : '수강 중') : '미입실'; pending += d.hours; }
+      else if (x.in != null && x.out != null) {
+        var late = x.in - d.start, early = d.end - x.out, ded = 0, tag = [];
+        if (late > grace) { ded += Math.ceil(late / 60); tag.push('지각 ' + late + '분'); }
+        if (early > grace) { ded += Math.ceil(early / 60); tag.push('조퇴 ' + early + '분'); }
+        o.hours = Math.max(0, d.hours - ded); o.status = tag.length ? tag.join(', ') : '정상'; total += o.hours;
+      }
+      else if (x.in != null) { o.status = '퇴실 미체크'; checks += d.hours; }
+      else if (x.out != null) { o.status = '입실 미체크'; checks += d.hours; }
+      else o.status = '결석';
+      out[d.date] = o;
+    });
+    var judge = total >= need ? 'Y' : (total + pending + checks < need ? 'N' : (pending ? '진행 중' : '확인 필요'));
+    return { name: name, phone: phone, school: clean_(r['소속학교']), dup: !!dups[name], days: out, total: total, judge: judge };
+  });
+  return { ok: true, term: term, need: need, grace: grace, today: now.date, days: days, counts: counts, people: people };
+}
+
+function attendanceOf_(name, phone) {
+  var a = findApplicant_(name, phone);
+  if (!a) return null;
+  var rep = attendanceReport_(clean_(a['기수']));
+  var me = rep.people.filter(function (x) { return x.name === name && x.phone === phone; })[0];
+  if (!me) return null;
+  return { term: rep.term, need: rep.need, total: me.total, judge: me.judge, days: rep.days.map(function (d) { var x = me.days[d.date]; return { date: d.date, dow: d.dow, hours: d.hours, in: x.in, out: x.out, got: x.hours, status: x.status }; }) };
+}
+
+function attendAdjust_(p) {
+  var name = clean_(p.name).replace(/\s/g, ''), phone = normPhone_(p.phone);
+  if (!name || !phone || !p.date) throw new Error('이름·휴대폰·날짜가 필요해요.');
+  var h = clean_(p.hours);
+  sheet_('출석').appendRow([new Date(), clean_(p.term), "'" + fmtDate_(p.date), '조정', name, "'" + phone, h === '' ? '' : Number(h), clean_(p.memo) || (h === '' ? '조정 해제' : '운영자 확인')]);
+  return { ok: true };
+}
+
+// 이수 판정 반영: Y/N이 정해진 사람만 신청자 시트 이수(Y/N)에 기록 (진행 중·확인 필요는 그대로)
+function attendApply_(term) {
+  var rep = attendanceReport_(term);
+  var judge = {};
+  rep.people.forEach(function (x) { if (x.judge === 'Y' || x.judge === 'N') judge[x.name + '|' + x.phone] = x.judge; });
+  var sh = sheet_('신청자');
+  var data = sh.getDataRange().getValues();
+  var h = data[0].map(String), ni = h.indexOf('성명'), pi = h.indexOf('연락처'), ti = h.indexOf('기수'), yi = h.indexOf('이수(Y/N)');
+  var y = 0, n = 0;
+  for (var i = 1; i < data.length; i++) {
+    if (clean_(data[i][ti]) !== term) continue;
+    var v = judge[personKey_(data[i][ni], data[i][pi])];
+    if (!v) continue;
+    sh.getRange(i + 1, yi + 1).setValue(v);
+    if (v === 'Y') y++; else n++;
+  }
+  var left = rep.people.length - y - n;
+  return { ok: true, y: y, n: n, left: left, msg: term + ' 이수 Y ' + y + '명, N ' + n + '명 반영' + (left ? ' (확인 필요·진행 중 ' + left + '명은 그대로)' : '') };
+}
+
+// ───────────────────────── 게시판: Q&A · 환불요청 ─────────────────────────
+var BOARD_STATES = { 'Q&A': ['접수', '답변 완료'], '환불요청': ['접수', '검토 중', '연수원 전달', '환불 완료', '반려'] };
+var BOARD_DONE = ['답변 완료', '환불 완료', '반려'];
+var REFUND_REASONS = ['개인 사정(일정 충돌 등)', '중복 신청', '건강·가족 사유', '연수 내용이 기대와 다름', '기타'];
+
+function maskName_(n) { n = clean_(n); if (n.length <= 1) return n; if (n.length === 2) return n[0] + '*'; return n[0] + new Array(n.length - 1).join('*') + n[n.length - 1]; }
+
+function boardWrite_(d) {
+  var board = d.board === '환불요청' ? '환불요청' : 'Q&A';
+  var name = clean_(d.name).replace(/\s/g, ''), phone = normPhone_(d.phone);
+  var title = clean_(d.title).slice(0, 80), content = clean_(d.content).slice(0, 2000), reason = clean_(d.reason);
+  var errs = [];
+  if (!name || name.length < 2) errs.push('성명을 입력해 주세요.');
+  if (!phone) errs.push('휴대폰 번호를 010-0000-0000 형식으로 입력해 주세요.');
+  if (board === 'Q&A' && !title) errs.push('제목을 입력해 주세요.');
+  if (board === '환불요청') {
+    if (REFUND_REASONS.indexOf(reason) < 0) errs.push('환불 사유를 골라 주세요.');
+    if (content.length < 10) errs.push('환불 사유를 10자 이상 적어 주세요.');
+    if (d.agree !== true) errs.push('처리 기간 안내를 확인했다고 체크해 주세요.');
+    title = '환불 요청';
+  } else if (content.length < 5) errs.push('내용을 5자 이상 적어 주세요.');
+  if (errs.length) return { ok: false, error: errs.join('\n') };
+  var a = findApplicant_(name, phone);
+  var sh = sheet_('게시판');
+  var same = rows_('게시판').filter(function (r) { return r['게시판'] === board; }).length;
+  var no = (board === '환불요청' ? 'F' : 'Q') + ('000' + (same + 1)).slice(-4);
+  sh.appendRow([new Date(), no, board, title, content, name, "'" + phone, a ? a['기수'] : clean_(d.term), board === 'Q&A' && d.public === true ? 'Y' : 'N', board === '환불요청' ? reason : '', '접수', '', '', a ? '' : '신청자 명단에서 찾지 못함']);
+  return { ok: true, no: no, matched: !!a };
+}
+
+function boardList_(d) {
+  var board = d.board === '환불요청' ? '환불요청' : 'Q&A';
+  var items = rows_('게시판').filter(function (r) { return r['게시판'] === board; }).reverse().slice(0, 300).map(function (r) {
+    var pub = board === 'Q&A' && r['공개'] === 'Y';
+    return { no: r['글번호'], title: board === '환불요청' ? '환불 요청' : (pub ? r['제목'] : '비공개 문의'), pub: pub, author: maskName_(r['성명']), at: fmtDate_(r['작성시각']), state: r['처리상태'] || '접수', answered: !!clean_(r['답변']) };
+  });
+  return { ok: true, board: board, items: items };
+}
+
+function boardView_(d) {
+  var no = clean_(d.no);
+  var r = rows_('게시판').filter(function (x) { return clean_(x['글번호']) === no; })[0];
+  if (!r) return { ok: false, error: '글을 찾지 못했어요.' };
+  var pub = r['게시판'] === 'Q&A' && r['공개'] === 'Y';
+  if (!pub) {
+    var name = clean_(d.name).replace(/\s/g, ''), phone = normPhone_(d.phone);
+    if (!name || !phone) return { ok: false, needAuth: true, error: '본인 글만 볼 수 있어요. 작성할 때 쓴 이름과 휴대폰 번호를 넣어 주세요.' };
+    if (clean_(r['성명']).replace(/\s/g, '') !== name || normPhone_(r['휴대폰']) !== phone) return { ok: false, needAuth: true, error: '작성자 정보와 맞지 않아요. 작성할 때 쓴 이름과 휴대폰 번호를 확인해 주세요.' };
+  }
+  return { ok: true, no: r['글번호'], board: r['게시판'], title: r['제목'], content: r['내용'], reason: r['환불사유'], state: r['처리상태'] || '접수', answer: r['답변'], answeredAt: cellOut_(r['답변시각']), at: cellOut_(r['작성시각']), author: maskName_(r['성명']), pub: pub };
+}
+
+function boardPending_() {
+  var o = { qna: 0, refund: 0 };
+  rows_('게시판').forEach(function (r) {
+    if (BOARD_DONE.indexOf(r['처리상태']) >= 0) return;
+    if (r['게시판'] === '환불요청') o.refund++; else o.qna++;
+  });
+  return o;
+}
+
+function boardReply_(p) {
+  var sh = sheet_('게시판');
+  var h = SHEETS['게시판'];
+  var row = Number(p.row);
+  var cur = sh.getRange(row, 1, 1, h.length).getValues()[0];
+  var o = {}; h.forEach(function (k, i) { o[k] = cur[i]; });
+  var states = BOARD_STATES[o['게시판']] || BOARD_STATES['Q&A'];
+  var state = states.indexOf(p.state) >= 0 ? p.state : (o['처리상태'] || '접수');
+  var answer = p.answer === undefined ? o['답변'] : clean_(p.answer);
+  sh.getRange(row, h.indexOf('처리상태') + 1).setValue(state);
+  sh.getRange(row, h.indexOf('답변') + 1).setValue(answer);
+  if (answer !== clean_(o['답변']) || state !== o['처리상태']) sh.getRange(row, h.indexOf('답변시각') + 1).setValue(new Date());
+  if (p.memo !== undefined) sh.getRange(row, h.indexOf('운영메모') + 1).setValue(clean_(p.memo));
+  return { ok: true, state: state };
 }
