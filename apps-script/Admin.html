@@ -243,6 +243,29 @@ main { max-width: 1280px; margin: 0 auto; }
 .sms-term-info>span{padding:14px 18px;grid-column:1/-1}
 .sms-when{font-style:normal;font-size:11px;font-weight:700;color:#001871;background:#eef1fb;border-radius:20px;padding:1px 7px;margin-left:4px;white-space:nowrap}
 @media(max-width:900px){.sms-term-info{grid-template-columns:1fr 1fr}.sms-term-info>div+div{border-left:0;border-top:1px solid #eef0f5}}
+/* ───── 공통 규격: 버튼 40px(작게 32, 크게 46), 입력칸 40px, 모서리 8px ───── */
+.btn { border-radius: 8px; border-color: #2b3350; background: #2b3350; }
+.btn.navy { background: var(--navy); border-color: var(--navy); }
+.btn.line { background: #fff; color: #2b3350; border-color: #c9d0de; }
+.btn.line:hover { background: #f5f7fb; }
+.btn.red { background: #fff; border-color: #efb3bb; } .btn.ok { background: var(--ok); border-color: var(--ok); }
+.btn.sm { border-radius: 7px; } .btn.big { height: 46px; padding: 0 22px; font-size: 15.5px; border-radius: 10px; }
+input[type=text], input[type=search], input[type=date], input[type=number], input[type=email], input[type=tel], select, textarea { border-radius: 8px; border-color: #c9d0de; }
+input[type=date], input[type=number], input[type=email], input[type=tel] { height: 40px; padding: 0 12px; border-width: 1px; border-style: solid; background: #fff; }
+.card, .stat, .tbl-wrap, .todo-row, .todo-empty, .dday, .pick, .post, .doc-form, .mail-sum, .mail-ed, .mail-list, details.card { border-radius: 12px; border-color: #e1e5ee; }
+.stat { border-top-width: 3px; } .todo-row { border-left-width: 5px; }
+.tbl-wrap { overflow: auto; } .doc-form.two { border-radius: 0; }
+.badge { border-radius: 5px; }
+.todo-row .btn { min-width: 132px; justify-content: center; }
+input:not([type]) { height: 40px; padding: 0 12px; border: 1px solid #c9d0de; border-radius: 8px; background: #fff; }
+.seg { border-radius: 8px; overflow: hidden; border-color: #c9d0de; } .seg button + button { border-left: 1px solid #e1e5ee; }
+.top b { white-space: nowrap; }
+.sms-terms button { box-shadow: 0 3px 0 #d6dae6; transition: transform .15s, box-shadow .15s; } .sms-terms button.on { box-shadow: 0 4px 0 #000d45, 0 10px 18px rgba(0,24,113,.2); transform: translateY(-1px); }
+@media (max-width: 640px) {
+  .top { padding: 0 12px; gap: 8px; } .top b { font-size: 15px; } .top b em, .top > span:not(.sp) { display: none; } .top .pill { padding: 0 10px; font-size: 12px; white-space: nowrap; }
+  .gnav { padding: 0 8px; } .gnav button { padding: 0 14px; font-size: 15.5px; height: 52px; } .snav { padding: 12px 14px 0; } main { padding: 20px 14px 70px; }
+  .sms-terms button { flex-direction: column; gap: 2px; height: 62px; padding: 0 4px; } .sms-terms button b { font-size: 16px; } .sms-terms button span { font-size: 11px; letter-spacing: -.03em; }
+}
 </style>
 </head>
 <body>
@@ -601,7 +624,7 @@ function renderSms() {
       var ds = daysOf(t), mine = people.filter(function (x) { return x.term === t && x.state !== '취소'; }), ok = mine.filter(function (x) { return x.state === '신청'; });
       var dd = ds.length ? Math.round((new Date(ds[0].date) - new Date(today0)) / 864e5) : null;
       var has = function (v) { return v ? '<span class="badge b-ok">들어 있음</span>' : '<span class="badge b-red">비어 있음 · 설정에서 넣어 주세요</span>'; };
-      return '<div class="sms-term-info"><div><small>연수 기간</small><b>' + esc(String(S0['연수기간_' + t] || (ds.length ? ds[0].date + ' ~ ' + ds[ds.length - 1].date : '미정'))) + '</b><em>매일 ' + timeOf(t) + (dd === null ? '' : ' · ' + (dd > 0 ? 'D-' + dd : dd === 0 ? '오늘 시작' : '진행·종료')) + '</em></div>' +
+      return '<div class="sms-term-info"><div><small>연수 기간</small><b>' + esc(periodK(S0['연수기간_' + t] || (ds.length ? ds[0].date + '~' + ds[ds.length - 1].date : '')) || '미정') + '</b><em>매일 ' + timeOf(t) + (dd === null ? '' : ' · ' + (dd > 0 ? 'D-' + dd : dd === 0 ? '오늘 시작' : '진행·종료')) + '</em></div>' +
         '<div><small>Zoom 강의실</small>' + has(S0['줌링크_' + t]) + '</div><div><small>오픈채팅방</small>' + has(S0['오픈카톡_' + t]) + '</div>' +
         '<div><small>입금 계좌 · 마감</small>' + (S0['입금계좌'] ? '<b style="font-size:13px">' + esc(S0['입금계좌']) + '</b><em>' + esc(String(S0['입금마감'] || '').slice(0, 10)) + ' 마감 · 설정 탭에서 바꿔요</em>' : has('')) + '</div>' +
         '<div><small>받는 분</small><b>' + ok.length + '명</b><em>대기 ' + mine.filter(function (x) { return x.state === '대기'; }).length + ' · 입금 미확인 ' + ok.filter(function (x) { return !x.paid; }).length + ' · 이수정보 미입력 ' + ok.filter(function (x) { return !x.info; }).length + '</em></div></div>';
@@ -613,7 +636,7 @@ function renderSms() {
       '<div class="sms-stats"><div class="sms-stat"><small>문자 종류</small><b>' + SMS_KINDS.length + '<span>가지</span></b><em>연수 전 · 중 · 후</em></div>' +
       '<div class="sms-stat"><small>받을 수 있는 분</small><b>' + active.length + '<span>명</span></b><em>취소 제외, 번호 중복 없이</em></div>' +
       '<div class="sms-stat"><small>이수정보 보완 필요</small><b>' + active.filter(function (x) { return x.issue; }).length + '<span>명</span></b><em>점검 결과와 연결</em></div></div>' +
-      '<div class="sms-terms">' + BOOT.terms.concat(['']).map(function (t) { return '<button data-term="' + esc(t) + '" class="' + (t === SMS_STATE.term ? 'on' : '') + '">' + (t ? '<b>' + esc(t) + '</b><span>' + esc(String(S0['연수기간_' + t] || '')) + '</span>' : '<b>전체 기수</b><span>공통 안내</span>') + '</button>'; }).join('') + '</div><div id="termCard">' + termCard() + '</div>' +
+      '<div class="sms-terms">' + BOOT.terms.concat(['']).map(function (t) { return '<button data-term="' + esc(t) + '" class="' + (t === SMS_STATE.term ? 'on' : '') + '">' + (t ? '<b>' + esc(t) + '</b><span>' + esc(periodK(S0['연수기간_' + t])) + '</span>' : '<b>전체 기수</b><span>공통 안내</span>') + '</button>'; }).join('') + '</div><div id="termCard">' + termCard() + '</div>' +
       '<div class="sms-grid"><div class="sms-col"><div class="sms-col-h">보낼 문자<span>누르면 휴대폰에 떠요</span></div><div class="sms-list" id="kinds"></div></div>' +
       '<div class="phone"><div class="phone-h"><b id="pTitle"></b><span id="pBytes"></span></div><div class="bubble"><span class="tag" id="pTag"></span><textarea id="pText"></textarea></div><div class="phone-f">기수를 고르면 날짜·시간·Zoom·오픈채팅방·오늘 강의가 자동으로 채워져요. 고쳐 써도 돼요.</div></div>' +
       '<div class="sms-col"><div class="sms-col-h">받는 분<span id="rcCnt"></span></div><div class="rcpt">' +
@@ -659,7 +682,7 @@ function renderSms() {
         .replace(/\{연수비\}/g, Number(s['연수비'] || 0) ? Number(s['연수비']).toLocaleString() + '원' : '(설정에서 연수비 입력)')
         .replace(/\{입금계좌\}/g, s['입금계좌'] || '(설정에서 입금계좌 입력)')
         .replace(/\{입금마감\}/g, s['입금마감'] ? (function (v) { var m = String(v).match(/(\d+)-(\d+)-(\d+)/); return m ? +m[2] + '월 ' + +m[3] + '일' : String(v); })(s['입금마감']) : '(설정에서 입금마감 입력)')
-        .replace(/\{기간\}/g, term ? String(s['연수기간_' + term] || '').replace('~', ' ~ ') : '사이트 참고')
+        .replace(/\{기간\}/g, term ? periodK(s['연수기간_' + term]) : '사이트 참고')
         .replace(/\{줌\}/g, term ? (s['줌링크_' + term] || '(설정에서 줌링크 입력)') : '(기수를 골라 주세요)')
         .replace(/\{오픈카톡\}/g, term ? (s['오픈카톡_' + term] || '(설정에서 오픈채팅방 링크 입력)') : '(기수를 골라 주세요)')
         .replace(/\{시간\}/g, timeOf(term || BOOT.terms[0]));
@@ -936,6 +959,7 @@ function renderMats() {
 // ───── 연수원 메일 봇 ─────
 var MAIL_UI = { id: 'open', term: '', due: '', extra: {} };
 function addBizDays(n) { var d = new Date(Date.now() + 9 * 3600e3); while (n > 0) { d.setUTCDate(d.getUTCDate() + 1); var w = d.getUTCDay(); if (w && w < 6) n--; } return d.toISOString().slice(0, 10); }
+function periodK(v) { var p = String(v || '').split('~'); return p[0] && p[0].trim() ? koDate(p[0].trim()) + (p[1] ? ' ~ ' + koDate(p[1].trim()) : '') : ''; }
 function koDate(s) { if (!s) return ''; var m = String(s).match(/(\d{4})-(\d{2})-(\d{2})/); if (!m) return s; var d = new Date(Date.UTC(+m[1], m[2] - 1, +m[3])); return (+m[2]) + '월 ' + (+m[3]) + '일(' + '일월화수목금토'[d.getUTCDay()] + ')'; }
 var MAIL_KINDS = [
   { grp: '준비', id: 'open', task: 'T01', t: '개설 협조 · 역할 분담 확인', att: ['운영계획서(1기).hwpx', '운영계획서(2기).hwpx', '홍보용 계획서.hwpx', '포스터'],
@@ -1010,7 +1034,7 @@ function renderMail() {
     var grpOrder = []; MAIL_KINDS.forEach(function (k) { if (grpOrder.indexOf(k.grp) < 0) grpOrder.push(k.grp); });
     var dueOf = function (k) { var d = (ctx.ops[k.task] || [])[0]; return d ? d.date : ''; };
     var s = ctx.settings || {};
-    $('#main').innerHTML = '<h2>연수원 메일 봇</h2><p class="sub">업무표 시점에 맞춰 연수원에 보낼 메일을 데이터까지 채워 만들어요. 감정 없이 사실·요청·기한만 담았어요. <b>보내기는 Gmail 작성 창에서 두목쿼카님이 직접 눌러야 나가요.</b></p>' +
+    $('#main').innerHTML = '<h2>연수원 메일 전송기</h2><p class="sub">업무표 시점에 맞춰 연수원에 보낼 메일을 데이터까지 채워 만들어요. 감정 없이 사실·요청·기한만 담았어요. <b>보내기는 Gmail 작성 창에서 두목쿼카님이 직접 눌러야 나가요.</b></p>' +
       '<div class="mail-grid"><div class="mail-list" id="mList">' + grpOrder.map(function (g) {
         return '<div class="g">' + esc(g) + '</div>' + MAIL_KINDS.filter(function (k) { return k.grp === g; }).map(function (k) {
           var d = dueOf(k), soon = d && dayDiff(today, d) <= 7 && !sentKinds[k.t];
@@ -1132,8 +1156,8 @@ function renderOps() {
         }).join('') + '</tbody></table></div>';
     }).join('');
     $('#main').innerHTML = '<h2>운영 업무표 · D-day</h2><p class="sub">2026 실제 흐름으로 만든 2027 업무표예요. 날짜는 연수기간 설정 기준 초안이에요. 끝난 일은 <b>완료</b>를 눌러 두면 밀린 일에서 빠져요.</p>' +
-      '<div class="stats"><div class="stat"><small>1기 (' + esc(String(s['연수기간_1기'] || '').split('~')[0]) + ')</small><b>' + dd('1기') + '</b></div>' +
-      '<div class="stat"><small>2기 (' + esc(String(s['연수기간_2기'] || '').split('~')[0]) + ')</small><b>' + dd('2기') + '</b></div>' +
+      '<div class="stats"><div class="stat"><small>1기 (' + esc(koDate(String(s['연수기간_1기'] || '').split('~')[0].trim())) + ')</small><b>' + dd('1기') + '</b></div>' +
+      '<div class="stat"><small>2기 (' + esc(koDate(String(s['연수기간_2기'] || '').split('~')[0].trim())) + ')</small><b>' + dd('2기') + '</b></div>' +
       '<div class="stat"><small>완료</small><b>' + nDone + '<span>/ ' + live.length + '</span></b></div>' +
       '<div class="stat ' + (late.length ? 'warn' : '') + '"><small>밀린 일</small><b>' + late.length + '<span>건</span></b></div></div>' +
       '<h3>지금 할 일 <span class="muted" style="font-weight:400;font-size:13px">오늘부터 7일 · 밀린 일 포함</span></h3>' +
@@ -1309,7 +1333,7 @@ var DOC_FIELDS = {
 function docTemplates() {
   var s = BOOT.settings || {}, org = s['발급처_상호'] || '㈜키인컨설팅', ceo = s['발급처_대표'] || '', today = kstToday();
   var no = (s['공문_문서번호머리'] || 'KIENALP') + '-' + today.slice(2).replace(/-/g, '') + '-1', dt = today.replace(/-/g, '. ') + '.';
-  var p1 = String(s['연수기간_1기'] || '').replace('~', ' ~ '), p2 = String(s['연수기간_2기'] || '').replace('~', ' ~ ');
+  var p1 = periodK(s['연수기간_1기']), p2 = periodK(s['연수기간_2기']);
   var base = { org: org, addr: s['발급처_주소'] || '', no: no, date: dt, from: org, contact: s['발급처_연락처'] || '', sign1: org, sign2: '대표이사 ' + ceo, ref: '', attach: '' };
   function g(o) { var r = {}; Object.keys(base).forEach(function (k) { r[k] = base[k]; }); Object.keys(o).forEach(function (k) { r[k] = o[k]; }); return r; }
   return [
