@@ -16,7 +16,7 @@
     materials: { name: '연수자료', en: '강의 자료를 내려받고 바로 볼 수 있어요.', qk: 'researcher', tabs: [] },
     talk: { name: '공지·FAQ', en: '새 소식과 자주 묻는 질문을 먼저 확인해 보세요.', qk: 'researcher', tabs: [['notice', '공지사항'], ['faq', '자주 묻는 질문']] },
     board: { name: '게시판', en: '궁금한 점과 환불 요청을 남기면 운영팀이 답해 드려요.', qk: 'teacher', tabs: [['qna', 'Q&A'], ['refund', '환불 요청']] },
-    self: { name: '셀프 서비스', en: '취소, 현금영수증, 이수정보를 메일 없이 바로 처리하세요.', qk: 'snu', tabs: [['request', '셀프 신청'], ['info', '이수정보 입력'], ['status', '내 현황 조회']] }
+    self: { name: '셀프 서비스', en: '현금영수증 번호, 이수정보, 내 현황을 메일 없이 바로 처리하세요.', qk: 'snu', tabs: [['request', '셀프 신청'], ['info', '이수정보 입력'], ['status', '내 현황 조회']] }
   };
   var PAGES = {
     guide: { g: 'guide', t: '연수 개요', r: renderGuide },
@@ -224,7 +224,7 @@
         '</section><section><div class="sec-row"><h3 class="sec">한눈에 보기</h3></div><div class="glance">' +
         C.terms.map(function (t) { return '<dl><dt>' + esc(t) + '</dt><dd>' + esc(termRange(t)) + '</dd></dl>'; }).join('') +
         '<dl><dt>이수 기준</dt><dd>' + esc(C.site.criteria) + '</dd></dl>' +
-        (C.deadlines.info ? '<dl><dt>이수정보 마감</dt><dd><b>' + esc(C.deadlines.info) + '</b></dd></dl>' : '') +
+        '<dl><dt>이수정보 마감</dt><dd><b>' + esc(infoDue()) + '</b></dd></dl>' +
         '<dl><dt>문의</dt><dd>Q&A 게시판이 가장 빨라요. <a href="#/qna">글 남기기</a></dd></dl>' +
         '</div></section></div>';
       renderSchedule($('#homeTT'), true);
@@ -243,21 +243,25 @@
       row('기수', C.terms.join(' / ')) + row('연수 방식', '실시간 원격(Zoom), 기수별 15시간') +
       row('이수 기준', s.criteria) + (s.fee ? row('연수비', won(s.fee)) : '') +
       '</table><h3 class="sec">이렇게 진행돼요</h3><div class="steps">' +
-      '<div><b>STEP 1</b><strong>연수원 신청·입금</strong>서울대 사범대 교육연수원 사이트에서 신청</div>' +
+      '<div><b>STEP 1</b><strong>연수원 신청·입금</strong>교육연수원 홈페이지에서 신청(12.3.~12.10.), 확정 문자를 받은 뒤 12.18.까지 입금</div>' +
       '<div><b>STEP 2</b><strong>이수정보 입력</strong>이 사이트에서 마감 전까지 입력</div>' +
       '<div><b>STEP 3</b><strong>연수 참여·이수</strong>Zoom 출석 80% 이상 → 이수증·나이스 등재(연수원)</div>' +
-      '</div><div class="box" style="margin-bottom:16px;border-left:4px solid var(--danger)"><b style="color:var(--danger)">2027년에는 기수 변경을 받지 않습니다.</b><br><span class="note">신청한 기수 그대로 참여해 주세요. 일정이 맞지 않으면 기수 변경 대신 수강 취소로 접수됩니다. 신청할 때 기수를 신중히 골라 주세요.</span></div><div class="box note">신청 접수, 이수증 발급, 나이스 등재는 교육연수원에서 처리해요. 취소·현금영수증·이수정보처럼 운영팀이 처리하는 일은 이 사이트의 셀프 서비스로 접수해 주세요.</div></div>';
+      '</div><div class="box" style="margin-bottom:16px;border-left:4px solid var(--danger)"><b style="color:var(--danger)">2027년에는 기수 변경을 받지 않습니다.</b><br><span class="note">신청한 기수 그대로 참여해 주세요. 다른 기수 날짜로 대신 듣는 것도 안 돼요. 참여가 어려우면 연수 시작 전날까지 Q&A·환불 > 환불 요청으로 취소해 주세요.</span></div><div class="box note">신청 접수, 이수증 발급, 나이스 등재는 교육연수원에서 처리해요. 현금영수증 번호와 이수정보는 이 사이트의 셀프 서비스에서, 취소와 환불은 환불 요청 게시판에서 접수해 주세요. 대기 신청과 소속 학교 수강 협조 공문 발급은 하지 않아요.</div></div>';
+  }
+  function infoDue() {
+    if (C.deadlines.info) return C.deadlines.info;
+    var last = {}; (C.schedule || []).forEach(function (x) { if (!last[x.term] || x.date > last[x.term]) last[x.term] = x.date; });
+    var t = C.terms.filter(function (k) { return last[k]; }).map(function (k) { return k + ' ' + md(last[k]) + '.'; });
+    return '기수별 연수 마지막 날 19:00' + (t.length ? ' (' + t.join(', ') + ')' : '');
   }
   function row(k, val) { return '<tr><th>' + esc(k) + '</th><td>' + esc(val) + '</td></tr>'; }
 
   var curTerm = null;
   function hm(t) { var m = String(t || '').match(/(\d+):(\d+)/); return m ? +m[1] * 60 + +m[2] : 0; }
   function md(d) { var m = String(d).match(/\d+-(\d+)-(\d+)/); return m ? +m[1] + '.' + +m[2] : d; }
-  // 운영계획서(1기·2기)의 신청·확정·납부 일정. 계획서가 바뀌면 여기도 같이 고친다.
-  var TERM_INFO = {
-    '1기': [['신청 기간', '2026.12.14.(월) 10:00 ~ 12.28.(월) 18:00', '기수별 정원 400명'], ['대상자 확정 공지', '2026.12.29.(화) 18:00 이후', '개별 문자로 알려 드려요'], ['연수비 납부', '2027.1.6.(수)까지', '납부 방법은 확정 공지에서 안내해요']],
-    '2기': [['신청 기간', '2026.12.14.(월) 10:00 ~ 2027.1.18.(월) 18:00', '기수별 정원 400명'], ['대상자 확정 공지', '2027.1.19.(화) 18:00 이후', '개별 문자로 알려 드려요'], ['연수비 납부', '2027.1.26.(화)까지', '납부 방법은 확정 공지에서 안내해요']]
-  };
+  // 신청·확정·입금 일정(1기·2기 공통, 2026-11-19 확정). 바뀌면 여기와 FAQ를 같이 고친다.
+  var TERM_STEPS = [['신청 기간', '2026.12.3.(목) 10:00 ~ 12.10.(목)', '교육연수원 홈페이지에서 신청해요. 대기 신청과 마감 뒤 추가 신청은 받지 않아요'], ['확정 문자', '2026.12.14.(월)', '신청한 휴대폰 번호로 입금 안내와 함께 보내 드려요'], ['입금 마감', '2026.12.18.(금)까지', '입금자명은 이름+휴대폰 뒷 4자리, 개인 계좌이체만 받아요']];
+  var TERM_INFO = { '1기': TERM_STEPS, '2기': TERM_STEPS };
   function hmTxt(m) { return ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + m % 60).slice(-2); }
   function renderSchedule(v, brief) {
     var today = new Date(), ts = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2);
@@ -286,7 +290,7 @@
       }).join('');
       var s0 = hm(first.start), e0 = hm(last.end);
       return '<section class="tt-day' + (d.date === ts ? ' today' : '') + '"><header><b>' + (i + 1) + '일차</b><span>' + esc(md(d.date)) + ' (' + esc(d.dow) + ')</span><em>' + esc(first.start) + '~' + esc(last.end) + ' · ' + dh + '시간</em>' + (d.date === ts ? '<i>오늘</i>' : '') + '</header>' +
-        '<p class="tt-flow"><span><b>' + hmTxt(s0 - at.before) + '</b>출석체크 열림</span><span><b>' + esc(first.start) + '</b>강의 시작</span><span><b>' + hmTxt(e0 - at.outBefore) + '</b>퇴실체크 열림</span><span><b>' + esc(last.end) + '</b>종료</span></p><ol>' + lis + '</ol></section>';
+        '<p class="tt-flow"><span><b>' + hmTxt(s0 - at.before) + '</b>출석체크 열림</span><span><b>' + esc(first.start) + '</b>강의 시작</span><span><b>' + hmTxt(e0 - at.outBefore) + '</b>퇴실체크</span><span><b>' + esc(last.end) + '</b>종료</span></p><ol>' + lis + '</ol></section>';
     }).join('');
     var info = TERM_INFO[curTerm] || [];
     v.innerHTML = '<div class="tt-tabs">' + C.terms.map(function (t) {
@@ -300,8 +304,8 @@
         (days.length ? '<h3 class="sec" style="margin-top:44px">연수 당일 이렇게 해요</h3><ol class="tt-how">' +
           '<li><b>출석체크</b><span>강의 시작 ' + at.before + '분 전부터 이 사이트 <a href="#/attend">출석체크</a>에서 이름과 휴대폰 번호로 눌러요.</span></li>' +
           '<li><b>강의실 입장</b><span>출석체크를 하면 Zoom 강의실 버튼이 나와요. Zoom 이름은 기수_성명_휴대폰 뒷 4자리(예: 1기_홍길동_1234)로 바꿔 주세요.</span></li>' +
-          '<li><b>퇴실체크</b><span>끝나기 ' + at.outBefore + '분 전부터 눌러요. 출석과 퇴실이 둘 다 있어야 그날 출석으로 인정돼요.</span></li>' +
-          '<li><b>이수</b><span>' + esc(C.site.criteria) + '이면 이수예요. 기수 변경은 받지 않아요.</span></li></ol>' : '') +
+          '<li><b>퇴실체크</b><span>끝날 때(끝나기 ' + at.outBefore + '분 전부터) 눌러요. 중간에 나가야 하면 나갈 때 눌러 주세요. 출석체크부터 퇴실체크까지 들은 시간을 분 단위로 더해요.</span></li>' +
+          '<li><b>이수</b><span>' + esc(C.site.criteria) + '이면 이수예요. 다른 기수 날짜로 대신 들을 수는 없어요.</span></li></ol>' : '') +
         (people.length ? '<h3 class="sec" style="margin-top:44px">강사진</h3><ul class="tt-people">' + people.map(function (q) { return '<li><b>' + esc(q.name) + '</b>' + (q.org ? '<em>' + esc(q.org) + '</em>' : '') + '<span>' + q.titles.map(esc).join('<br>') + '</span></li>'; }).join('') + '</ul>' : '')) +
       '<p class="note" style="margin-top:20px">강사와 강의 순서는 사정에 따라 일부 바뀔 수 있어요. 바뀌면 이 화면에 가장 먼저 반영돼요. 강의 사이 쉬는 시간은 확정되면 안내할게요.</p>';
     $$('.tt-tabs button', v).forEach(function (b) { b.onclick = function () { curTerm = b.dataset.t; renderSchedule(v, brief); }; });
@@ -347,7 +351,7 @@
       '<div class="faq">' + list.map(function (f) {
         return '<details><summary><span class="q">Q</span><span>' + esc(f.q) + '</span></summary><div class="ans"><span class="a">A</span><div>' + linkify(f.a) + '</div></div></details>';
       }).join('') + '</div>' +
-      '<div class="faq-cta"><p class="note">찾는 답이 없나요? 취소·현금영수증은 메일보다 셀프 신청이 빨라요. (기수 변경은 받지 않아요)</p><a class="btn navy" href="#/request">셀프 신청하기</a></div>';
+      '<div class="faq-cta"><p class="note">찾는 답이 없나요? 현금영수증 번호는 셀프 신청, 취소는 환불 요청이 메일보다 빨라요. (기수 변경은 받지 않아요)</p><a class="btn navy" href="#/request">셀프 신청하기</a></div>';
     $$('.faq-cats button', v).forEach(function (b) { b.onclick = function () { faqCat = b.textContent; renderFaq(v); }; });
   }
 
@@ -356,16 +360,15 @@
     var termOpts = C.terms.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
     v.innerHTML = '<div class="narrow">' +
       (C.deadlines.request ? '<p class="note" style="text-align:right">셀프 신청 마감 : <b style="color:var(--danger)">' + esc(C.deadlines.request) + '</b></p>' : '') +
-      '<div class="box" style="margin-bottom:24px;border-left:4px solid var(--danger)"><b style="color:var(--danger)">기수 변경은 받지 않아요.</b> <span class="note">신청한 기수 그대로 참여해 주세요. 참여가 어려우면 수강 취소로 접수해 주세요.</span></div>' +
+      '<div class="box" style="margin-bottom:24px;border-left:4px solid var(--danger)"><b style="color:var(--danger)">수강 취소는 여기가 아니라 <a href="#/refund" style="text-decoration:underline">환불 요청</a>에서 받아요.</b> <span class="note">기수 변경은 받지 않아요. 여기서는 현금영수증 번호 수정과 기타 문의만 접수해요.</span></div>' +
       '<form class="form" id="reqForm" novalidate>' +
-      field('신청 유형', true, '<div class="radios">' + ['수강취소', '현금영수증 수정', '기타 문의'].map(function (t, i) {
+      field('신청 유형', true, '<div class="radios">' + ['현금영수증 수정', '기타 문의'].map(function (t, i) {
         return '<label><input type="radio" name="type" value="' + t + '"' + (i === 0 ? ' checked' : '') + '>' + t + '</label>';
       }).join('') + '</div>', 'type') +
       field('성명', true, '<input type="text" name="name" autocomplete="name" placeholder="연수 신청할 때 쓴 이름">', 'name') +
       field('휴대폰', true, '<input type="tel" name="phone" inputmode="numeric" autocomplete="tel" placeholder="010-0000-0000">', 'phone', '신청할 때 쓴 번호로 본인을 확인해요.') +
       field('수강 기수', false, '<select name="fromTerm"><option value="">선택</option>' + termOpts + '</select>', 'fromTerm') +
-      '<div data-show="현금영수증 수정">' + field('현금영수증 번호', true, '<input type="text" name="receipt" inputmode="numeric" placeholder="휴대폰 번호 또는 사업자번호">', 'receipt') + '</div>' +
-      '<div data-show="수강취소">' + '<div class="field"><div class="lbl">취소 안내</div><div class="note">취소·환불 기준은 교육연수원 규정을 따라요. 이미 입금하셨다면 <a href="#/refund" style="text-decoration:underline"><b>환불 요청 게시판</b></a>에 사유와 함께 따로 남겨 주세요.</div></div></div>' +
+      '<div data-show="현금영수증 수정">' + field('현금영수증 번호', true, '<input type="text" name="receipt" inputmode="numeric" placeholder="현금영수증을 받을 휴대폰 번호">', 'receipt', '연수 마지막 날까지 접수한 번호로 기수가 끝난 다음 주에 발급돼요. 사업자 지출증빙용은 발급하지 않아요.') + '</div>' +
       field('내용', false, '<textarea name="memo" placeholder="필요한 내용을 적어 주세요. (선택)"></textarea>', 'memo') +
       '</form>' + agreeBox() +
       '<div class="btns"><button class="btn navy" id="reqSubmit"><i class="xi-check"></i>신청하기</button></div></div>';
@@ -401,7 +404,7 @@
     var termOpts = C.terms.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
     v.innerHTML = '<div class="narrow">' +
       '<div class="box" style="margin-bottom:28px"><b style="color:var(--navy)">이수증과 나이스 연수 이력에 그대로 들어가는 정보예요.</b><br><span class="note">틀리면 이수 처리가 늦어져요. 잘못 넣었다면 같은 이름·휴대폰으로 다시 제출하면 최신 내용으로 바뀌어요.' +
-      (C.deadlines.info ? ' 마감 <b style="color:var(--danger)">' + esc(C.deadlines.info) + '</b>' : '') + '</span></div>' +
+      ' 마감 <b style="color:var(--danger)">' + esc(infoDue()) + '</b>' + '</span></div>' +
       '<form class="form" id="infoForm" novalidate>' +
       field('수강 기수', true, '<select name="term"><option value="">선택</option>' + termOpts + '</select>', 'term') +
       field('성명', true, '<input type="text" name="name" autocomplete="name" placeholder="홍길동">', 'name', '띄어쓰기 없이 실명으로 입력해 주세요.') +
@@ -464,7 +467,7 @@
       '<div class="att-actions"><button class="btn navy big" id="atIn"><i class="xi-check-circle-o"></i>출석체크하고 강의실 입장</button><button class="btn line big" id="atOut"><i class="xi-log-out"></i>퇴실체크</button></div>' +
       '<div id="atOut2"></div>' +
       '<div class="box" style="margin-top:32px"><b>출석 인정 방법</b><ul style="margin:8px 0 0;padding-left:20px" class="note">' +
-      '<li>출석체크는 연수 시작 <b>' + a.before + '분 전</b>부터, 퇴실체크는 끝나기 <b>' + a.outBefore + '분 전</b>부터 할 수 있어요.</li>' +
+      '<li>출석체크는 연수 시작 <b>' + a.before + '분 전</b>부터, 퇴실체크는 끝날 때(끝나기 <b>' + a.outBefore + '분 전</b>부터) 눌러 주세요. 중간에 나가야 하면 나갈 때 누르면 그때까지 들은 시간이 분 단위로 인정돼요.</li>' +
       '<li>출석과 퇴실이 <b>둘 다</b> 있어야 그날 출석으로 인정돼요. Zoom이 끊겨서 다시 들어올 때도 출석체크를 다시 누르면 강의실 링크가 나와요.</li>' +
       '<li>' + esc(C.site.criteria) + '이어야 이수돼요. (인정 ' + a.need + '시간 이상)</li>' +
       '<li>Zoom 이름은 <b>기수_성명_휴대폰 뒷 4자리</b>(예: 1기_홍길동_1234)로 바꿔 주세요.</li>' +
@@ -511,7 +514,7 @@
   }
 
   // ───────── 게시판: Q&A · 환불 요청 (내용은 본인만) ─────────
-  var REFUND_REASONS = ['개인 사정(일정 충돌 등)', '중복 신청', '건강·가족 사유', '연수 내용이 기대와 다름', '기타'];
+  var REFUND_REASONS = ['개인 사정(일정 충돌 등)', '중복 입금', '건강·가족 사유', '연수 내용이 기대와 다름', '기타'];
   function stateBadge2(st) {
     var cls = /완료/.test(st) ? 'ok' : st === '반려' ? 'red' : st === '접수' ? 'gray' : 'navy';
     return '<span class="badge ' + cls + '">' + esc(st) + '</span>';
@@ -535,10 +538,10 @@
     }).catch(showLoadError);
   }
   function refundNotice(short) {
-    var r = C.refund || { wait: '영업일 기준 2~3주', rule: '' };
+    var r = C.refund || { wait: '접수 후 7일 이내', rule: '' };
     return '<div class="refund-note"><b><i class="xi-time-o"></i> 환불은 실시간으로 처리되지 않아요</b>' +
-      '<ol class="refund-flow"><li>접수</li><li>운영팀 확인</li><li>교육연수원 전달</li><li>연수원 환불 처리</li></ol>' +
-      '<p>연수원 처리 일정에 따라 <b>' + esc(r.wait) + '</b> 정도 걸릴 수 있어요. 접수되면 확인 메일을, <b>최종 환불이 완료되면 이메일로</b> 알려 드려요. 진행 단계는 이 게시판과 내 현황 조회에서 언제든 확인할 수 있어요.' +
+      '<ol class="refund-flow"><li>접수</li><li>운영팀 확인</li><li>환불 송금</li><li>완료 안내</li></ol>' +
+      '<p>확인을 거쳐 <b>' + esc(r.wait) + '</b>에 적어 주신 계좌로 환불해 드려요. 접수되면 확인 메일을, <b>최종 환불이 완료되면 이메일로</b> 알려 드려요. 진행 단계는 이 게시판과 내 현황 조회에서 언제든 확인할 수 있어요.' +
       (short ? '' : ' 같은 내용으로 메일이나 전화를 다시 주시지 않아도 순서대로 처리돼요.') + '</p>' +
       (r.rule ? '<p class="note" style="margin:6px 0 0">' + esc(r.rule) + '</p>' : '') + '</div>';
   }
@@ -551,12 +554,17 @@
       field('이메일', refund, '<input type="email" name="email" autocomplete="email" value="' + esc(me.email || '') + '" placeholder="' + (refund ? '환불 완료 안내를 받을 이메일' : '답변 알림 (선택)') + '">', 'email', refund ? '최종 환불이 완료되면 이 주소로 알려 드려요.' : '') +
       (refund
         ? field('환불 사유', true, '<select name="reason"><option value="">선택</option>' + REFUND_REASONS.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('') + '</select>', 'reason') +
-          field('자세한 사유', true, '<textarea name="content" placeholder="예: 학교 업무 일정과 겹쳐 참여가 어려워 환불을 요청드립니다."></textarea>', 'content', '10자 이상. 사유를 알려 주셔야 연수원에 전달할 수 있어요. 계좌번호는 쓰지 마세요.')
-        : field('제목', true, '<input type="text" name="title" maxlength="80">', 'title') +
+          field('자세한 사유', true, '<textarea name="content" placeholder="예: 학교 업무 일정과 겹쳐 참여가 어려워 환불을 요청드립니다."></textarea>', 'content', '10자 이상 적어 주세요.') +
+          '<div class="field"><div class="lbl">환불받을 계좌 <em>*</em></div><div class="note">환불 요청 글은 본인과 운영자만 볼 수 있어요.</div></div>' +
+          field('은행', true, '<input type="text" name="bank" maxlength="20" placeholder="예: 신한은행">', 'bank') +
+          field('계좌번호', true, '<input type="text" name="acct" inputmode="numeric" maxlength="30" placeholder="숫자만">', 'acct') +
+          field('예금주', true, '<input type="text" name="holder" maxlength="20" placeholder="본인 이름">', 'holder')
+        : field('분류', false, '<select name="cat"><option>일반 문의</option><option>연수 내용</option></select>', 'cat', '강의 내용 질문은 "연수 내용"으로 올려 주세요. 3일차 종합 질의응답에서 모아 답변해요.') +
+          field('제목', true, '<input type="text" name="title" maxlength="70">', 'title') +
           field('내용', true, '<textarea name="content" placeholder="궁금한 점을 적어 주세요. 주민번호·계좌번호 같은 정보는 쓰지 마세요."></textarea>', 'content') +
           '<div class="field" data-f="pub"><div class="lbl">공개 여부</div><div><label class="remember" style="margin:0"><input type="checkbox" name="pub"> 다른 선생님들도 볼 수 있게 공개 (이름·번호는 보이지 않아요)</label></div></div>') +
       '</form>' + agreeBox() +
-      (refund ? '<label class="remember strong"><input type="checkbox" id="waitOk"> 실시간 환불이 아니며, 처리까지 기다려야 할 수 있다는 점을 확인했어요.</label>' : '') +
+      (refund ? '<label class="remember strong"><input type="checkbox" id="waitOk"> 연수 시작 전날까지 요청해야 전액 환불되고, 환불까지 며칠 걸릴 수 있다는 점을 확인했어요.</label>' : '') +
       '<div class="btns"><a class="btn line" href="#/' + page + '">목록</a><button class="btn navy" id="bSubmit"><i class="xi-check"></i>' + (refund ? '환불 요청 접수' : '등록하기') + '</button></div></div>';
     var f = $('#bForm');
     autoPhone(f.phone);
@@ -571,8 +579,13 @@
         d.reason = f.reason.value; d.agree = $('#waitOk').checked;
         if (!d.reason) bad = setErr(f, 'reason', '환불 사유를 골라 주세요.') || true;
         if (d.content.length < 10) bad = setErr(f, 'content', '사유를 10자 이상 적어 주세요.') || true;
+        d.bank = f.bank.value.trim(); d.acct = f.acct.value.replace(/[^0-9-]/g, ''); d.holder = f.holder.value.trim();
+        if (!d.bank) bad = setErr(f, 'bank', '은행을 적어 주세요.') || true;
+        if (d.acct.replace(/-/g, '').length < 8) bad = setErr(f, 'acct', '계좌번호를 확인해 주세요.') || true;
+        if (!d.holder) bad = setErr(f, 'holder', '예금주를 적어 주세요.') || true;
       } else {
         d.title = f.title.value.trim(); d.public = f.pub.checked;
+        if (d.title && f.cat.value === '연수 내용') d.title = '[연수 내용] ' + d.title;
         if (!d.title) bad = setErr(f, 'title', '제목을 입력해 주세요.') || true;
         if (d.content.length < 5) bad = setErr(f, 'content', '내용을 5자 이상 적어 주세요.') || true;
       }
@@ -582,7 +595,7 @@
       submit(this, 'boardWrite', d, function (res) {
         v.innerHTML = '<div class="narrow"><div class="result"><i class="xi-check-circle-o"></i><h4>' + (refund ? '환불 요청이 접수됐어요' : '글이 등록됐어요') + '</h4>' +
           '<p>글번호 <b style="color:var(--navy);font-size:20px">' + esc(res.no) + '</b></p>' +
-          '<p class="note">' + (refund ? '운영팀 확인 → 연수원 전달 → 환불 처리 순서로 진행돼요. <b>' + esc((C.refund || {}).wait || '') + '</b> 정도 걸릴 수 있고, 최종 환불이 완료되면 이메일로 알려 드릴게요. 접수 확인 메일도 곧 보내 드려요.' : '답변이 달리면 ' + (d.email ? '이메일로 알려 드리고, ' : '') + '이 게시판에서 이름과 휴대폰 번호로 확인할 수 있어요.') +
+          '<p class="note">' + (refund ? '운영팀 확인 뒤 <b>' + esc((C.refund || {}).wait || '') + '</b>에 환불해 드려요. 환불이 완료되면 이메일로 알려 드릴게요. 접수 확인 메일도 곧 보내 드려요.' : '답변이 달리면 ' + (d.email ? '이메일로 알려 드리고, ' : '') + '이 게시판에서 이름과 휴대폰 번호로 확인할 수 있어요.') +
           (res.matched ? '' : '<br><b style="color:var(--danger)">신청자 명단에서 이름·번호를 바로 찾지 못했어요. 운영팀이 직접 확인할게요.</b>') + '</p></div>' +
           '<div class="btns"><a class="btn line" href="#/' + page + '">목록</a><a class="btn" href="#/status">내 현황 조회</a></div></div>';
       });
@@ -645,6 +658,7 @@
     }).join('') : '<span class="note">셀프 신청 내역이 없어요.</span>';
     out.innerHTML = '<div style="margin-top:40px"><h3 class="sec">' + esc(r.name) + ' 선생님 현황</h3><div class="status-card">' +
       '<div class="status-row"><div>신청 상태</div><div>' + stateBadge + (a ? ' ' + esc(a.term) : '') + '</div></div>' +
+      (a && a.state !== '취소' ? '<div class="status-row"><div>연수비 입금</div><div>' + (a.paid ? '<span class="badge ok">입금 확인</span>' : '<span class="badge red">미입금</span> <span class="note">' + (C.pay && C.pay.account ? esc(C.pay.account) + (C.pay.due ? ' · ' + esc(C.pay.due) + '까지' : '') + ' · 입금자명은 이름+휴대폰 뒷 4자리. ' : '') + '입금 확인은 반영까지 하루 이틀 걸릴 수 있어요.</span>') + '</div></div>' : '') +
       '<div class="status-row"><div>이수정보</div><div>' + (info ? '<span class="badge ok">제출 완료</span> <span class="note">' + esc(info.at) + ' · ' + esc(info.term) + ' · ' + esc(info.sido) + ' ' + esc(info.school) + ' · ' + esc(info.birthMasked) + '</span>' : '<span class="badge red">미제출</span> <a href="#/info" style="text-decoration:underline;margin-left:6px">지금 입력하기</a>') + '</div></div>' +
       '<div class="status-row"><div>셀프 신청 처리</div><div>' + reqs + '</div></div>' +
       '<div class="status-row"><div>출석</div><div>' + attSummary(r.attendance) + '</div></div>' +
@@ -685,7 +699,7 @@
       (hint ? '<div class="hint">' + esc(hint) + '</div>' : '') + '</div></div>';
   }
   function agreeBox() {
-    return '<div class="agree">입력한 정보는 연수 이수 처리와 신청 변경 처리에만 쓰고, 이수 처리를 위해 교육연수원에 제공돼요. 보관 기간 등 자세한 내용은 <a href="#/privacy" style="text-decoration:underline" target="_blank">개인정보 처리 안내</a>를 확인해 주세요.<label><input type="checkbox" id="agree"> 개인정보 수집·이용에 동의합니다.</label></div>';
+    return '<div class="agree">입력한 정보는 연수 이수 처리와 신청 변경·환불 처리에만 쓰고, 이수 처리를 위해 교육연수원에 제공돼요. 보관 기간 등 자세한 내용은 <a href="#/privacy" style="text-decoration:underline" target="_blank">개인정보 처리 안내</a>를 확인해 주세요.<label><input type="checkbox" id="agree"> 개인정보 수집·이용에 동의합니다.</label></div>';
   }
   function setErr(f, name, msg) {
     var box = $('[data-f="' + name + '"]', f);
@@ -843,8 +857,8 @@
   }
 
   // ───────── 쿼카 챗봇: FAQ 검색형 (API 키·비용 없음) ─────────
-  var BOT_ROUTES = [[/셀프 신청|수강취소|현금영수증 수정/, '#/request', '셀프 신청'], [/환불 요청/, '#/refund', '환불 요청'], [/Q&A/, '#/qna', 'Q&A 게시판'], [/내 현황/, '#/status', '내 현황 조회'], [/출석체크/, '#/attend', '출석체크'], [/연수자료/, '#/materials', '연수자료'], [/이수정보/, '#/info', '이수정보 입력'], [/일정·시간표/, '#/schedule', '일정·시간표'], [/접속 안내/, '#/access', '접속 안내']];
-  var BOT_CHIPS = ['출석은 어떻게 해요?', '환불은 언제 돼요?', '기수 바꿀 수 있어요?', '이수 기준이 뭐예요?', '납입증명서', '강의 자료'];
+  var BOT_ROUTES = [[/셀프 신청|현금영수증 수정/, '#/request', '셀프 신청'], [/환불 요청/, '#/refund', '환불 요청'], [/Q&A/, '#/qna', 'Q&A 게시판'], [/내 현황/, '#/status', '내 현황 조회'], [/출석체크/, '#/attend', '출석체크'], [/연수자료/, '#/materials', '연수자료'], [/이수정보/, '#/info', '이수정보 입력'], [/일정·시간표/, '#/schedule', '일정·시간표'], [/접속 안내/, '#/access', '접속 안내']];
+  var BOT_CHIPS = ['납입증명서가 필요해요', '기수 바꿀 수 있어요?', '환불은 언제 돼요?', '출석은 어떻게 해요?', '이수증은 어디서 받아요?', '나이스에는 언제 올라가요?'];
   var botOpen = false;
   function botNorm(s) { return String(s || '').toLowerCase().replace(/[^0-9a-z가-힣]/g, ''); }
   var BOT_SB = '어디 디서 어떻 떻게 나요 하나 있나 싶어 해요 돼요 되나 하면 는데 에서 으로 할수 수있 언제'.split(' ');
@@ -928,17 +942,17 @@
         ok: true,
         site: { title: '연구하는 교사되기 2027', org: '서울대학교 사범대학 교육연수원', operator: '연구하는 교사되기 운영팀', email: 'snu27@dumokquoka.com', criteria: '총 15시간 중 12시간(80%) 이상 출석', fee: 0 },
         terms: ['1기', '2기'], links: { '1기': { zoom: '', kakao: '' }, '2기': { zoom: '', kakao: '' } }, padlet: '',
-        deadlines: { request: '2027-01-25', info: '2027-02-10' }, certificate: true, sido: SIDO,
-        refund: { wait: '영업일 기준 2~3주', rule: '환불 가능 여부와 금액은 교육연수원 환불 규정을 따릅니다.' }, attend: { before: 30, outBefore: 20, need: 12 },
+        deadlines: { request: '', info: '' }, certificate: true, sido: SIDO,
+        refund: { wait: '접수 후 7일 이내', rule: '연수 시작 전날까지 요청하면 전액 환불돼요. 연수가 시작된 뒤에는 환불되지 않아요(부득이한 사유만 예외로 검토).' }, attend: { before: 30, outBefore: 20, need: 12 }, pay: { account: '(예시) ○○은행 000-000-000000 (예금주: ○○○)', due: '12월 18일' },
         notices: [
-          { date: '2027-01-05', title: '[필독] 이수정보 입력 안내 (마감 2/10)', body: '이수증 발급과 나이스 등재를 위해 이수정보를 꼭 입력해 주세요.\n생년월일은 8자리, 시도교육청은 목록에서 골라 주세요.', pinned: true },
-          { date: '2027-01-04', title: '[필독] 2027년에는 기수 변경을 받지 않습니다', body: '신청한 기수 그대로 참여해 주세요. 참여가 어려우면 기수 변경 대신 수강 취소로 접수됩니다. 신청할 때 기수를 신중히 골라 주세요.', pinned: true },
-          { date: '2027-01-03', title: '취소·현금영수증은 셀프 신청으로 접수해 주세요', body: '메일 대신 셀프 신청 메뉴를 이용하면 바로 접수되고, 처리 결과도 내 현황에서 확인할 수 있어요.', pinned: true },
+          { date: '2027-01-05', title: '[필독] 이수정보 입력 안내 (기수 마지막 날 19:00 마감)', body: '이수증 발급과 나이스 등재를 위해 이수정보를 꼭 입력해 주세요.\n생년월일은 8자리, 시도교육청은 목록에서 골라 주세요.', pinned: true },
+          { date: '2027-01-04', title: '[필독] 2027년에는 기수 변경을 받지 않습니다', body: '신청한 기수 그대로 참여해 주세요. 참여가 어려우면 연수 시작 전날까지 Q&A·환불 > 환불 요청으로 취소해 주세요.', pinned: true },
+          { date: '2027-01-03', title: '취소는 환불 요청, 현금영수증 번호는 셀프 신청으로 접수해 주세요', body: '메일 대신 사이트 메뉴를 이용하면 바로 접수되고, 처리 결과도 내 현황에서 확인할 수 있어요.', pinned: true },
           { date: '2026-12-20', title: '2027 연구하는 교사되기 일정 안내', body: '1기 1/11~1/13, 2기 2/1~2/3, 매일 13:00~18:00 (예시 일정입니다)', pinned: false }
         ],
         faq: [
-          { cat: '신청·변경', q: '기수를 바꾸고 싶어요.', a: '2027년에는 기수 변경을 받지 않아요. 신청한 기수 그대로 참여해 주세요. 참여가 어려우면 셀프 신청 > 수강취소로 접수해 주세요. 신청할 때 기수를 신중히 골라 주세요.' },
-          { cat: '신청·변경', q: '수강을 취소하고 환불받고 싶어요.', a: '셀프 신청 > 수강취소로 접수해 주세요. 환불 기준은 교육연수원 규정을 따라요.' },
+          { cat: '신청·변경', q: '기수를 바꾸고 싶어요.', a: '2027년에는 기수 변경을 받지 않아요. 신청한 기수 그대로 참여해 주세요. 참여가 어려우면 Q&A·환불 > 환불 요청에 사유와 함께 취소를 접수해 주세요.' },
+          { cat: '신청·변경', q: '수강을 취소하고 환불받고 싶어요.', a: 'Q&A·환불 > 환불 요청에 사유를 적어 접수해 주세요. 연수 시작 전날까지 요청하면 전액 환불돼요.' },
           { cat: '영수증·증빙', q: '현금영수증 번호를 잘못 넣었어요.', a: '셀프 신청 > 현금영수증 수정으로 올바른 번호를 접수해 주세요.' },
           { cat: '영수증·증빙', q: '연수비 납입증명서가 필요해요.', a: '내 현황 조회에서 입금이 확인된 분은 납입확인서를 바로 인쇄하거나 PDF로 저장할 수 있어요.' },
           { cat: '이수', q: '이수 기준이 어떻게 되나요?', a: '총 15시간 중 12시간(80%) 이상 출석하면 이수돼요. Zoom 이름은 기수_성명_휴대폰 뒷 4자리(예: 1기_홍길동_1234)로 바꿔 주세요.' },
@@ -950,7 +964,7 @@
     }
     if (action === 'attend') {
       var t = new Date(), hm = ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2);
-      return wait(data.kind === 'in' ? { ok: true, kind: 'in', time: hm, term: '1기', date: t.toISOString().slice(0, 10), start: '09:00', end: '15:00', zoom: 'https://zoom.us/', late: 0, test: true } : { ok: true, kind: 'out', time: hm, test: true });
+      return wait(data.kind === 'in' ? { ok: true, kind: 'in', time: hm, term: '1기', date: t.toISOString().slice(0, 10), start: '13:00', end: '18:00', zoom: 'https://zoom.us/', late: 0, test: true } : { ok: true, kind: 'out', time: hm, test: true });
     }
     if (action === 'materials') {
       if (!data.name || !data.phone) return wait({ ok: false, error: '성명과 휴대폰을 입력해 주세요.' });
@@ -963,7 +977,7 @@
     if (action === 'materialUpload') return wait(data.code === 'quoka' ? { ok: true } : { ok: false, error: '강사용 코드가 맞지 않아요. (미리보기 코드: quoka)' });
     if (action === 'boardList') {
       return wait({ ok: true, items: data.board === '환불요청'
-        ? [{ no: 'F0002', title: '환불 요청', pub: false, author: '김*늘', at: '2027-01-14', state: '연수원 전달' }, { no: 'F0001', title: '환불 요청', pub: false, author: '이*', at: '2027-01-10', state: '환불 완료' }]
+        ? [{ no: 'F0002', title: '환불 요청', pub: false, author: '김*늘', at: '2027-01-14', state: '환불 진행' }, { no: 'F0001', title: '환불 요청', pub: false, author: '이*', at: '2027-01-10', state: '환불 완료' }]
         : [{ no: 'Q0003', title: '비공개 문의', pub: false, author: '박*연', at: '2027-01-15', state: '접수' }, { no: 'Q0002', title: 'Zoom이 끊겼는데 출석은 어떻게 되나요?', pub: true, author: '최*우', at: '2027-01-12', state: '답변 완료' }] });
     }
     if (action === 'boardView') {
@@ -982,7 +996,7 @@
         posts: [{ no: 'Q0003', board: 'Q&A', title: '출석 문의', at: '2027-01-15', state: '답변 완료' }],
         attendance: { term: '1기', need: 12, total: 10, judge: '진행 중', days: [{ date: '2027-02-01', dow: '월', in: '08:52', out: '15:02', got: 5, status: '정상' }, { date: '2027-02-02', dow: '화', in: '09:24', out: '15:01', got: 4, status: '지각 24분' }, { date: '2027-02-03', dow: '수', in: '', out: '', got: 0, status: '예정' }] },
         requests: [{ no: 'R0104-2381', type: '현금영수증 수정', at: '2027-01-04', state: '완료', memo: '수정한 번호로 재발행했어요.' }],
-        certificate: { name: data.name, term: '1기', amount: 120000, paidAt: '2026-12-28', course: '연구하는 교사되기 2027', org: '서울대학교 사범대학 교육연수원', operator: '연구하는 교사되기 운영팀', issuedAt: new Date().toISOString().slice(0, 10) }
+        certificate: { name: data.name, term: '1기', amount: 100000, paidAt: '2026-12-16', course: '연구하는 교사되기 2027', org: '서울대학교 사범대학 교육연수원', operator: '연구하는 교사되기 운영팀', issuedAt: new Date().toISOString().slice(0, 10) }
       });
     }
     return wait({ ok: false, error: '알 수 없는 요청' });
