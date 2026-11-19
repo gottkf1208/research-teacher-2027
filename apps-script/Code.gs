@@ -76,7 +76,12 @@ var DEFAULT_SETTINGS = [
   ['이수대장_연수시간(분)', '900', '15시간'],
   ['이수대장_직무관련성여부', 'Y', ''],
   ['이수대장_교육형태코드', 'C', '원격교육'],
-  ['납입확인서_사용', 'N', 'Y면 사이트에서 셀프 출력 가능'],
+  ['납입확인서_사용', 'Y', '(쓰지 않음) 납입증명서는 입금이 확인된 사람만 발급돼요'],
+  ['증명서_발급담당자', '', '납입증명서 발급담당자 칸에 찍히는 이름'],
+  ['증명서_연수종별', '원격직무연수', ''],
+  ['증명서_용도', '연수비 납입 증명 서류', ''],
+  ['증명서_도장', '', '도장 그림(자동 입력, 손대지 않기)'],
+  ['증명서_로고', '', '로고 그림(자동 입력, 손대지 않기)'],
   ['관리자메일', '', '운영자 페이지에 들어올 구글 계정 (쉼표로 여러 명, 비우면 시트 주인만)'],
   ['사이트주소', 'https://snu27.dumokquoka.com', '문자에 들어가는 주소'],
   ['이수인정시간', '12', '이 시간 이상 출석하면 이수 (15시간의 80%)'],
@@ -189,14 +194,14 @@ function buildContent_() {
   var terms = String(s['기수목록'] || '1기,2기').split(',').map(function (t) { return t.trim(); }).filter(String);
   var links = {};
   terms.forEach(function (t) {
-    links[t] = { zoom: s['줌링크_' + t] || '', kakao: s['오픈카톡_' + t] || '' };
+    links[t] = { zoom: '', kakao: '' };   // 접속 주소는 입금이 확인된 사람에게만 '내 현황'·출석체크에서 준다
   });
   return {
     ok: true,
     site: { title: s['연수명'], org: s['연수기관'], operator: s['운영'], email: s['문의메일'], criteria: s['이수기준'], fee: Number(s['연수비'] || 0) },
     terms: terms, links: links, padlet: s['패들렛_질문'] || '',
     deadlines: { request: fmtDate_(s['셀프신청마감']), info: fmtDate_(s['이수정보마감']) },
-    certificate: yes_(s['납입확인서_사용']),
+    certificate: true,
     sido: SIDO, notices: notices, faq: faq, schedule: schedule,
     refund: { wait: s['환불소요'] || '접수 후 7일 이내', rule: s['환불규정'] || '' },
     pay: { account: s['입금계좌'] || '', due: (function (d) { return d ? (d.getMonth() + 1) + '월 ' + d.getDate() + '일' : ''; })(toDate_(s['입금마감'])) },
@@ -296,15 +301,21 @@ function lookupStatus_(d) {
     }),
     attendance: a ? (attendanceOf_(name, phone) || null) : null
   };
-  if (a && a['입금일'] && (yes_(s['납입확인서_사용']) || isTest_(a)) && a['상태'] !== '취소') {
+  if (a && a['입금일'] && a['상태'] !== '취소' && (a['상태'] || '신청') !== '대기') {
     var idx = 0; rows_('신청자').some(function (r, i) { if (clean_(r['성명']).replace(/\s/g, '') === name && normPhone_(r['연락처']) === phone) { idx = i + 1; return true; } });
-    var per = String(s['연수기간_' + clean_(a['기수'])] || ''), hours = 0;
-    termDays_(clean_(a['기수'])).forEach(function (d) { hours += d.hours; });
-    out.certificate = { no: String(per.slice(0, 4) || new Date().getFullYear()) + '-' + ('000' + idx).slice(-4), name: name, birth: normBirth_(a['생년월일']), school: clean_(a['소속학교']),
-      term: a['기수'], period: per, hours: hours, amount: Number(a['입금액'] || s['연수비'] || 0), paidAt: fmtDate_(a['입금일']), course: s['연수명'], org: s['연수기관'], operator: s['운영'], issuedAt: fmtDate_(new Date()),
-      issuer: { name: s['발급처_상호'] || '', biz: s['발급처_사업자번호'] || '', ceo: s['발급처_대표'] || '', addr: s['발급처_주소'] || '', tel: s['발급처_연락처'] || '' } };
+    var term = clean_(a['기수']), per = String(s['연수기간_' + term] || '');
+    out.links = { zoom: s['줌링크_' + term] || '', kakao: s['오픈카톡_' + term] || '' };
+    out.certificate = certData_(s, { no: idx, name: name, birth: a['생년월일'], term: term, period: per, amount: Number(a['입금액'] || s['연수비'] || 0) });
   }
   return out;
+}
+
+// 연수비 납입증명서에 들어갈 값. 서식은 작년 실제 서식 그대로(제 N호 · 성명 · 생년월일 · 연수내용 표 · 발급일 · 로고)
+// 도장·로고 그림과 발급담당자 이름은 운영 시트 '설정'에만 둔다(공개 저장소에 올리지 않는다)
+function certData_(s, x) {
+  return { no: x.no, name: x.name, birth: normBirth_(x.birth), term: x.term, period: x.period, amount: x.amount,
+    course: s['연수명'], kind: s['증명서_연수종별'] || '원격직무연수', use: s['증명서_용도'] || '연수비 납입 증명 서류',
+    issuerName: s['증명서_발급담당자'] || '', seal: s['증명서_도장'] || '', logo: s['증명서_로고'] || '', issuedAt: fmtDate_(new Date()) };
 }
 
 // ───────────────────────── PM 메뉴 ─────────────────────────
@@ -968,7 +979,7 @@ function attendCtx_(fresh) {
   var people = {};
   rows_('신청자').forEach(function (r) {
     if (r['상태'] === '취소') return;
-    people[personKey_(r['성명'], r['연락처'])] = clean_(r['기수']) + ((r['상태'] || '신청') === '대기' ? '|w' : '') + (isTest_(r) ? '|t' : '');
+    people[personKey_(r['성명'], r['연락처'])] = clean_(r['기수']) + ((r['상태'] || '신청') === '대기' ? '|w' : '') + (isTest_(r) ? '|t' : '') + (r['입금일'] ? '|p' : '');
   });
   var days = {}, zoom = {};
   termList_().forEach(function (t) { days[t] = termDays_(t); zoom[t] = s['줌링크_' + t] || ''; });
@@ -1029,6 +1040,10 @@ function attend_(d) {
   if (!me) return { ok: false, error: '신청자 명단에서 찾지 못했어요. 연수 신청할 때 쓴 휴대폰 번호인지 확인해 주세요.\n(같은 이름이 여러 분 계셔서 휴대폰 번호로 본인을 확인해요.)' };
   var term = me.split('|')[0];
   if (me.indexOf('|w') > 0) return { ok: false, error: '아직 대기 상태예요. 확정 문자를 받은 뒤에 출석할 수 있어요.' };
+  if (me.indexOf('|p') < 0) {
+    ctx = attendCtx_(true); me = ctx.people[key] || '';   // 방금 입금 확인된 사람일 수 있다
+    if (me.indexOf('|p') < 0) return { ok: false, error: '출석체크는 입금 확인 후 열려요.\n입금하셨다면 반영까지 하루 이틀 걸릴 수 있어요. [내 현황]에서 입금 확인 상태를 볼 수 있어요.' };
+  }
   if (me.indexOf('|t') > 0) return testAttend_(name, phone, term, kind, ctx);
   var now = nowKst_();
   var days = ctx.days[term] || [];
@@ -1394,6 +1409,10 @@ function materials_(d) {
   if (!me) { ctx = attendCtx_(true); me = ctx.people[key]; }
   if (!me) return { ok: false, error: '신청자 명단에서 찾지 못했어요. 연수 신청할 때 쓴 이름과 휴대폰 번호인지 확인해 주세요.' };
   if (me.indexOf('|w') > 0) return { ok: false, error: '아직 대기 상태예요. 수강이 확정되면 연수자료를 볼 수 있어요.' };
+  if (me.indexOf('|p') < 0) {
+    ctx = attendCtx_(true); me = ctx.people[key] || '';
+    if (me.indexOf('|p') < 0) return { ok: false, error: '연수자료는 입금 확인 후 열려요.\n입금하셨다면 반영까지 하루 이틀 걸릴 수 있어요. [내 현황]에서 입금 확인 상태를 볼 수 있어요.' };
+  }
   me = { term: me.split('|')[0] };
   var cache = CacheService.getScriptCache(), all = null;
   try { var c = cache.get('materials'); if (c) all = JSON.parse(c); } catch (e) {}
@@ -1651,13 +1670,14 @@ function receiptList_() {
   rows_('현금영수증').forEach(function (r) { cash[clean_(r['기수']) + '|' + personKey_(r['성명'], r['휴대폰'])] = r; });
   var rc = {};
   rows_('영수증기록').forEach(function (r) { rc[clean_(r['기수']) + '|' + personKey_(r['성명'], r['휴대폰'])] = clean_(r['발급번호']); });
+  var noOf = {}; rows_('신청자').forEach(function (r, i) { noOf[clean_(r['기수']) + '|' + personKey_(r['성명'], r['연락처'])] = i + 1; });
   var people = apps_().filter(function (r) { return r['상태'] !== '취소' && clean_(r['성명']); }).map(function (r) {
     var name = clean_(r['성명']).replace(/\s/g, ''), phone = normPhone_(r['연락처']), k = clean_(r['기수']) + '|' + name + '|' + phone, c = cash[k] || {};
     return { term: clean_(r['기수']), name: name, phone: phone, school: clean_(r['소속학교']), birth: normBirth_(r['생년월일']), state: r['상태'] || '신청',
       paid: !!clean_(r['입금일']), paidAt: fmtDate_(r['입금일']), amount: Number(r['입금액'] || 0) || fee,
-      cashNo: clean_(c['발급수단번호']) || cashNo[name + '|' + phone] || phone, cashDone: yes_(c['발급(Y)']), cashAt: fmtDate_(c['발급일']), rcptNo: rc[k] || '' };
+      cashNo: clean_(c['발급수단번호']) || cashNo[name + '|' + phone] || phone, cashDone: yes_(c['발급(Y)']), cashAt: fmtDate_(c['발급일']), rcptNo: rc[k] || '', certNo: noOf[k] || '' };
   });
-  return { people: people, fee: fee, issuer: { name: s['발급처_상호'] || '', biz: s['발급처_사업자번호'] || '', ceo: s['발급처_대표'] || '', addr: s['발급처_주소'] || '', tel: s['발급처_연락처'] || '' },
+  return { people: people, fee: fee, cert: certData_(s, {}), issuer: { name: s['발급처_상호'] || '', biz: s['발급처_사업자번호'] || '', ceo: s['발급처_대표'] || '', addr: s['발급처_주소'] || '', tel: s['발급처_연락처'] || '' },
     course: s['연수명'], org: s['연수기관'], periods: termList_().reduce(function (o, t) { o[t] = s['연수기간_' + t] || ''; return o; }, {}),
     hours: termList_().reduce(function (o, t) { var h = 0; termDays_(t).forEach(function (d) { h += d.hours; }); o[t] = h; return o; }, {}) };
 }

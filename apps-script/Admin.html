@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>운영자 관리 · 연구하는 교사되기 2027</title>
 <link rel="stylesheet" href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square-neo.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@700&display=swap">
 <style>
 :root {
   --navy: #001871; --navy-deep: #0E152D; --ink: #111; --ink-2: #333; --gray-1: #666; --gray-2: #777;
@@ -1455,26 +1456,57 @@ function hangulWon(n) {
 }
 function koLong(v) { var m = String(v || '').match(/(\d{4})-(\d{2})-(\d{2})/); return m ? m[1] + '년 ' + (+m[2]) + '월 ' + (+m[3]) + '일' : String(v || ''); }
 // 작년 양식 기준: 제목 '연수비 납입증명서', 발급번호 '제 N호', 성명·생년월일로 본인 표시
-function receiptPage(x, R) {
-  var is = R.issuer, b = String(x.birth || '').replace(/\D/g, ''), hrs = (R.hours || {})[x.term];
-  return '<div class="pg"><div class="rc"><p class="no">제 ' + esc(x.rcptNo || '') + ' 호</p><h1>연수비 납입증명서</h1><table class="kv">' +
-    '<tr><th>성명</th><td>' + esc(x.name) + '</td><th>생년월일</th><td>' + (b.length === 8 ? b.slice(0, 4) + '. ' + b.slice(4, 6) + '. ' + b.slice(6) + '.' : '') + '</td></tr>' +
-    '<tr><th>소속</th><td colspan="3">' + esc(x.school) + '</td></tr>' +
-    '<tr><th>연수명</th><td colspan="3">' + esc(R.course) + ' (' + esc(x.term) + ')</td></tr>' +
-    '<tr><th>연수기관</th><td colspan="3">' + esc(R.org) + '</td></tr>' +
-    '<tr><th>연수기간</th><td colspan="3">' + esc(periodK(R.periods[x.term])) + (hrs ? ' · ' + esc(hrs) + '시간' : '') + '</td></tr>' +
-    '<tr><th>납입금액</th><td colspan="3"><b>금 ' + hangulWon(x.amount) + '원정</b> (₩' + Number(x.amount).toLocaleString('ko-KR') + ')</td></tr>' +
-    '<tr><th>납입일</th><td colspan="3">' + esc(koLong(x.paidAt)) + '</td></tr></table>' +
-    '<p class="say">위 사람은 위 연수의 연수비를 납입하였음을 증명합니다.</p><p class="day">' + koLong(kstToday()) + '</p>' +
-    '<p class="who">' + esc(is.name) + (is.ceo ? '<span>대표이사 ' + esc(is.ceo) + '</span>' : '') + '<i>(인)</i></p>' +
-    '<p class="foot">' + [is.biz ? '사업자등록번호 ' + esc(is.biz) : '', esc(is.addr || ''), is.tel ? '문의 ' + esc(is.tel) : ''].filter(String).join(' · ') + '</p></div></div>';
+// 연수비 납입증명서: 작년 실제 서식(A4 794×1123) 그대로. 운영자 페이지에도 같은 함수가 있다
+function certSheet(c) {
+  var G = "font-family:'Nanum Gothic','Malgun Gothic',sans-serif;color:#000;", M = "font-family:'Nanum Myeongjo','Batang',serif;font-weight:700;color:#000;";
+  var T = function (l, t, fs, txt, st) { return '<div style="position:absolute;left:' + l + 'px;top:' + t + 'px;font-size:' + fs + 'px;line-height:1;white-space:nowrap;' + (st || G) + '">' + txt + '</div>'; };
+  var X = [117, 210.5, 397, 490, 677], Y = [481.5, 514, 546, 592.5, 639.5];
+  var cell = function (a, b, r, txt) { return '<div style="position:absolute;left:' + X[a] + 'px;width:' + (X[b] - X[a]) + 'px;top:' + Y[r] + 'px;height:' + (Y[r + 1] - Y[r]) + 'px;display:flex;align-items:center;justify-content:center;font-size:13.3px;white-space:nowrap;' + G + '">' + txt + '</div>'; };
+  var hl = function (y) { return '<div style="position:absolute;left:' + X[0] + 'px;width:' + (X[4] - X[0]) + 'px;top:' + (y - 0.5) + 'px;height:1px;background:#9a9a9a"></div>'; };
+  var vl = function (x, r0) { return '<div style="position:absolute;left:' + (x - 0.5) + 'px;width:1px;top:' + Y[r0] + 'px;height:' + (Y[4] - Y[r0]) + 'px;background:#9a9a9a"></div>'; };
+  var b = String(c.birth || '').replace(/\D/g, ''), per = String(c.period || '').split('~');
+  var dot = function (v) { return String(v || '').trim().replace(/-/g, '.'); };
+  var year = (per[0] || '').trim().slice(0, 4), course = String(c.course || '').replace(/\s*\d{4}년?\s*/, ' ').trim();
+  var d = String(c.issuedAt || '').match(/(\d{4})-(\d{2})-(\d{2})/) || ['', '', '', ''];
+  return '<div class="cert-sheet" style="position:relative;width:794px;height:1123px;background:#fff;overflow:hidden;text-align:left">' +
+    T(113.4, 132, 14.7, '제 ' + esc(c.no) + '호', G + 'letter-spacing:.38px;word-spacing:3px') +
+    '<div style="position:absolute;left:0;width:794px;top:219px;text-align:center;font-size:34.7px;line-height:1;white-space:nowrap;letter-spacing:7px;text-indent:7px;' + M + '">연 수 비 납 입 증 명 서</div>' +
+    T(113.4, 343.5, 14.7, '성&emsp;&emsp;명 :') + T(191.4, 343.5, 14.7, esc(c.name)) +
+    T(113.4, 367, 14.7, '생년월일 :') + T(191.4, 367, 14.7, b.length === 8 ? b.slice(2, 4) + '.' + b.slice(4, 6) + '.' + b.slice(6) : '') +
+    T(113.4, 454, 14.7, '연수내용', G + 'font-weight:700;letter-spacing:2.2px') +
+    '<div style="position:absolute;left:' + (X[0] - 1) + 'px;top:' + (Y[0] - 1) + 'px;width:' + (X[4] - X[0] + 2) + 'px;height:' + (Y[4] - Y[0] + 2) + 'px;border:2px solid #000;box-sizing:border-box"></div>' +
+    hl(Y[1]) + hl(Y[2]) + hl(Y[3]) + vl(X[1], 0) + vl(X[2], 2) + vl(X[3], 2) +
+    cell(0, 1, 0, '연수과정') + cell(1, 4, 0, esc((year ? year + '년 ' : '') + course + ' (' + c.term + ')')) +
+    cell(0, 1, 1, '연수기간') + cell(1, 4, 1, esc(per[0] ? dot(per[0]) + '.-' + dot(per[1] || per[0]) : '')) +
+    cell(0, 1, 2, '연수종별') + cell(1, 2, 2, esc(c.kind || '')) + cell(2, 3, 2, '금 액') + cell(3, 4, 2, Number(c.amount || 0).toLocaleString('ko-KR') + '원') +
+    cell(0, 1, 3, '용 도') + cell(1, 2, 3, esc(c.use || '')) + cell(2, 3, 3, '발급담당자') + cell(3, 4, 3, esc(c.issuerName || '') + ' (인)') +
+    (c.seal ? '<img src="' + esc(c.seal) + '" alt="" style="position:absolute;left:588.6px;top:597.6px;width:34.5px;height:35.3px">' : '') +
+    '<div style="position:absolute;left:0;width:794px;top:664px;text-align:center;font-size:18.7px;line-height:1;letter-spacing:3.4px;text-indent:3.4px;' + M + '">위 사실을 증명합니다.</div>' +
+    T(304.5, 800.5, 14.7, d[1] + '년') + T(389.4, 800.5, 14.7, (+d[2] || '') + '월') + T(457.4, 800.5, 14.7, (+d[3] || '') + '일') +
+    (c.logo ? '<img src="' + esc(c.logo) + '" alt="" style="position:absolute;left:228.2px;top:888px;width:336.9px;height:111.2px">' : '') +
+    '</div>';
 }
+function loadJs(src) { return new Promise(function (ok, no) { if (document.querySelector('script[src="' + src + '"]')) return ok(); var s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+// 서식 여러 장을 A4 PDF 한 파일로 내려받는다(화면 그대로 그려서 넣으므로 서식이 틀어지지 않는다)
+function certPdf(list, fileName) {
+  return Promise.all([loadJs('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'), loadJs('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'), document.fonts ? document.fonts.load("700 20px 'Nanum Myeongjo'", '연수비') : 0, document.fonts ? document.fonts.load("14px 'Nanum Gothic'", '연수비') : 0]).then(function () {
+    var box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px'; document.body.appendChild(box);
+    var pdf = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4' }), chain = Promise.resolve();
+    list.forEach(function (c, i) {
+      chain = chain.then(function () { box.innerHTML = certSheet(c); return Promise.all([].map.call(box.querySelectorAll('img'), function (im) { return im.decode ? im.decode().catch(function () {}) : 0; })); })
+        .then(function () { return window.html2canvas(box.firstChild, { scale: 2, backgroundColor: '#fff', logging: false }); })
+        .then(function (cv) { if (i) pdf.addPage(); pdf.addImage(cv.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 595.28, 841.89); });
+    });
+    return chain.then(function () { box.remove(); pdf.save(fileName + '.pdf'); });
+  });
+}
+function certOf(x, R) { var c = {}; for (var k in R.cert) c[k] = R.cert[k]; c.no = x.certNo; c.name = x.name; c.birth = x.birth; c.term = x.term; c.period = R.periods[x.term]; c.amount = x.amount; return c; }
 function renderReceipt() {
   run('receipts').then(function (R) {
     var u = RC_UI, cashMode = u.mode === 'cash';
-    var noIssuer = !R.issuer.name || !R.issuer.biz;
-    $('#main').innerHTML = '<h2>납입증명서 · 현금영수증</h2><p class="sub">' + (cashMode ? '홈택스 일괄발급 양식 그대로 복사해요. 양식 파일 7행에 붙여넣고 업로드하면 끝이에요.' : '입금이 확인된 분의 연수비 납입증명서를 PDF로 만들어요. 여러 명을 고르면 한 파일로 나와요. 연수생은 내 현황에서 같은 양식을 직접 뽑을 수 있어요.') + '</p>' +
-      (noIssuer && !cashMode ? '<div class="mail-att">증명서에 찍힐 <b>발급처 정보</b>(상호·사업자번호·대표·주소)가 비어 있어요. <a href="#" id="toSet" style="text-decoration:underline">설정에서 채우기</a></div>' : '') +
+    var noIssuer = !R.cert.issuerName || !R.cert.seal || !R.cert.logo;
+    $('#main').innerHTML = '<h2>납입증명서 · 현금영수증</h2><p class="sub">' + (cashMode ? '홈택스 일괄발급 양식 그대로 복사해요. 양식 파일 7행에 붙여넣고 업로드하면 끝이에요.' : '입금이 확인된 분만 연수비 납입증명서를 만들 수 있어요(작년 서식 그대로). 여러 명을 고르면 한 파일로 나와요. 연수생도 입금 확인 뒤 내 현황에서 같은 서식을 직접 뽑아요.') + '</p>' +
+      (noIssuer && !cashMode ? '<div class="mail-att">증명서에 찍힐 <b>발급담당자 이름·도장·로고</b>가 설정 시트에 아직 없어요.</div>' : '') +
       '<div class="toolbar"><div class="seg" id="rcMode"><button data-m="pay"' + (cashMode ? '' : ' class="on"') + '>납입증명서</button><button data-m="cash"' + (cashMode ? ' class="on"' : '') + '>현금영수증</button></div>' +
       '<select id="rcTerm"><option value="">전체 기수</option>' + BOOT.terms.map(function (t) { return '<option' + (t === u.term ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' +
       '<input type="search" id="rcQ" placeholder="이름 · 학교 · 번호" value="' + esc(u.q) + '" style="width:200px"><span class="muted" id="rcCnt"></span><span class="grow"></span>' +
@@ -1490,7 +1522,7 @@ function renderReceipt() {
       $('#rcCnt').textContent = '입금 확인 ' + l.length + '명 · 선택 ' + picked().length + '명' + (cashMode ? ' · 미발급 ' + l.filter(function (x) { return !x.cashDone; }).length + '명' : '');
       $('#rcTb').innerHTML = l.length ? l.map(function (x) {
         return '<tr><td><input type="checkbox" data-k="' + esc(key(x)) + '"' + (u.sel[key(x)] ? ' checked' : '') + '></td><td>' + esc(x.term) + '</td><td><b>' + esc(x.name) + '</b>' + dupTag(x.name) + '</td><td>' + esc(x.school) + '</td><td>' + Number(x.amount).toLocaleString('ko-KR') + '</td><td>' + esc(x.paidAt) + '</td>' +
-          (cashMode ? '<td>' + esc(x.cashNo) + (x.cashNo !== x.phone ? ' <span class="badge b-navy">수정</span>' : '') + '</td><td>' + (x.cashDone ? '<span class="badge b-ok">발급 ' + esc(x.cashAt) + '</span>' : '<span class="badge b-gray">미발급</span>') + '</td>' : '<td>' + esc(x.rcptNo || '—') + '</td>') + '</tr>';
+          (cashMode ? '<td>' + esc(x.cashNo) + (x.cashNo !== x.phone ? ' <span class="badge b-navy">수정</span>' : '') + '</td><td>' + (x.cashDone ? '<span class="badge b-ok">발급 ' + esc(x.cashAt) + '</span>' : '<span class="badge b-gray">미발급</span>') + '</td>' : '<td>' + (x.rcptNo ? '제 ' + esc(x.certNo) + '호' : '—') + '</td>') + '</tr>';
       }).join('') : '<tr><td colspan="8" class="empty">입금이 확인된 분이 없어요. 수강생 › 입금 대조에서 먼저 반영해 주세요.</td></tr>';
       $$('#rcTb input').forEach(function (c) { c.onchange = function () { u.sel[c.dataset.k] = c.checked; draw(); }; });
     }
@@ -1502,12 +1534,16 @@ function renderReceipt() {
       var need = p.filter(function (x) { return !x.rcptNo; });
       (need.length ? run('receiptLog', { items: need, kind: '납입증명서' }) : Promise.resolve({ numbers: [] })).then(function (r) {
         need.forEach(function (x, i) { x.rcptNo = (r.numbers || [])[i] || x.rcptNo || ''; }); draw();
-        cb(p.map(function (x) { return receiptPage(x, R); }).join(''), p.length === 1 ? '납입증명서_' + p[0].name : '납입증명서_' + p.length + '명');
+        cb(p.map(function (x) { return certOf(x, R); }), p.length === 1 ? '연수비납입증명서_' + p[0].name : '연수비납입증명서_' + p.length + '명');
       });
     }
     if (!cashMode) {
-      $('#rcPdf').onclick = function () { var b = this; withNumbers(function (pages, name) { pdfDoc(pages, name, b); }); };
-      $('#rcPrint').onclick = function () { withNumbers(printDoc); };
+      $('#rcPdf').onclick = function () { var b = this, t = b.textContent; withNumbers(function (list, name) { b.disabled = true; b.textContent = 'PDF 만드는 중…'; certPdf(list, name).then(function () { toast('PDF를 내려받았어요.'); }, function () { toast('PDF를 만들지 못했어요. [선택 인쇄]로 저장해 주세요.', 5000); }).then(function () { b.disabled = false; b.textContent = t; }); }); };
+      $('#rcPrint').onclick = function () { withNumbers(function (list, name) {
+        var w = window.open('', '_blank'); if (!w) return toast('팝업이 막혀 있어요. 주소창 오른쪽에서 팝업을 허용해 주세요.', 5000);
+        w.document.write('<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>' + esc(name) + '</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@700&display=swap"><style>@page{size:A4;margin:0}body{margin:0}.cert-sheet{page-break-after:always}</style></head><body>' + list.map(certSheet).join('') + '</body></html>');
+        w.document.close(); setTimeout(function () { w.focus(); w.print(); }, 900);
+      }); };
     } else {
       var year = String((R.periods[BOOT.terms[0]] || kstToday())).slice(0, 4);
       $('#rcCopy').onclick = function () {
@@ -1874,7 +1910,7 @@ function MOCK(a, p) {
       { k: '계약일', label: '계약 체결일', g: '기간', v: '2026년    월    일' }] } }];
   if (a === 'docGet') return { id: 'D1', kind: '공문', title: '', data: docTemplates()[0].data };
   if (a === 'docSave') return { ok: true, id: 'D1' };
-  if (a === 'receipts') return { fee: 100000, course: '연구하는 교사되기 2027', org: '서울대학교 사범대학 교육연수원', periods: { '1기': '2027-01-11~2027-01-13', '2기': '2027-02-01~2027-02-03' }, issuer: { name: '㈜예시컨설팅', biz: '000-00-00000', ceo: '홍길동', addr: '서울시 예시구 예시로 1', tel: '02-000-0000' },
+  if (a === 'receipts') return { fee: 100000, course: '연구하는 교사되기 2027', org: '서울대학교 사범대학 교육연수원', periods: { '1기': '2027-01-11~2027-01-13', '2기': '2027-02-01~2027-02-03' }, cert: { course: '연구하는 교사되기 2027', kind: '원격직무연수', use: '연수비 납입 증명 서류', issuerName: '○○○', seal: '', logo: '', issuedAt: new Date().toISOString().slice(0, 10) }, issuer: { name: '㈜예시컨설팅', biz: '000-00-00000', ceo: '홍길동', addr: '서울시 예시구 예시로 1', tel: '02-000-0000' },
     people: people.map(function (x, i) { return { term: x.term, name: x.name, phone: x.phone, school: '예시초등학교', state: x.state, paid: x.paid, paidAt: x.paid ? '2026-12-2' + (i % 9) : '', amount: 100000, cashNo: i === 1 ? '010-9999-0000' : x.phone, cashDone: i % 5 === 3, cashAt: '2027-02-12', rcptNo: i === 2 ? 'R27-0001' : '' }; }) };
   if (a === 'report') return { terms: ['1기', '2기'], fee: 100000, split: { assoc: 40, a: 10, b: 20, c: 70 }, refunds: { '환불 완료': 9, '검토 중': 2 }, sido: { 경기: { '1기': 142, '2기': 120 }, 서울: { '1기': 88, '2기': 71 }, 인천: { '1기': 31, '2기': 25 }, 충남: { '1기': 18, '2기': 22 } },
     by: { '1기': { 신청: 398, 대기: 12, 취소: 9, 입금: 391, 미입금: 7, 입금액: 39100000, 이수: 372, 미이수: 11, 미확정: 15, 이수정보: 380, days: [{ date: '2027-01-11', dow: '월', in: 389, out: 381 }, { date: '2027-01-12', dow: '화', in: 384, out: 380 }, { date: '2027-01-13', dow: '수', in: 380, out: 377 }] },

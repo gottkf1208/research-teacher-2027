@@ -329,11 +329,7 @@
   function renderAccess(v) {
     v.innerHTML = '<div class="narrow"><h3 class="sec">기수별 접속 링크</h3><table class="info-table">' +
       C.terms.map(function (t) {
-        var l = C.links[t] || {};
-        return '<tr><th>' + esc(t) + '</th><td>' +
-          (l.zoom ? '<a class="btn navy" style="height:40px;padding:0 18px" href="' + esc(l.zoom) + '" target="_blank" rel="noopener"><i class="xi-video-camera"></i>Zoom 입장</a> ' : '<span class="note">Zoom 링크는 연수 전날 공개돼요.</span> ') +
-          (l.kakao ? '<a class="btn line" style="height:40px;padding:0 18px" href="' + esc(l.kakao) + '" target="_blank" rel="noopener"><i class="xi-kakaotalk"></i>오픈채팅</a>' : '') +
-          '</td></tr>';
+        return '<tr><th>' + esc(t) + '</th><td><span class="note"><i class="xi-lock-o"></i> Zoom 링크와 오픈채팅방 주소는 입금 확인 후 열려요.</span> <a class="btn line" style="height:40px;padding:0 18px" href="#/status">내 현황에서 보기</a></td></tr>';
       }).join('') +
       ('<tr><th>연수자료</th><td><a class="btn line" style="height:40px;padding:0 18px" href="#/materials">연수자료 보기</a></td></tr>' + '') +
       '</table><h3 class="sec">출석이 인정되려면</h3><div class="box"><ul style="margin:0;padding-left:20px">' +
@@ -665,7 +661,8 @@
   }
 
   function showStatus(out, r) {
-    var a = r.applicant, info = r.info;
+    var a = r.applicant, info = r.info, L = r.links || {}, open = !!(a && a.paid && r.links);
+    var lock = '<span class="note"><i class="xi-lock-o"></i> 입금 확인 후 열려요.</span>';
     var stateBadge = a ? (a.state === '취소' ? '<span class="badge red">취소</span>' : a.state === '대기' ? '<span class="badge gray">대기</span>' : '<span class="badge ok">신청 완료</span>') : '<span class="badge gray">명단 확인 중</span>';
     var reqs = r.requests.length ? r.requests.map(function (q) {
       var cls = q.state === '완료' ? 'ok' : q.state === '반려' ? 'red' : 'navy';
@@ -680,33 +677,65 @@
       '<div class="status-row"><div>게시판 글</div><div>' + ((r.posts || []).length ? r.posts.map(function (q) {
         return '<div style="padding:6px 0">' + stateBadge2(q.state) + ' ' + esc(q.board === '환불요청' ? '환불 요청' : q.title) + ' <span class="note">(' + esc(q.no) + ', ' + esc(wd(q.at)) + ')</span></div>';
       }).join('') : '<span class="note">남긴 글이 없어요.</span>') + '</div></div>' +
-      '<div class="status-row"><div>연수비 납입증명서</div><div>' + (r.certificate ? '<button class="btn line" style="height:40px;padding:0 18px" id="certBtn"><i class="xi-print"></i>증명서 보기·인쇄</button>' : '<span class="note">' + (C.certificate ? '입금 확인 후 출력할 수 있어요.' : '발급 준비 중이에요.') + '</span>') + '</div></div>' +
+      (a && a.state !== '취소' ? '<div class="status-row"><div>Zoom 강의실</div><div>' + (open ? (L.zoom ? '<a class="btn navy" style="height:40px;padding:0 18px" href="' + esc(L.zoom) + '" target="_blank" rel="noopener"><i class="xi-video-camera"></i>Zoom 입장</a> <span class="note">출석은 <a href="#/attend" style="text-decoration:underline">출석체크</a>를 먼저 눌러 주세요.</span>' : '<span class="note">Zoom 링크는 연수 전날 여기에 올라와요.</span>') : lock) + '</div></div>' +
+        '<div class="status-row"><div>오픈채팅방</div><div>' + (open ? (L.kakao ? '<a class="btn line" style="height:40px;padding:0 18px" href="' + esc(L.kakao) + '" target="_blank" rel="noopener"><i class="xi-kakaotalk"></i>' + esc(a.term) + ' 오픈채팅 들어가기</a>' : '<span class="note">오픈채팅방 주소는 준비되는 대로 여기에 올라와요.</span>') : lock) + '</div></div>' +
+        '<div class="status-row"><div>연수자료 · 출석</div><div>' + (open ? '<a class="btn line" style="height:40px;padding:0 18px" href="#/materials">연수자료 보기</a> <a class="btn line" style="height:40px;padding:0 18px" href="#/attend">출석체크 · 퇴실체크</a>' : lock) + '</div></div>' : '') +
+      '<div class="status-row"><div>연수비 납입증명서</div><div>' + (r.certificate ? '<button class="btn line" style="height:40px;padding:0 18px" id="certBtn"><i class="xi-print"></i>증명서 보기 · PDF 저장</button>' : '<span class="note"><i class="xi-lock-o"></i> 입금 확인 후 발급할 수 있어요.</span>') + '</div></div>' +
       '</div><div id="certOut"></div></div>';
     if (r.certificate) $('#certBtn').onclick = function () { showCert($('#certOut'), r.certificate); };
   }
 
-  function hangulWon(n) {
-    n = Math.floor(Number(n) || 0); if (!n) return '영';
-    var d = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'], u = ['', '십', '백', '천'], big = ['', '만', '억'], out = '', g = 0;
-    while (n > 0) { var part = n % 10000, t = ''; for (var i = 0; i < 4; i++) { var k = Math.floor(part / Math.pow(10, i)) % 10; if (k) t = d[k] + u[i] + t; } if (t) out = t + big[g] + out; n = Math.floor(n / 10000); g++; }
-    return out;
+  // 연수비 납입증명서: 작년 실제 서식(A4 794×1123) 그대로. 운영자 페이지에도 같은 함수가 있다
+  function certSheet(c) {
+    var G = "font-family:'Nanum Gothic','Malgun Gothic',sans-serif;color:#000;", M = "font-family:'Nanum Myeongjo','Batang',serif;font-weight:700;color:#000;";
+    var T = function (l, t, fs, txt, st) { return '<div style="position:absolute;left:' + l + 'px;top:' + t + 'px;font-size:' + fs + 'px;line-height:1;white-space:nowrap;' + (st || G) + '">' + txt + '</div>'; };
+    var X = [117, 210.5, 397, 490, 677], Y = [481.5, 514, 546, 592.5, 639.5];
+    var cell = function (a, b, r, txt) { return '<div style="position:absolute;left:' + X[a] + 'px;width:' + (X[b] - X[a]) + 'px;top:' + Y[r] + 'px;height:' + (Y[r + 1] - Y[r]) + 'px;display:flex;align-items:center;justify-content:center;font-size:13.3px;white-space:nowrap;' + G + '">' + txt + '</div>'; };
+    var hl = function (y) { return '<div style="position:absolute;left:' + X[0] + 'px;width:' + (X[4] - X[0]) + 'px;top:' + (y - 0.5) + 'px;height:1px;background:#9a9a9a"></div>'; };
+    var vl = function (x, r0) { return '<div style="position:absolute;left:' + (x - 0.5) + 'px;width:1px;top:' + Y[r0] + 'px;height:' + (Y[4] - Y[r0]) + 'px;background:#9a9a9a"></div>'; };
+    var b = String(c.birth || '').replace(/\D/g, ''), per = String(c.period || '').split('~');
+    var dot = function (v) { return String(v || '').trim().replace(/-/g, '.'); };
+    var year = (per[0] || '').trim().slice(0, 4), course = String(c.course || '').replace(/\s*\d{4}년?\s*/, ' ').trim();
+    var d = String(c.issuedAt || '').match(/(\d{4})-(\d{2})-(\d{2})/) || ['', '', '', ''];
+    return '<div class="cert-sheet" style="position:relative;width:794px;height:1123px;background:#fff;overflow:hidden;text-align:left">' +
+      T(113.4, 132, 14.7, '제 ' + esc(c.no) + '호', G + 'letter-spacing:.38px;word-spacing:3px') +
+      '<div style="position:absolute;left:0;width:794px;top:219px;text-align:center;font-size:34.7px;line-height:1;white-space:nowrap;letter-spacing:7px;text-indent:7px;' + M + '">연 수 비 납 입 증 명 서</div>' +
+      T(113.4, 343.5, 14.7, '성&emsp;&emsp;명 :') + T(191.4, 343.5, 14.7, esc(c.name)) +
+      T(113.4, 367, 14.7, '생년월일 :') + T(191.4, 367, 14.7, b.length === 8 ? b.slice(2, 4) + '.' + b.slice(4, 6) + '.' + b.slice(6) : '') +
+      T(113.4, 454, 14.7, '연수내용', G + 'font-weight:700;letter-spacing:2.2px') +
+      '<div style="position:absolute;left:' + (X[0] - 1) + 'px;top:' + (Y[0] - 1) + 'px;width:' + (X[4] - X[0] + 2) + 'px;height:' + (Y[4] - Y[0] + 2) + 'px;border:2px solid #000;box-sizing:border-box"></div>' +
+      hl(Y[1]) + hl(Y[2]) + hl(Y[3]) + vl(X[1], 0) + vl(X[2], 2) + vl(X[3], 2) +
+      cell(0, 1, 0, '연수과정') + cell(1, 4, 0, esc((year ? year + '년 ' : '') + course + ' (' + c.term + ')')) +
+      cell(0, 1, 1, '연수기간') + cell(1, 4, 1, esc(per[0] ? dot(per[0]) + '.-' + dot(per[1] || per[0]) : '')) +
+      cell(0, 1, 2, '연수종별') + cell(1, 2, 2, esc(c.kind || '')) + cell(2, 3, 2, '금 액') + cell(3, 4, 2, Number(c.amount || 0).toLocaleString('ko-KR') + '원') +
+      cell(0, 1, 3, '용 도') + cell(1, 2, 3, esc(c.use || '')) + cell(2, 3, 3, '발급담당자') + cell(3, 4, 3, esc(c.issuerName || '') + ' (인)') +
+      (c.seal ? '<img src="' + esc(c.seal) + '" alt="" style="position:absolute;left:588.6px;top:597.6px;width:34.5px;height:35.3px">' : '') +
+      '<div style="position:absolute;left:0;width:794px;top:664px;text-align:center;font-size:18.7px;line-height:1;letter-spacing:3.4px;text-indent:3.4px;' + M + '">위 사실을 증명합니다.</div>' +
+      T(304.5, 800.5, 14.7, d[1] + '년') + T(389.4, 800.5, 14.7, (+d[2] || '') + '월') + T(457.4, 800.5, 14.7, (+d[3] || '') + '일') +
+      (c.logo ? '<img src="' + esc(c.logo) + '" alt="" style="position:absolute;left:228.2px;top:888px;width:336.9px;height:111.2px">' : '') +
+      '</div>';
   }
-  function koLong(v) { var m = String(v || '').match(/(\d{4})-(\d{2})-(\d{2})/); return m ? m[1] + '년 ' + (+m[2]) + '월 ' + (+m[3]) + '일' : String(v || ''); }
+  function loadJs(src) { return new Promise(function (ok, no) { if (document.querySelector('script[src="' + src + '"]')) return ok(); var s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+  // 서식 여러 장을 A4 PDF 한 파일로 내려받는다(화면 그대로 그려서 넣으므로 서식이 틀어지지 않는다)
+  function certPdf(list, fileName) {
+    return Promise.all([loadJs('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'), loadJs('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'), document.fonts ? document.fonts.load("700 20px 'Nanum Myeongjo'", '연수비') : 0, document.fonts ? document.fonts.load("14px 'Nanum Gothic'", '연수비') : 0]).then(function () {
+      var box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px'; document.body.appendChild(box);
+      var pdf = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4' }), chain = Promise.resolve();
+      list.forEach(function (c, i) {
+        chain = chain.then(function () { box.innerHTML = certSheet(c); return Promise.all([].map.call(box.querySelectorAll('img'), function (im) { return im.decode ? im.decode().catch(function () {}) : 0; })); })
+          .then(function () { return window.html2canvas(box.firstChild, { scale: 2, backgroundColor: '#fff', logging: false }); })
+          .then(function (cv) { if (i) pdf.addPage(); pdf.addImage(cv.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 595.28, 841.89); });
+      });
+      return chain.then(function () { box.remove(); pdf.save(fileName + '.pdf'); });
+    });
+  }
   function showCert(out, c) {
-    var is = c.issuer || {}, per = String(c.period || '').split('~'), b = String(c.birth || '').replace(/\D/g, '');
-    var period = per[0] ? wd(per[0].trim()) + (per[1] ? ' ~ ' + wd(per[1].trim()) : '') : '';
-    out.innerHTML = '<div class="cert">' + (c.no ? '<p class="cert-no">제 ' + esc(c.no) + ' 호</p>' : '') + '<h4>연수비 납입증명서</h4><table>' +
-      '<tr><th>성명</th><td>' + esc(c.name) + '</td><th>생년월일</th><td>' + (b.length === 8 ? b.slice(0, 4) + '. ' + b.slice(4, 6) + '. ' + b.slice(6) + '.' : '') + '</td></tr>' +
-      '<tr><th>소속</th><td colspan="3">' + esc(c.school || '') + '</td></tr>' +
-      '<tr><th>연수명</th><td colspan="3">' + esc(c.course) + ' (' + esc(c.term) + ')</td></tr>' +
-      '<tr><th>연수기관</th><td colspan="3">' + esc(c.org) + '</td></tr>' +
-      '<tr><th>연수기간</th><td colspan="3">' + esc(period) + (c.hours ? ' · ' + esc(c.hours) + '시간' : '') + '</td></tr>' +
-      '<tr><th>납입금액</th><td colspan="3"><b>금 ' + hangulWon(c.amount) + '원정</b> (₩' + Number(c.amount || 0).toLocaleString('ko-KR') + ')</td></tr>' +
-      '<tr><th>납입일</th><td colspan="3">' + esc(koLong(c.paidAt)) + '</td></tr>' +
-      '</table><p class="cert-say">위 사람은 위 연수의 연수비를 납입하였음을 증명합니다.</p><p class="cert-date">' + esc(koLong(c.issuedAt)) + '</p>' +
-      '<div class="issuer">' + esc(is.name || c.operator) + (is.ceo ? ' <span>대표이사 ' + esc(is.ceo) + '</span>' : '') + ' <i class="seal">(인)</i></div>' +
-      (is.biz || is.addr || is.tel ? '<p class="cert-foot">' + [is.biz ? '사업자등록번호 ' + esc(is.biz) : '', esc(is.addr || ''), is.tel ? '문의 ' + esc(is.tel) : ''].filter(String).join(' · ') + '</p>' : '') + '</div>' +
-      '<div class="btns"><button class="btn" onclick="window.print()"><i class="xi-print"></i>인쇄 / PDF 저장</button></div>';
+    out.innerHTML = '<div class="cert-view"><div class="cert-fit">' + certSheet(c) + '</div></div>' +
+      '<div class="btns cert-btns"><button class="btn" id="certPdf"><i class="xi-download"></i>PDF 저장</button><button class="btn line" onclick="window.print()"><i class="xi-print"></i>인쇄</button></div>';
+    var fit = out.querySelector('.cert-fit'), sh = fit.firstChild;
+    var size = function () { var k = Math.min(1, fit.parentNode.clientWidth / 794); sh.style.transform = 'scale(' + k + ')'; sh.style.transformOrigin = '0 0'; fit.style.width = 794 * k + 'px'; fit.style.height = 1123 * k + 'px'; };
+    size(); window.addEventListener('resize', size);
+    $('#certPdf').onclick = function () { var bt = this, t = bt.innerHTML; bt.disabled = true; bt.textContent = 'PDF 만드는 중…'; certPdf([c], '연수비납입증명서_' + c.name).catch(function () { out.querySelector('.cert-btns').insertAdjacentHTML('afterend', '<p class="note" style="text-align:center">PDF를 만들지 못했어요. [인쇄]를 눌러 PDF로 저장해 주세요.</p>'); }).then(function () { bt.disabled = false; bt.innerHTML = t; }); };
     out.scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -1024,7 +1053,8 @@
         posts: [{ no: 'Q0003', board: 'Q&A', title: '출석 문의', at: '2027-01-15', state: '답변 완료' }],
         attendance: { term: '1기', need: 12, total: 10, judge: '진행 중', days: [{ date: '2027-02-01', dow: '월', in: '08:52', out: '15:02', got: 5, status: '정상' }, { date: '2027-02-02', dow: '화', in: '09:24', out: '15:01', got: 4, status: '지각 24분' }, { date: '2027-02-03', dow: '수', in: '', out: '', got: 0, status: '예정' }] },
         requests: [{ no: 'R0104-2381', type: '현금영수증 수정', at: '2027-01-04', state: '완료', memo: '수정한 번호로 재발행했어요.' }],
-        certificate: { no: '2027-0001', birth: '19900101', school: '예시초등학교', period: '2027-01-11~2027-01-13', hours: 15, issuer: { name: '㈜키인컨설팅', ceo: '○○○', biz: '000-00-00000', addr: '서울특별시 ○○구 ○○로 00', tel: 'snu27@dumokquoka.com' }, name: data.name, term: '1기', amount: 100000, paidAt: '2026-12-16', course: '연구하는 교사되기 2027', org: '서울대학교 사범대학 교육연수원', operator: '연구하는 교사되기 운영팀', issuedAt: new Date().toISOString().slice(0, 10) }
+        links: { zoom: '', kakao: '' },
+        certificate: { no: 1, birth: '19900101', period: '2027-01-11~2027-01-13', name: data.name, term: '1기', amount: 100000, course: '연구하는 교사되기 2027', kind: '원격직무연수', use: '연수비 납입 증명 서류', issuerName: '○○○', seal: '', logo: '', issuedAt: new Date().toISOString().slice(0, 10) }
       });
     }
     return wait({ ok: false, error: '알 수 없는 요청' });

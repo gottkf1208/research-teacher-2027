@@ -852,16 +852,13 @@ h3.sec::before { background: var(--pink); }
 @media (max-width: 760px) { .hh-stage .qk.q1 img, .hh-stage .qk.q3 img { width: 104px; } .hh-stage .qk.q2 img { width: 130px; } .qk.q1, .qk.q3 { margin-top: 0; } .qk.q2 { margin: 0 -9px 16px; } }
 
 /* v13: 연수비 납입증명서 */
-.cert { position: relative; border: 3px double var(--ink); padding: 52px 56px 44px; }
-.cert .cert-no { text-align: left; margin: 0 0 18px; font-size: 14px; color: var(--gray-1); }
-.cert h4 { letter-spacing: .32em; margin-bottom: 32px; }
-.cert th { width: 108px; white-space: nowrap; text-align: center; font-weight: 700; }
-.cert td { text-align: left; }
-.cert .cert-say { margin: 36px 0 10px; font-size: 16px; }
-.cert .cert-date { margin: 18px 0 0; font-size: 16px; }
-.cert .issuer { margin-top: 28px; font-size: 21px; }
-.cert .issuer span { font-size: 16px; font-weight: 600; margin-left: 10px; }
-.cert .issuer .seal { display: inline-block; font-style: normal; font-size: 14px; font-weight: 500; color: var(--gray-1); margin-left: 8px; }
-.cert .cert-foot { margin: 14px 0 0; font-size: 12.5px; color: var(--gray-1); line-height: 1.6; }
-@media (max-width: 760px) { .cert { padding: 30px 16px 26px; } .cert h4 { font-size: 22px; letter-spacing: .18em; } .cert th, .cert td { padding: 10px 8px; font-size: 14px; } .cert th { width: 74px; } .cert table, .cert tbody, .cert tr { display: block; } .cert tr { display: grid; grid-template-columns: 74px 1fr; } .cert td[colspan] { grid-column: 2; } .cert th, .cert td { margin: 0 -1px -1px 0; } }
-@media print { .cert { border: 3px double #000; } }
+.cert-view { margin: 32px auto 0; max-width: 794px; }
+.cert-fit { margin: 0 auto; box-shadow: 0 0 0 1px var(--line, #dcdfe5), 0 14px 34px rgba(0, 24, 113, .1); overflow: hidden; }
+.cert-btns { justify-content: center; }
+@page { size: A4; margin: 0; }
+@media print {
+  .cert-sheet, .cert-sheet * { visibility: visible; }
+  .cert-view { margin: 0; max-width: none; }
+  .cert-fit { position: fixed; left: 0; top: 0; width: 794px !important; height: 1123px !important; box-shadow: none; overflow: visible; }
+  .cert-sheet { transform: none !important; }
+}
