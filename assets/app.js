@@ -997,7 +997,7 @@
       });
       return wait({
         ok: true,
-        site: { title: '연구하는 교사되기 2027', org: '서울대학교 사범대학 교육연수원', operator: '연구하는 교사되기 운영팀', email: 'snu27@dumokquoka.com', criteria: '총 15시간 중 12시간(80%) 이상 출석', fee: 0 },
+        site: { title: '연구하는 교사되기 2027', org: '서울대학교 사범대학 교육연수원', operator: '연구하는 교사되기 운영팀', email: 'gottkf1208@snu.ac.kr', criteria: '총 15시간 중 12시간(80%) 이상 출석', fee: 0 },
         terms: ['1기', '2기'], links: { '1기': { zoom: '', kakao: '' }, '2기': { zoom: '', kakao: '' } }, padlet: '',
         deadlines: { request: '', info: '' }, certificate: true, sido: SIDO,
         refund: { wait: '접수 후 7일 이내', rule: '연수 시작 전날까지 요청하면 전액 환불돼요. 연수가 시작된 뒤에는 환불되지 않아요(부득이한 사유만 예외로 검토).' }, attend: { before: 30, outBefore: 20, need: 12 }, pay: { account: '(예시) ○○은행 000-000-000000 (예금주: ○○○)', due: '12월 18일' },
