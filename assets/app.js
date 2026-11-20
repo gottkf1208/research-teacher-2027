@@ -72,19 +72,33 @@
     return attempt();
   }
 
-  var C_KEY = 'snu27_content';
+  // 안내 내용은 지난번에 받아 둔 것으로 화면을 바로 그리고, 새 내용은 뒤에서 받아 달라졌을 때만 다시 그린다
+  var C_KEY = 'snu27_content', cText = '', cBusy = null, touched = false;
+  function fetchContent() {
+    if (!cBusy) cBusy = api('content').then(function (res) {
+      if (!res.ok) throw new Error(res.error || '불러오기 실패');
+      var t = JSON.stringify(res), changed = t !== cText;
+      C = res; cText = t; try { localStorage.setItem(C_KEY, t); } catch (e) {}
+      fillFooter(); return changed;
+    });
+    return cBusy;
+  }
+  function refreshContent() {
+    fetchContent().then(function (changed) { if (changed && !touched) redraw(); }, function () {
+      cBusy = null; setTimeout(refreshContent, 60000);   // 서버가 잠깐 답하지 못하면 받아 둔 안내로 버티고 1분 뒤 다시
+    });
+  }
   function loadContent() {
     if (C) return Promise.resolve(C);
-    return api('content').then(function (res) {
-      if (!res.ok) throw new Error(res.error || '불러오기 실패');
-      C = res; try { localStorage.setItem(C_KEY, JSON.stringify(res)); } catch (e) {}
-      fillFooter(); return C;
-    }).catch(function (e) {
-      // 서버가 잠깐 답하지 못해도, 마지막으로 받아 둔 안내로 화면(특히 출석체크)을 띄운다
-      var old = null; try { old = JSON.parse(localStorage.getItem(C_KEY) || 'null'); } catch (x) {}
-      if (!old || !old.ok) throw e;
-      C = old; fillFooter(); setTimeout(function () { C = null; }, 60000); return old;
-    });
+    var t = null, old = null;
+    try { t = localStorage.getItem(C_KEY); old = JSON.parse(t || 'null'); } catch (x) {}
+    if (old && old.ok) { C = old; cText = t; fillFooter(); refreshContent(); return Promise.resolve(C); }
+    return fetchContent().then(function () { return C; }, function (e) { cBusy = null; throw e; });
+  }
+  function redraw() {
+    var key = (location.hash.replace(/^#\/?/, '').split('?')[0]) || '';
+    if (!key) return renderHome();
+    if (PAGES[key]) PAGES[key].r($('#view'));
   }
 
   function fillFooter() {
@@ -98,6 +112,7 @@
   function route() {
     var key = (location.hash.replace(/^#\/?/, '').split('?')[0]) || '';
     $('#gnb').classList.remove('open');
+    touched = false;
     if (!key) return renderHome();
     var p = PAGES[key];
     if (!p) { location.hash = '#/'; return; }
@@ -715,10 +730,15 @@
       (c.logo ? '<img src="' + esc(c.logo) + '" alt="" style="position:absolute;left:228.2px;top:888px;width:336.9px;height:111.2px">' : '') +
       '</div>';
   }
+  function certFonts() {
+    var id = 'certFonts';
+    if (!document.getElementById(id)) { var l = document.createElement('link'); l.id = id; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@700&display=swap'; l.ready = new Promise(function (ok) { l.onload = l.onerror = ok; }); document.head.appendChild(l); }
+    return document.getElementById(id).ready.then(function () { return document.fonts ? Promise.all([document.fonts.load("700 20px 'Nanum Myeongjo'", '연수비'), document.fonts.load("14px 'Nanum Gothic'", '연수비')]) : 0; });
+  }
   function loadJs(src) { return new Promise(function (ok, no) { if (document.querySelector('script[src="' + src + '"]')) return ok(); var s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
   // 서식 여러 장을 A4 PDF 한 파일로 내려받는다(화면 그대로 그려서 넣으므로 서식이 틀어지지 않는다)
   function certPdf(list, fileName) {
-    return Promise.all([loadJs('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'), loadJs('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'), document.fonts ? document.fonts.load("700 20px 'Nanum Myeongjo'", '연수비') : 0, document.fonts ? document.fonts.load("14px 'Nanum Gothic'", '연수비') : 0]).then(function () {
+    return Promise.all([loadJs('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'), loadJs('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'), certFonts()]).then(function () {
       var box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px'; document.body.appendChild(box);
       var pdf = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4' }), chain = Promise.resolve();
       list.forEach(function (c, i) {
@@ -730,6 +750,7 @@
     });
   }
   function showCert(out, c) {
+    certFonts();
     out.innerHTML = '<div class="cert-view"><div class="cert-fit">' + certSheet(c) + '</div></div>' +
       '<div class="btns cert-btns"><button class="btn" id="certPdf"><i class="xi-download"></i>PDF 저장</button><button class="btn line" onclick="window.print()"><i class="xi-print"></i>인쇄</button></div>';
     var fit = out.querySelector('.cert-fit'), sh = fit.firstChild;
@@ -1065,6 +1086,7 @@
   var ADMIN = (window.SITE_CONFIG && window.SITE_CONFIG.ADMIN_URL || '').trim();
   if (ADMIN) { var al = $('#adminLink'); al.href = ADMIN; al.hidden = false; }
   $('#menuBtn').onclick = function () { $('#gnb').classList.toggle('open'); };
+  ['pointerdown', 'keydown'].forEach(function (ev) { $('#view').addEventListener(ev, function () { touched = true; }, true); });
   window.addEventListener('hashchange', route);
   route();
   botInit();
