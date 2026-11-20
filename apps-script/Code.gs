@@ -1827,3 +1827,113 @@ function makeTestAccount() {
   bust_();
   Logger.log('테스트 계정을 만들었어요: ' + term + ' ' + name);
 }
+
+// ───────────────────────── 감시 알림 ─────────────────────────
+// 5분마다: 새 환불 요청·Q&A·셀프신청이 들어왔는지, 사이트가 열리는지 본다. 일이 있을 때만 운영자 메일로 알린다.
+// 매일 아침 8시대: 처리 안 된 건이 남아 있을 때만 한 번 정리해서 알린다.
+// 읽기만 한다(시트 내용·처리 상태는 건드리지 않는다). 알림에는 이름·연락처를 넣지 않고 글번호와 건수만 넣는다.
+// 켜기: 편집기에서 watchInstall 한 번 실행.  끄기: watchRemove 실행.
+var WATCH_GAP_MIN = 30;     // 새 글 알림은 30분에 한 번까지만 (그 사이 들어온 건은 다음 알림에 모아서)
+var WATCH_DAY_MAX = 20;     // 하루 알림 메일 상한 (연수생 메일 발송 한도를 지키려고)
+
+function watchInstall() {
+  watchRemove();
+  var p = PropertiesService.getScriptProperties();
+  p.setProperties({ watchBoardRow: String(sheet_('게시판').getLastRow()), watchReqRow: String(sheet_('셀프신청').getLastRow()), watchFail: '0', watchDown: '', watchLastAt: '0' });
+  ScriptApp.newTrigger('watchTick').timeBased().everyMinutes(5).create();
+  ScriptApp.newTrigger('watchDaily').timeBased().atHour(8).everyDays(1).inTimezone('Asia/Seoul').create();
+  var site = watchSite_();
+  watchMail_('감시를 시작했어요 (시험 알림)', '이 메일이 휴대폰에 뜨면 알림이 잘 오는 거예요.\n\n· 5분마다: 새 환불 요청, 새 Q&A, 새 셀프신청, 사이트 접속 장애\n· 매일 아침: 처리 안 된 건이 남아 있을 때만 정리\n\n지금 사이트 상태: ' + (site.ok ? '정상' : '확인 필요 (' + site.why + ')'), true);
+  Logger.log('감시 켬. 사이트: ' + JSON.stringify(site));
+}
+function watchRemove() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (/^watch(Tick|Daily)$/.test(t.getHandlerFunction())) ScriptApp.deleteTrigger(t); });
+}
+
+// 사이트 첫 화면 → config.js 의 공개 API 주소 → API 응답까지 차례로 확인
+function watchSite_() {
+  var site = String(settings_()['사이트주소'] || 'https://snu27.dumokquoka.com').replace(/\/$/, ''), admin = '';
+  try {
+    var r = UrlFetchApp.fetch(site + '/?w=' + Date.now(), { muteHttpExceptions: true, followRedirects: true });
+    if (r.getResponseCode() !== 200) return { ok: false, why: '사이트 첫 화면 응답 ' + r.getResponseCode(), admin: admin };
+    if (r.getContentText().indexOf('config.js') < 0) return { ok: false, why: '사이트 첫 화면 내용이 평소와 다름', admin: admin };
+    var c = UrlFetchApp.fetch(site + '/config.js?w=' + Date.now(), { muteHttpExceptions: true });
+    var txt = c.getResponseCode() === 200 ? c.getContentText() : '';
+    var api = (/API_URL:\s*'([^']+)'/.exec(txt) || [])[1];
+    admin = (/ADMIN_URL:\s*'([^']+)'/.exec(txt) || [])[1] || '';
+    if (!api) return { ok: false, why: '사이트 설정 파일(config.js)을 읽지 못함', admin: admin };
+    var a = UrlFetchApp.fetch(api + '?action=content', { muteHttpExceptions: true, followRedirects: true });
+    if (a.getResponseCode() !== 200) return { ok: false, why: '사이트 데이터(API) 응답 ' + a.getResponseCode(), admin: admin };
+    var j = JSON.parse(a.getContentText());
+    if (!j || j.ok === false || !j.schedule) return { ok: false, why: '사이트 데이터(API) 내용 오류' + (j && j.error ? ': ' + j.error : ''), admin: admin };
+    return { ok: true, admin: admin };
+  } catch (e) { return { ok: false, why: '접속 실패: ' + String(e.message || e).slice(0, 120), admin: admin }; }
+}
+
+function watchMail_(title, body, force) {
+  var p = PropertiesService.getScriptProperties(), day = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyyMMdd');
+  var used = p.getProperty('watchDay') === day ? Number(p.getProperty('watchDayN') || 0) : 0;
+  if (!force && used >= WATCH_DAY_MAX) return false;
+  var s = settings_();
+  MailApp.sendEmail({ to: Session.getEffectiveUser().getEmail(), subject: '[연수알림] ' + title, body: body + '\n\n— 연구하는 교사되기 2027 감시 알림 (읽기 전용, 자동 발송)\n운영 시트: ' + SpreadsheetApp.getActive().getUrl() + '\n사이트: ' + (s['사이트주소'] || ''), name: '연수 감시 알림' });
+  p.setProperties({ watchDay: day, watchDayN: String(used + 1) });
+  return true;
+}
+
+function watchTick() {
+  var p = PropertiesService.getScriptProperties(), now = Date.now();
+  // 1) 사이트 접속: 두 번 연속(약 10분) 실패하면 알리고, 다시 열리면 한 번 알린다
+  var site = watchSite_(), fail = Number(p.getProperty('watchFail') || 0), down = p.getProperty('watchDown') || '';
+  if (!site.ok) {
+    fail++;
+    p.setProperty('watchFail', String(fail));
+    if (fail === 2) {
+      p.setProperty('watchDown', String(now));
+      watchMail_('사이트 접속 장애', '사이트가 10분째 정상으로 열리지 않아요.\n\n· 증상: ' + site.why + '\n· 다시 열리면 한 번 더 알려 드려요.', true);
+    }
+  } else if (fail > 0) {
+    p.setProperties({ watchFail: '0', watchDown: '' });
+    if (down) watchMail_('사이트 복구', '사이트가 다시 정상으로 열려요. (장애 약 ' + Math.max(5, Math.round((now - Number(down)) / 60000) + 10) + '분)', true);
+  }
+  // 2) 새 글: 마지막으로 알린 줄 다음부터 센다. 줄이 지워져 줄어들었으면 기준만 맞춘다
+  var bsh = sheet_('게시판'), rsh = sheet_('셀프신청');
+  var bLast = bsh.getLastRow(), rLast = rsh.getLastRow();
+  var bFrom = Number(p.getProperty('watchBoardRow') || bLast), rFrom = Number(p.getProperty('watchReqRow') || rLast);
+  if (bLast < bFrom) { bFrom = bLast; p.setProperty('watchBoardRow', String(bLast)); }
+  if (rLast < rFrom) { rFrom = rLast; p.setProperty('watchReqRow', String(rLast)); }
+  if (bLast === bFrom && rLast === rFrom) return;
+  if (now - Number(p.getProperty('watchLastAt') || 0) < WATCH_GAP_MIN * 60000) return;   // 모아서 다음에
+  var refund = [], qna = [], req = {};
+  if (bLast > bFrom) bsh.getRange(bFrom + 1, 1, bLast - bFrom, 3).getValues().forEach(function (r) {
+    if (!clean_(r[1])) return;
+    (r[2] === '환불요청' ? refund : qna).push(clean_(r[1]));
+  });
+  if (rLast > rFrom) rsh.getRange(rFrom + 1, 1, rLast - rFrom, 3).getValues().forEach(function (r) { if (clean_(r[1])) req[clean_(r[2])] = (req[clean_(r[2])] || 0) + 1; });
+  var parts = [], lines = [];
+  if (refund.length) { parts.push('환불 요청 ' + refund.length + '건'); lines.push('· 환불 요청 ' + refund.length + '건: ' + refund.slice(0, 15).join(', ') + (refund.length > 15 ? ' 외' : '')); }
+  if (qna.length) { parts.push('Q&A ' + qna.length + '건'); lines.push('· Q&A 새 글 ' + qna.length + '건: ' + qna.slice(0, 15).join(', ') + (qna.length > 15 ? ' 외' : '')); }
+  Object.keys(req).forEach(function (k) { parts.push(k + ' ' + req[k] + '건'); lines.push('· 셀프신청(' + k + ') ' + req[k] + '건'); });
+  if (!parts.length) { p.setProperties({ watchBoardRow: String(bLast), watchReqRow: String(rLast) }); return; }
+  var pend = boardPending_();
+  var sent = watchMail_('새 ' + parts.join(' · '), '새로 들어온 건이 있어요.\n\n' + lines.join('\n') + '\n\n지금 처리 안 된 건: 환불 ' + pend.refund + '건, Q&A ' + pend.qna + '건, 메일 발송 대기 ' + outboxCount_() + '건' + (site.admin ? '\n\n운영자 페이지: ' + site.admin : ''));
+  if (sent) p.setProperties({ watchBoardRow: String(bLast), watchReqRow: String(rLast), watchLastAt: String(now) });
+}
+
+// 아침 정리: 남은 일이 있을 때만. 환불은 접수 5일이 넘은 건을 따로 짚는다(7일 안에 처리 약속)
+function watchDaily() {
+  var pend = boardPending_(), out = outboxCount_(), old = [], now = Date.now();
+  var req = rows_('셀프신청').filter(function (r) { return ['완료', '반려'].indexOf(r['처리상태']) < 0; }).length;
+  rows_('게시판').forEach(function (r) {
+    if (r['게시판'] !== '환불요청' || BOARD_DONE.indexOf(r['처리상태']) >= 0) return;
+    var d = toDate_(r['작성시각']);
+    if (d && now - d.getTime() >= 5 * 86400000) old.push(clean_(r['글번호']) + '(' + Math.floor((now - d.getTime()) / 86400000) + '일째)');
+  });
+  if (!pend.refund && !pend.qna && !out && !req) return;
+  var lines = [];
+  if (old.length) lines.push('★ 처리 기한이 가까운 환불: ' + old.join(', '));
+  if (pend.refund) lines.push('· 처리 안 된 환불 요청 ' + pend.refund + '건');
+  if (pend.qna) lines.push('· 답변 안 한 Q&A ' + pend.qna + '건');
+  if (out) lines.push('· 확인 후 보낼 메일(발송 대기함) ' + out + '건');
+  if (req) lines.push('· 처리 안 된 셀프신청 ' + req + '건');
+  watchMail_((old.length ? '환불 기한 임박 ' + old.length + '건 · ' : '') + '오늘 처리할 일', lines.join('\n'), true);
+}
